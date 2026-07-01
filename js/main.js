@@ -37,7 +37,7 @@ window.demolishExhibit = demolishExhibit;
 window.fetchLeaderboard = fetchLeaderboard;
 window.getPlayerRank = getPlayerRank;
 window.submitToLeaderboard = submitToLeaderboard;
-window.leaderboardPlayerId = leaderboardPlayerId;
+
 
 console.log("🔑 All functions exposed to window");
 
@@ -261,6 +261,7 @@ Promise.all([
   renderSupplies();
   renderResearch();
   leaderboardPlayerId = getPlayerId();
+  window.leaderboardPlayerId = leaderboardPlayerId; // ✅ Now it's safe to expose
 }).catch(err => {
   console.error("❌ Failed to load data:", err);
 });
