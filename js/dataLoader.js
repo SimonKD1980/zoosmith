@@ -2,7 +2,8 @@ import { data } from './state.js';
 
 export async function loadShop() {
   try {
-    const res = await fetch("../animals.json?nocache=" + Date.now());
+    // ✅ Removed the ../ because fetch resolves relative to index.html
+    const res = await fetch("animals.json?nocache=" + Date.now());
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     data.animals = await res.json();
     console.log(`✅ Loaded ${data.animals.length} animals`);
@@ -13,7 +14,7 @@ export async function loadShop() {
 
 export async function loadResearch() {
   try {
-    const res = await fetch("../research.json?nocache=" + Date.now());
+    const res = await fetch("research.json?nocache=" + Date.now());
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const arr = await res.json();
     data.researchProjects = {};
@@ -26,7 +27,7 @@ export async function loadResearch() {
 
 export async function loadUpgrades() {
   try {
-    const res = await fetch("../upgrades.json?nocache=" + Date.now());
+    const res = await fetch("upgrades.json?nocache=" + Date.now());
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const arr = await res.json();
     data.upgrades = {};
@@ -39,7 +40,7 @@ export async function loadUpgrades() {
 
 export async function loadFacilities() {
   try {
-    const res = await fetch("../facilities.json");
+    const res = await fetch("facilities.json");
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const arr = await res.json();
     data.facilities = {};
@@ -52,7 +53,7 @@ export async function loadFacilities() {
 
 export async function loadStaff() {
   try {
-    const res = await fetch("../staff.json?nocache=" + Date.now());
+    const res = await fetch("staff.json?nocache=" + Date.now());
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     data.staff = await res.json();
     console.log(`✅ Loaded ${data.staff.length} staff`);
@@ -63,7 +64,7 @@ export async function loadStaff() {
 
 export async function loadAmenities() {
   try {
-    const res = await fetch("../amenities.json?nocache=" + Date.now());
+    const res = await fetch("amenities.json?nocache=" + Date.now());
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const arr = await res.json();
     data.amenities = {};
@@ -76,7 +77,7 @@ export async function loadAmenities() {
 
 export async function loadAchievements() {
   try {
-    const res = await fetch("../achievements.json?nocache=" + Date.now());
+    const res = await fetch("achievements.json?nocache=" + Date.now());
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     data.achievements = await res.json();
     console.log(`✅ Loaded ${data.achievements.length} achievements`);
