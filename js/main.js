@@ -195,7 +195,13 @@ document.getElementById("buildExhibitBtn").onclick = () => {
         </div>
         <div style="font-weight: 800;">$${info.cost.toLocaleString()}</div>
       </div>`;
-    if (canAfford) btn.onclick = () => { buildExhibit(size); closeBuildModal(); };
+    if (canAfford) btn.onclick = () => { 
+  buildExhibit(size); 
+  closeBuildModal(); 
+  updateUI();
+  renderExhibits();
+  saveGame();
+};
     options.appendChild(btn);
   }
   modal.classList.add("active");
