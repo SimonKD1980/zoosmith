@@ -266,14 +266,30 @@ export function renderStaff() {
       </div>
     `;
     
-    const btn = card.querySelector('button');
-    if (!isMaxed && canAfford) {
-      btn.onclick = () => {
-        import('./gameLogic.js').then(m => { m.hireStaff(staff.id); updateUI(); renderStaff(); });
-      };
+const btn = card.querySelector('button');
+if (!isMaxed && canAfford) {
+  btn.onclick = () => {
+    console.log(`👷 Hiring ${staff.name}...`);
+    try {
+      import('./gameLogic.js').then(m => {
+        m.hireStaff(staff.id);
+        console.log(`✅ ${staff.name} hired successfully!`);
+        updateUI();
+        renderStaff();
+        import('./main.js').then(main => main.saveGame());
+      }).catch(err => {
+        console.error('❌ Error hiring staff:', err);
+        showToast('Error hiring staff. Check console.', 'error');
+      });
+    } catch (err) {
+      console.error('❌ Hire button error:', err);
+      showToast('Error hiring staff. Check console.', 'error');
     }
-    layout.appendChild(card);
-  });
+  };
+} else if (!canAfford) {
+  btn.onclick = () => {
+    showToast(`Need $${staff.cost.toLocaleString()}!`, 'error');
+  };
 }
 
 export function renderFacilities() {
