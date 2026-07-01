@@ -1,0 +1,101 @@
+[
+  {
+    "id": "basic_herbivores",
+    "name": "Basic Herbivore Care",
+    "desc": "Learn to care for common grazing animals.",
+    "icon": "🌿",
+    "cost": 2000,
+    "days": 5,
+    "tier": "basic",
+    "unlocks": ["fallow_deer", "babydoll_southdowns_sheep", "alpaca"],
+    "requires": null
+  },
+  {
+    "id": "small_carnivores",
+    "name": "Small Predator Study",
+    "desc": "Research behavior of small to medium carnivores.",
+    "icon": "🦊",
+    "cost": 3500,
+    "days": 7,
+    "tier": "basic",
+    "unlocks": ["fox", "otter", "red_panda", "lynx"],
+    "requires": null
+  },
+  {
+    "id": "avian_specialist",
+    "name": "Avian Specialist Program",
+    "desc": "Study exotic bird species and their habitats.",
+    "icon": "🦜",
+    "cost": 3000,
+    "days": 6,
+    "tier": "basic",
+    "unlocks": ["macaw", "toucan", "peacock", "flamingo"],
+    "requires": null
+  },
+  {
+    "id": "advanced_predators",
+    "name": "Advanced Predator Management",
+    "desc": "Study large carnivore behavior and habitat needs.",
+    "icon": "🦁",
+    "cost": 10000,
+    "days": 15,
+    "tier": "advanced",
+    "unlocks": ["lion", "tiger", "wolf", "bear"],
+    "requires": "small_carnivores"
+  },
+  {
+    "id": "primatology",
+    "name": "Primate Research Program",
+    "desc": "Specialized study of great apes and monkeys.",
+    "icon": "🦍",
+    "cost": 12000,
+    "days": 18,
+    "tier": "advanced",
+    "unlocks": ["gorilla", "chimpanzee", "orangutan", "lemur"],
+    "requires": "basic_herbivores"
+  },
+  {
+    "id": "marine_biology",
+    "name": "Marine Biology Institute",
+    "desc": "Research aquatic and semi-aquatic species.",
+    "icon": "🐬",
+    "cost": 15000,
+    "days": 20,
+    "tier": "advanced",
+    "unlocks": ["dolphin", "penguin", "seal", "sea_lion"],
+    "requires": "avian_specialist"
+  },
+  {
+    "id": "exotic_megafauna",
+    "name": "Exotic Megafauna Research",
+    "desc": "Specialized study of the world's largest animals.",
+    "icon": "🐘",
+    "cost": 25000,
+    "days": 30,
+    "tier": "exotic",
+    "unlocks": ["elephant", "rhino", "giraffe", "hippo"],
+    "requires": "advanced_predators"
+  },
+  {
+    "id": "rare_exotics",
+    "name": "Rare Exotic Species Program",
+    "desc": "Study the world's rarest and most elusive animals.",
+    "icon": "🐆",
+    "cost": 40000,
+    "days": 45,
+    "tier": "exotic",
+    "unlocks": ["snow_leopard", "pangolin", "okapi"],
+    "requires": "exotic_megafauna"
+  },
+  {
+    "id": "mythical_research",
+    "name": "Mythical Creature Division",
+    "desc": "Experimental research into legendary creatures.",
+    "icon": "✨",
+    "cost": 100000,
+    "days": 60,
+    "tier": "legendary",
+    "unlocks": ["unicorn", "dragon", "phoenix", "griffin"],
+    "requires": "rare_exotics"
+  }
+]

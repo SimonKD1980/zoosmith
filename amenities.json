@@ -1,0 +1,69 @@
+[
+    {
+        "id": "bench",
+        "name": "Bench",
+        "icon": "🪑",
+        "cost": 100,
+        "description": "Provides seating for tired visitors.",
+        "capacity": 5,
+        "revenue": 0,
+        "maxCustomers": 0,
+        "maintenanceCost": 0
+    },
+    {
+        "id": "SmallfoodStand",
+        "name": "Small Food Stand",
+        "icon": "🌭",
+        "cost": 500,
+        "description": "Sells snacks and drinks to hungry visitors.",
+        "capacity": 0,
+        "revenue": 15,
+        "maxCustomers": 50,
+        "maintenanceCost": 5
+    },
+        {
+        "id": "LargefoodStand",
+        "name": "Large Food Stand",
+        "icon": "🌭",
+        "cost": 500,
+        "description": "Sells snacks and drinks to hungry visitors.",
+        "capacity": 0,
+        "revenue": 15,
+        "maxCustomers": 50,
+        "maintenanceCost": 5
+    },
+    
+    {
+        "id": "giftShop",
+        "name": "Gift Shop",
+        "icon": "🎁",
+        "cost": 1000,
+        "description": "Sells souvenirs and plush toys.",
+        "capacity": 0,
+        "revenue": 25,
+        "maxCustomers": 40,
+        "maintenanceCost": 10
+    },
+    {
+        "id": "restroom",
+        "name": "Restroom",
+        "icon": "🚻",
+        "cost": 300,
+        "description": "Essential facility for visitor comfort.",
+        "capacity": 10,
+        "revenue": 0,
+        "maxCustomers": 0,
+        "maintenanceCost": 15
+    },
+    {
+        "id": "bin",
+        "name": "Trash Bin",
+        "icon": "🗑️",
+        "cost": 50,
+        "description": "Keeps the zoo clean. Must be emptied daily.",
+        "capacity": 20,
+        "revenue": 0,
+        "maxCustomers": 0,
+        "maintenanceCost": 2
+    }
+]

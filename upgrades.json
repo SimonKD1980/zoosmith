@@ -1,0 +1,32 @@
+[
+  {
+    "id": "foraging_boxes",
+    "name": "🌿 Foraging Boxes",
+    "cost": 500
+  },
+  {
+    "id": "vertical_perch",
+    "name": "🐦 Vertical Perch",
+    "cost": 750
+  },
+  {
+    "id": "roosting",
+    "name": "🥚 Roosting",
+    "cost": 1000
+  },
+  {
+    "id": "trees",
+    "name": "🌳 Trees",
+    "cost": 750
+  },
+  {
+    "id": "climbing_frame",
+    "name": "🧗 Climbing Frame",
+    "cost": 1200
+  },
+  {
+    "id": "breeding_den",
+    "name": "🍼 Breeding Den",
+    "cost": 2500
+  }
+]

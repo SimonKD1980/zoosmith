@@ -1,0 +1,30 @@
+[
+  {
+    "id": "toilets",
+    "name": "🚻 Toilets",
+    "cost": 800,
+    "attraction": 5,
+    "incomeBoost": 0.05
+  },
+  {
+    "id": "bins",
+    "name": "🗑 Bins",
+    "cost": 500,
+    "attraction": 8,
+    "incomeBoost": 0.03
+  },
+  {
+    "id": "benches",
+    "name": "🪑 Benches",
+    "cost": 600,
+    "attraction": 4,
+    "incomeBoost": 0.07
+  },
+  {
+    "id": "gift_shop",
+    "name": "🎁 Gift Shop",
+    "cost": 2000,
+    "attraction": 15,
+    "incomeBoost": 0.2
+  }
+]
