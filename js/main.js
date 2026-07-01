@@ -7,19 +7,33 @@ import { updateUI, showSection, renderShop, renderExhibits, renderAchievements, 
 import { calculateGuestHappiness, getAllAnimals, showToast, showFloatingMoney, addTicker } from './utils.js';
 
 // ============================================
-// 🔑 EXPOSE EVERYTHING TO WINDOW
+// 🔑 EXPOSE EVERYTHING TO WINDOW IMMEDIATELY
 // ============================================
-Object.assign(window, {
-  // Nav & UI
-  showSection, filterByCategory, changeLeaderboardCategory, savePlayerName,
-  // Modals
-  closeBuyModal, closeAnimalInfo, closeBuildModal, closeUpgradeModal,
-  cancelMove, openUpgradeMenu, openAnimalInfo, openBuyModal,
-  renderMoveSelection, renderDestinationSelection,
-  // Game actions (called from innerHTML)
-  buyFood, buyAmenity, startResearch, hireStaff, buyFacility,
-  sellAnimal, moveAnimalTo, buyUpgradeFromModal, sellUpgradeFromModal,
-});
+window.showSection = showSection;
+window.filterByCategory = filterByCategory;
+window.changeLeaderboardCategory = changeLeaderboardCategory;
+window.savePlayerName = savePlayerName;
+window.closeBuyModal = closeBuyModal;
+window.closeAnimalInfo = closeAnimalInfo;
+window.closeBuildModal = closeBuildModal;
+window.closeUpgradeModal = closeUpgradeModal;
+window.cancelMove = cancelMove;
+window.openUpgradeMenu = openUpgradeMenu;
+window.openAnimalInfo = openAnimalInfo;
+window.openBuyModal = openBuyModal;
+window.renderMoveSelection = renderMoveSelection;
+window.renderDestinationSelection = renderDestinationSelection;
+window.buyFood = buyFood;
+window.buyAmenity = buyAmenity;
+window.startResearch = startResearch;
+window.hireStaff = hireStaff;
+window.buyFacility = buyFacility;
+window.sellAnimal = sellAnimal;
+window.moveAnimalTo = moveAnimalTo;
+window.buyUpgradeFromModal = buyUpgradeFromModal;
+window.sellUpgradeFromModal = sellUpgradeFromModal;
+
+console.log("🔑 All functions exposed to window");
 
 // ============================================
 // SAVE / LOAD
@@ -58,7 +72,9 @@ function loadGame() {
       state.exhibits[id].size ??= "small";
     }
     console.log("✅ Game loaded");
-  } catch (e) { console.error("❌ Load failed:", e); }
+  } catch (e) {
+    console.error("❌ Load failed:", e);
+  }
 }
 
 function showMonthlyReport() {
@@ -227,6 +243,7 @@ Promise.all([
   loadShop(), loadUpgrades(), loadFacilities(),
   loadStaff(), loadAmenities(), loadAchievements(), loadResearch()
 ]).then(() => {
+  console.log("📦 All data loaded");
   updateUI();
   renderShop();
   renderExhibits();
@@ -238,6 +255,8 @@ Promise.all([
   renderSupplies();
   renderResearch();
   leaderboardPlayerId = getPlayerId();
+}).catch(err => {
+  console.error("❌ Failed to load data:", err);
 });
 
 setInterval(saveGame, 10000);
