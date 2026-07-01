@@ -5,6 +5,7 @@ import { advanceDay, buildExhibit, checkAchievements, buyFood, buyAmenity, start
 import { closeBuyModal, closeAnimalInfo, closeBuildModal, closeUpgradeModal, confirmBuyAnimal, openBuyModal, openAnimalInfo, openUpgradeMenu, renderMoveSelection, renderDestinationSelection } from './modals.js';
 import { updateUI, showSection, renderShop, renderExhibits, renderAchievements, renderReports, renderFacilities, renderStaff, renderSupplies, renderResearch, renderVisitors, renderAmenities, renderLeaderboard, filterByCategory, changeLeaderboardCategory, savePlayerName, updateLeaderboardContent } from './ui.js';
 import { calculateGuestHappiness, getAllAnimals, showToast, showFloatingMoney, addTicker } from './utils.js';
+import { demolishExhibit } from './ui.js'; // Add this to the top imports
 
 // ============================================
 // 🔑 EXPOSE EVERYTHING TO WINDOW IMMEDIATELY
@@ -32,6 +33,11 @@ window.sellAnimal = sellAnimal;
 window.moveAnimalTo = moveAnimalTo;
 window.buyUpgradeFromModal = buyUpgradeFromModal;
 window.sellUpgradeFromModal = sellUpgradeFromModal;
+window.demolishExhibit = demolishExhibit;
+window.fetchLeaderboard = fetchLeaderboard;
+window.getPlayerRank = getPlayerRank;
+window.submitToLeaderboard = submitToLeaderboard;
+window.leaderboardPlayerId = leaderboardPlayerId;
 
 console.log("🔑 All functions exposed to window");
 
