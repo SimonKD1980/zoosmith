@@ -1,4 +1,4 @@
-import { state, data, FOOD_TYPES, getDietFoodType, toArray } from './state.js';
+import { state, data, FOOD_TYPES, getDietFoodType, toArray, EXHIBIT_SIZES } from './state.js';
 import { showToast, showFloatingMoney, addTicker, getAllAnimals, getExhibitHappiness, isUnderstaffed, getStaffEffects, getGameStats, evaluateCheck, isResearchComplete, calculateGuestHappiness } from './utils.js';
 
 export function calculateAttraction() {
