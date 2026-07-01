@@ -175,36 +175,69 @@ document.addEventListener("click", (e) => {
 });
 
 document.getElementById("buildExhibitBtn").onclick = () => {
-  const modal = document.getElementById("buildModal");
-  const options = document.getElementById("buildSizeOptions");
-  options.innerHTML = "";
-  for (const size in EXHIBIT_SIZES) {
-    const info = EXHIBIT_SIZES[size];
-    const canAfford = state.money >= info.cost;
-    const btn = document.createElement("button");
-    btn.className = "primary-btn";
-    btn.style.width = "100%";
-    btn.style.marginBottom = "8px";
-    btn.style.opacity = canAfford ? "1" : "0.5";
-    btn.style.cursor = canAfford ? "pointer" : "not-allowed";
-    btn.innerHTML = `
-      <div style="display: flex; justify-content: space-between; align-items: center;">
-        <div style="text-align: left;">
-          <div style="font-weight: 800;">${info.emoji} ${info.label} Exhibit</div>
-          <div style="font-size: 0.8rem; opacity: 0.8;">⏱ ${info.buildDays} days to build</div>
-        </div>
-        <div style="font-weight: 800;">$${info.cost.toLocaleString()}</div>
-      </div>`;
-    if (canAfford) btn.onclick = () => { 
-  buildExhibit(size); 
-  closeBuildModal(); 
-  updateUI();
-  renderExhibits();
-  saveGame();
-};
-    options.appendChild(btn);
+  console.log("🔨 Build Exhibit button clicked");
+  try {
+    const modal = document.getElementById("buildModal");
+    const options = document.getElementById("buildSizeOptions");
+    
+    if (!modal || !options) {
+      console.error("❌ Modal elements not found!");
+      return;
+    }
+    
+    options.innerHTML = "";
+    
+    for (const size in EXHIBIT_SIZES) {
+      const info = EXHIBIT_SIZES[size];
+      const canAfford = state.money >= info.cost;
+      
+      const btn = document.createElement("button");
+      btn.className = "primary-btn";
+      btn.style.width = "100%";
+      btn.style.marginBottom = "8px";
+      btn.style.opacity = canAfford ? "1" : "0.5";
+      btn.style.cursor = canAfford ? "pointer" : "not-allowed";
+      
+      btn.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <div style="text-align: left;">
+            <div style="font-weight: 800;">${info.emoji} ${info.label} Exhibit</div>
+            <div style="font-size: 0.8rem; opacity: 0.8;">⏱ ${info.buildDays} days to build</div>
+          </div>
+          <div style="font-weight: 800;">$${info.cost.toLocaleString()}</div>
+        </div>`;
+      
+      if (canAfford) {
+        btn.onclick = (e) => {
+          e.stopPropagation();
+          console.log(`✅ Building ${size} exhibit...`);
+          try {
+            buildExhibit(size);
+            closeBuildModal();
+            updateUI();
+            renderExhibits();
+            saveGame();
+            console.log("✅ Exhibit built successfully!");
+          } catch (err) {
+            console.error("❌ Error building exhibit:", err);
+            showToast("Error building exhibit. Check console.", "error");
+          }
+        };
+      } else {
+        btn.onclick = () => {
+          showToast(`Need $${info.cost.toLocaleString()}!`, "error");
+        };
+      }
+      
+      options.appendChild(btn);
+    }
+    
+    modal.classList.add("active");
+    console.log("✅ Build modal opened");
+  } catch (error) {
+    console.error("❌ Error opening build modal:", error);
+    showToast("Error opening build menu. Check console.", "error");
   }
-  modal.classList.add("active");
 };
 
 document.getElementById("endDayBtn").onclick = () => {
