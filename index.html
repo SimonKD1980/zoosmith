@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ZooSmith V0.2.24</title>
+<title>ZooSmith V0.2.25</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <!-- =========================================
@@ -1360,6 +1360,42 @@ function getKeeperSlots() {
   return total;
 }
 
+/* =========================================
+ANIMAL AGING SYSTEM
+========================================= */
+function getLifeStage(animal) {
+  const age = animal.ageDays || 0;
+  if (age < 30) return { stage: 'baby', emoji: '🍼', label: 'Baby', incomeMultiplier: 0.5, canBreed: false };
+  if (age < 90) return { stage: 'juvenile', emoji: '🐾', label: 'Juvenile', incomeMultiplier: 0.75, canBreed: false };
+  if (age < 365) return { stage: 'adult', emoji: '🦁', label: 'Adult', incomeMultiplier: 1.0, canBreed: true };
+  return { stage: 'senior', emoji: '👴', label: 'Senior', incomeMultiplier: 0.8, canBreed: true };
+}
+
+function getAnimalAgeDisplay(animal) {
+  const age = animal.ageDays || 0;
+  const years = Math.floor(age / 360);
+  const months = Math.floor((age % 360) / 30);
+  const days = age % 30;
+  if (years > 0) return `${years}y ${months}m`;
+  if (months > 0) return `${months}m ${days}d`;
+  return `${days}d`;
+}
+
+function calculateAnimalIncome(animal) {
+  const baseIncome = animal.dailyIncome || 0;
+  const stage = getLifeStage(animal);
+  return Math.floor(baseIncome * stage.incomeMultiplier);
+}
+
+// Max lifespan: 2 game years (720 days) with some randomness
+function shouldDieOfOldAge(animal) {
+  const age = animal.ageDays || 0;
+  if (age < 600) return false; // Safe until ~1.6 years
+  // After 600 days, increasing chance of death
+  const deathChance = (age - 600) / 400; // Reaches 30% at 720 days
+  return Math.random() < deathChance * 0.01; // Daily check
+}
+
 function getAnimalSlotCost(animal) {
   const size = animal.requiredExhibitSize || "small";
   if (size === "large") return 3;
@@ -1630,6 +1666,20 @@ function processDayIncome() {
   processVisitorBehavior(visitors);
 }
 
+function processAnimalIncome() {
+  let totalIncome = 0;
+  for (const id in state.exhibits) {
+    for (const animal of state.exhibits[id].animals) {
+      const income = calculateAnimalIncome(animal);
+      totalIncome += income;
+    }
+  }
+  if (totalIncome > 0) {
+    state.money += totalIncome;
+    // Don't show floating money here - it's already shown in the day delta
+  }
+}
+
 function processUpkeep() {
   let totalCost = 0;
   for (const id in state.exhibits) {
@@ -1820,8 +1870,12 @@ function tryBreeding(exhibit) {
   for (const species in groups) {
     const group = groups[species];
     const males = group.filter(a => a.gender === "male");
-    const females = group.filter(a => a.gender === "female" && !a.isPregnant);
-    if (males.length === 0 || females.length === 0) continue;
+    const females = group.filter(a => {
+  const stage = getLifeStage(a);
+  return a.gender === "female" && !a.isPregnant && stage.canBreed;
+});
+const matureMales = group.filter(a => getLifeStage(a).canBreed && a.gender === "male");
+if (matureMales.length === 0 || females.length === 0) continue;
     if (getExhibitHappiness(exhibit) < 100) continue;
     const animalData = group[0];
     const baseChance = animalData.breedChance ?? 0.1;
@@ -1829,7 +1883,7 @@ function tryBreeding(exhibit) {
     const chance = baseChance * (1 + staffEffects.breedingBonus);
     if (Math.random() < chance) {
       const mother = females[Math.floor(Math.random() * females.length)];
-      const father = males[Math.floor(Math.random() * males.length)];
+      const father = matureMales[Math.floor(Math.random() * matureMales.length)];
       const speciesData = data.animals.find(a => a.id === species);
       const gestationDays = speciesData?.gestationDays || 10;
       mother.isPregnant = true;
@@ -1938,16 +1992,62 @@ function advanceDay() {
     return;
   }
   const startMoney = state.money;
-  processDayIncome();
-  processUpkeep();
+processDayIncome();
+processAnimalIncome();  // 🆕
+processUpkeep();
   processDailyMaintenance();
   consumeDailyFood();
   renderExhibits();
   const delta = state.money - startMoney;
   if (delta !== 0) showFloatingMoney(delta);
-  state.daysSinceNewAnimal++;
-  for (const id in state.exhibits) tryBreeding(state.exhibits[id]);
-  
+
+state.daysSinceNewAnimal++;
+
+// 🆕 AGE ALL ANIMALS + CHECK FOR DEATH
+const deaths = [];
+for (const id in state.exhibits) {
+  const exhibit = state.exhibits[id];
+  for (const animal of exhibit.animals) {
+    animal.ageDays = (animal.ageDays || 0) + 1;
+    
+    // Milestone notifications
+    if (animal.ageDays === 30) {
+      addTicker(`🎂 ${animal.name} is now a juvenile!`);
+    } else if (animal.ageDays === 90) {
+      addTicker(`🎉 ${animal.name} has reached adulthood!`);
+    } else if (animal.ageDays === 365) {
+      addTicker(`👴 ${animal.name} is now a senior.`);
+    }
+    
+    // Old age death check
+    if (shouldDieOfOldAge(animal)) {
+      deaths.push({ animal, exhibitId: id, cause: 'old age' });
+    }
+    
+    // Sickness death check (from flu event)
+    if (animal.sick && Math.random() < 0.05) { // 5% daily chance if sick
+      deaths.push({ animal, exhibitId: id, cause: 'sickness' });
+    }
+  }
+}
+
+// Process deaths
+for (const death of deaths) {
+  const exhibit = state.exhibits[death.exhibitId];
+  if (!exhibit) continue;
+  exhibit.animals = exhibit.animals.filter(a => a !== death.animal);
+  const causeEmoji = death.cause === 'old age' ? '⚰️' : '💀';
+  addTicker(`${causeEmoji} ${death.animal.name} passed away from ${death.cause}.`);
+  showToast(`${causeEmoji} ${death.animal.name} has died.`, 'error');
+  // Small compensation from insurance
+  const compensation = Math.floor(death.animal.dailyIncome * 3);
+  state.money += compensation;
+  showFloatingMoney(compensation);
+}
+
+// Breeding now only happens for adults
+for (const id in state.exhibits) tryBreeding(state.exhibits[id]);
+
   for (const id in state.exhibits) {
     const exhibit = state.exhibits[id];
     for (const animal of exhibit.animals) {
@@ -2303,8 +2403,11 @@ function renderExhibits() {
     const pregnantCount = group.animals.filter(a => a.isPregnant).length;
     const animalList = group.animals.length > 0
       ? group.animals.map((a, i) => {
-        const pregnantTag = a.isPregnant ? '🤰 ' : '';
-        return `<span class="animalTag" data-exhibit="${id}" data-index="${i}">${pregnantTag}${a.name} (${a.gender})</span>`;
+      const stage = getLifeStage(a);
+const pregnantTag = a.isPregnant ? '🤰 ' : '';
+const sickTag = a.sick ? '🤒 ' : '';
+const ageDisplay = getAnimalAgeDisplay(a);
+return `<span class="animalTag" data-exhibit="${id}" data-index="${i}" title="Age: ${ageDisplay}">${sickTag}${pregnantTag}${stage.emoji} ${a.name}</span>`;  
       }).join("")
       : "<em style='color:var(--muted)'>No animals yet</em>";
     div.innerHTML = `
@@ -2871,14 +2974,20 @@ function openAnimalInfo(animal, exhibitId, index) {
       </div>
     `;
   }
-  content.innerHTML = `
+  const stage = getLifeStage(animal);
+const actualIncome = calculateAnimalIncome(animal);
+const ageDisplay = getAnimalAgeDisplay(animal);
+content.innerHTML = `
     <h2>${animal.name}</h2>
-    <p>💰 Income: $${animal.dailyIncome}/day</p>
-    <p>🍖 Food: $${animal.foodCost || 2}/day</p>
+    <p>${stage.emoji} Life Stage: <strong>${stage.label}</strong> • Age: <strong>${ageDisplay}</strong></p>
+    <p>💰 Income: $${actualIncome}/day ${stage.incomeMultiplier !== 1 ? `<small style="color:var(--muted);">(base $${animal.dailyIncome} × ${stage.incomeMultiplier})</small>` : ''}</p>
+    <p>🍖 Food: $${animal.foodCost || 2}/day ${animal.isPregnant ? '<small style="color:var(--warn);">(×2 pregnant)</small>' : ''}</p>
     <p>👥 Needs: ${animal.minInExhibit} - ${animal.maxInExhibit}</p>
     <p>🏞 Exhibit: ${state.exhibits[exhibitId]?.name ?? "Unknown"}</p>
     ${animal.variation ? `<p>✨ Variant: ${animal.variation.name}</p>` : ""}
     <p>🍼 Born in zoo: ${animal.bornInZoo ? "Yes" : "No"}</p>
+    ${animal.sick ? `<p style="color:var(--danger);">🤒 Currently sick</p>` : ''}
+    ${stage.canBreed ? '<p style="color:var(--accent);">✅ Can breed</p>' : '<p style="color:var(--muted);">🔒 Too young to breed</p>'}
     ${pregnancyInfo}
     <div style="margin-top: 15px; display: flex; gap: 10px;">
       <button id="sellAnimalBtn" class="buildBtn">💸 Sell Animal</button>
@@ -3143,22 +3252,33 @@ const RANDOM_EVENTS = [
     icon: '💊',
     condition: () => getAllAnimals().length > 2,
     choices: [
-      { text: 'Treat All ($300)', effect: () => {
-        state.money -= 300; showFloatingMoney(-300);
-        showToast("Animals are healthy again.", "info");
-      }, cost: 300 },
-      { text: 'Do Nothing', effect: () => {
-        let affected = 0;
-        for (const id in state.exhibits) {
-          for (const animal of state.exhibits[id].animals) {
-            if (Math.random() > 0.7) {
-              animal.sick = true;
-              affected++;
-            }
-          }
-        }
-        showToast(`${affected} animals caught the flu. Happiness dropping.`, "error");
-      }, cost: 0 }
+{ text: 'Treat All ($300)', effect: () => {
+  state.money -= 300; showFloatingMoney(-300);
+  let cured = 0;
+  for (const id in state.exhibits) {
+    for (const animal of state.exhibits[id].animals) {
+      if (animal.sick) {
+        delete animal.sick;
+        delete animal.sickDays;
+        cured++;
+      }
+    }
+  }
+  showToast(`✅ Cured ${cured} animals!`, "info");
+}, cost: 300 }
+{ text: 'Do Nothing', effect: () => {
+  let affected = 0;
+  for (const id in state.exhibits) {
+    for (const animal of state.exhibits[id].animals) {
+      if (Math.random() > 0.7) {
+        animal.sick = true;
+        animal.sickDays = 0;
+        affected++;
+      }
+    }
+  }
+  showToast(`${affected} animals caught the flu! They may die without treatment.`, "error");
+}, cost: 0 }
     ]
   }
 ];
