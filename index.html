@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ZooSmith V0.2.26</title>
+<title>ZooSmith V0.2.27</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <!-- =========================================
@@ -2496,8 +2496,20 @@ function renderExhibits() {
     const sizeInfo = EXHIBIT_SIZES[group.size] || EXHIBIT_SIZES.small;
     const dailyFoodCost = group.animals.reduce((sum, a) => sum + (a.foodCost || 2), 0);
     const dailyExhibitCost = 5 + dailyFoodCost;
+    
+    // 🆕 Calculate fence status BEFORE building HTML
+    const fenceCondition = group.fenceCondition ?? 100;
+    const fenceColor = fenceCondition >= 70 ? 'var(--accent)' : 
+                       fenceCondition >= 50 ? 'var(--warn)' : 
+                       fenceCondition >= 30 ? 'var(--danger)' : '#dc2626';
+    const fenceEmoji = fenceCondition >= 70 ? '✅' : 
+                       fenceCondition >= 50 ? '⚠️' : 
+                       fenceCondition >= 30 ? '🔶' : '🔴';
+    
     const div = document.createElement("div");
     div.className = "exhibitCard";
+    
+    // Status badge
     let statusBadge = "";
     if (isBuilding) {
       const totalBuildDays = sizeInfo.buildDays;
@@ -2515,94 +2527,41 @@ function renderExhibits() {
     } else {
       statusBadge = `<div style="font-size:0.8rem; opacity:0.8; margin-top:4px;">⚠️ Not Built</div>`;
     }
+    
     const pregnantCount = group.animals.filter(a => a.isPregnant).length;
     const animalList = group.animals.length > 0
       ? group.animals.map((a, i) => {
-      const stage = getLifeStage(a);
-const pregnantTag = a.isPregnant ? '🤰 ' : '';
-const sickTag = a.sick ? '🤒 ' : '';
-const ageDisplay = getAnimalAgeDisplay(a);
-return `<span class="animalTag" data-exhibit="${id}" data-index="${i}" title="Age: ${ageDisplay}">${sickTag}${pregnantTag}${stage.emoji} ${a.name}</span>`;  
+        const stage = getLifeStage(a);
+        const pregnantTag = a.isPregnant ? '🤰 ' : '';
+        const sickTag = a.sick ? '🤒 ' : '';
+        const ageDisplay = getAnimalAgeDisplay(a);
+        return `<span class="animalTag" data-exhibit="${id}" data-index="${i}" title="Age: ${ageDisplay}">${sickTag}${pregnantTag}${stage.emoji} ${a.name}</span>`;
       }).join("")
       : "<em style='color:var(--muted)'>No animals yet</em>";
+    
+    // ✅ Single clean template literal
     div.innerHTML = `
       <div class="exhibit-header">
         <h3>🏞 ${group.name}</h3>
         <div style="font-size:0.75rem; opacity:0.7; margin-top:2px;">${sizeInfo.emoji} ${sizeInfo.label} Exhibit</div>
         ${statusBadge}
       </div>
-      // Calculate fence status BEFORE building HTML
-let fenceStatusHTML = '';
-const fenceCondition = group.fenceCondition || 100;
-const fenceColor = fenceCondition >= 70 ? 'var(--accent)' : 
-                   fenceCondition >= 50 ? 'var(--warn)' : 
-                   fenceCondition >= 30 ? 'var(--danger)' : '#dc2626';
-const fenceEmoji = fenceCondition >= 70 ? '✅' : 
-                   fenceCondition >= 50 ? '⚠️' : 
-                   fenceCondition >= 30 ? '🔶' : '🔴';
-
-fenceStatusHTML = `
-  <div class="exhibit-stat">
-    <span>${fenceEmoji} Fence Condition</span>
-    <strong style="color: ${fenceColor};">${Math.round(fenceCondition)}%</strong>
-  </div>
-  <div class="happiness-bar" style="margin-bottom: 8px;">
-    <div style="height: 100%; width: ${fenceCondition}%; background: ${fenceColor}; transition: width 0.3s;"></div>
-  </div>
-`;
-
-// NOW build the HTML with fenceStatusHTML injected
-div.innerHTML = `
-  <div class="exhibit-header">
-    <h3>🏞 ${group.name}</h3>
-    <div style="font-size:0.75rem; opacity:0.7; margin-top:2px;">${sizeInfo.emoji} ${sizeInfo.label} Exhibit</div>
-    ${statusBadge}
-  </div>
-  <div class="exhibit-body">
-    <div class="exhibit-stat">
-      <span>🐾 Animals</span>
-      <strong>${group.animals.length}</strong>
-    </div>
-    <div class="exhibit-stat">
-      <span>😊 Happiness</span>
-      <strong style="color:${happiness >= 80 ? 'var(--accent)' : happiness >= 50 ? 'var(--warn)' : 'var(--danger)'}">${happiness}%</strong>
-    </div>
-    ${fenceStatusHTML}
-    ${pregnantCount > 0 ? `
-      <div class="exhibit-stat">
-        <span>🤰 Pregnant</span>
-        <strong style="color: var(--purple);">${pregnantCount}</strong>
-      </div>
-    ` : ''}
-    <div class="happiness-bar">
-      <div class="happiness-fill" style="width:${happiness}%"></div>
-    </div>
-    <div class="exhibit-stat">
-      <span>🍖 Daily Food</span>
-      <strong style="color: var(--warn);">$${dailyFoodCost}</strong>
-    </div>
-    <div class="exhibit-stat">
-      <span>🧾 Total Upkeep</span>
-      <strong style="color: var(--danger);">$${dailyExhibitCost}/day</strong>
-    </div>
-    <div class="exhibit-stat">
-      <span>🏗 Upgrades</span>
-      <strong>${upgradeCount}</strong>
-    </div>
-    <div class="animalList">${animalList}</div>
-    ${!isBuilding ? `
-      <div style="display:flex; gap:6px; margin-top:8px;">
-        <button class="secondary-btn" style="flex:1; padding:8px; font-size:0.85rem;">🏗 Upgrades</button>
-        <button class="secondary-btn" style="flex:1; padding:8px; font-size:0.85rem; background: linear-gradient(135deg, #f59e0b, #d97706); color: white;" onclick="repairFence('${id}')">🔧 Repair</button>
-        <button class="danger-btn" style="flex:1; padding:8px; font-size:0.85rem;">🗑 Remove</button>
-      </div>
-    ` : `
-      <div style="margin-top:8px; padding:10px; background: rgba(245, 158, 11, 0.1); border-radius: 8px; text-align:center; color: var(--warn); font-size:0.85rem;">
-        ⏳ Cannot modify while under construction
-      </div>
-    `}
-  </div>
-`;
+      <div class="exhibit-body">
+        <div class="exhibit-stat">
+          <span>🐾 Animals</span>
+          <strong>${group.animals.length}</strong>
+        </div>
+        <div class="exhibit-stat">
+          <span>😊 Happiness</span>
+          <strong style="color:${happiness >= 80 ? 'var(--accent)' : happiness >= 50 ? 'var(--warn)' : 'var(--danger)'}">${happiness}%</strong>
+        </div>
+        <div class="exhibit-stat">
+          <span>${fenceEmoji} Fence Condition</span>
+          <strong style="color: ${fenceColor};">${Math.round(fenceCondition)}%</strong>
+        </div>
+        <div class="happiness-bar" style="margin-bottom: 8px;">
+          <div style="height: 100%; width: ${fenceCondition}%; background: ${fenceColor}; transition: width 0.3s;"></div>
+        </div>
         ${pregnantCount > 0 ? `
           <div class="exhibit-stat">
             <span>🤰 Pregnant</span>
@@ -2628,6 +2587,7 @@ div.innerHTML = `
         ${!isBuilding ? `
           <div style="display:flex; gap:6px; margin-top:8px;">
             <button class="secondary-btn" style="flex:1; padding:8px; font-size:0.85rem;">🏗 Upgrades</button>
+            <button class="secondary-btn" style="flex:1; padding:8px; font-size:0.85rem; background: linear-gradient(135deg, #f59e0b, #d97706); color: white;" onclick="repairFence('${id}')">🔧 Repair</button>
             <button class="danger-btn" style="flex:1; padding:8px; font-size:0.85rem;">🗑 Remove</button>
           </div>
         ` : `
@@ -2637,6 +2597,8 @@ div.innerHTML = `
         `}
       </div>
     `;
+    
+    // Wire up buttons only if not building
     if (!isBuilding) {
       div.querySelectorAll(".danger-btn")[0].onclick = () => {
         if (group.animals.length > 0) return showToast("Cannot remove exhibit with animals inside!", "error");
@@ -2653,7 +2615,6 @@ div.innerHTML = `
     box.appendChild(div);
   });
 }
-
 function renderVisitors() {
   const box = document.getElementById("visitors");
   const totalSpending = state.visitorSpending.total;
