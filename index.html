@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ZooSmith V0.2.28</title>
+<title>ZooSmith V0.2.29</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <!-- =========================================
@@ -2067,6 +2067,11 @@ function repairFence(exhibitId) {
   const exhibit = state.exhibits[exhibitId];
   if (!exhibit) return;
   
+  // 🆕 Check if maintenance staff is hired
+  if (state.maintenanceWorkers === 0) {
+    return showToast("You need to hire maintenance staff first! Go to the Staff tab.", "error");
+  }
+  
   const damage = 100 - exhibit.fenceCondition;
   const sizeMultiplier = exhibit.size === "large" ? 3 : exhibit.size === "medium" ? 2 : 1;
   const repairCost = Math.floor(damage * 10 * sizeMultiplier);
@@ -2078,13 +2083,11 @@ function repairFence(exhibitId) {
   state.money -= repairCost;
   showFloatingMoney(-repairCost);
   exhibit.fenceCondition = 100;
-  
   addTicker(`🔧 Repaired ${exhibit.name} fence (-$${repairCost})`);
   showToast(`✅ Fence repaired!`, "info");
   updateUI();
   renderExhibits();
 }
-
   
 function advanceDay() {
   if (state.activeEvent) {
