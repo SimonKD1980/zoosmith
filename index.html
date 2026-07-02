@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ZooSmith V0.2.25</title>
+<title>ZooSmith V0.2.26</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <!-- =========================================
@@ -1208,7 +1208,9 @@ let state = {
     dailyMaintenanceCost: 0
   },
   completedResearch: [],
-  activeResearch: null
+  activeResearch: null,
+  maintenanceWorkers: 0,  // 🆕 Track maintenance staff count
+  maintenanceLevel: 0     // 🆕 0=none, 1=junior, 2=senior, 3=chief
 };
 
 // Helper to handle both strings and arrays from JSON
@@ -1986,6 +1988,104 @@ function processDailyMaintenance() {
   }
 }
 
+function processFenceDegradation() {
+  for (const id in state.exhibits) {
+    const exhibit = state.exhibits[id];
+    if (exhibit.buildDaysRemaining > 0) continue; // Don't degrade while building
+    
+    // Base degradation
+    let degradation = 0.5;
+    
+    // Animal count factor
+    const animalCount = exhibit.animals.length;
+    degradation += animalCount * 0.2;
+    
+    // Animal size factor
+    exhibit.animals.forEach(animal => {
+      const size = animal.requiredExhibitSize || "small";
+      if (size === "large") degradation += 0.3;
+      else if (size === "medium") degradation += 0.15;
+    });
+    
+    // Maintenance staff reduces degradation
+    const maintenanceReduction = state.maintenanceLevel * 0.2; // 20% per level
+    degradation *= (1 - maintenanceReduction);
+    
+    // Senior+ maintenance auto-repairs
+    if (state.maintenanceLevel >= 2) {
+      const autoRepair = state.maintenanceLevel * 5; // 5% per level
+      exhibit.fenceCondition = Math.min(100, exhibit.fenceCondition + autoRepair);
+    }
+    
+    // Apply degradation
+    exhibit.fenceCondition = Math.max(0, exhibit.fenceCondition - degradation);
+    
+    // Escape checks
+    if (exhibit.fenceCondition < 10 && exhibit.animals.length > 0) {
+      // Guaranteed escape
+      triggerEscape(id);
+    } else if (exhibit.fenceCondition < 30 && Math.random() < 0.3 && exhibit.animals.length > 0) {
+      // 30% chance
+      triggerEscape(id);
+    } else if (exhibit.fenceCondition < 50 && Math.random() < 0.1 && exhibit.animals.length > 0) {
+      // 10% chance
+      triggerEscape(id);
+    }
+  }
+}
+
+function triggerEscape(exhibitId) {
+  const exhibit = state.exhibits[exhibitId];
+  if (!exhibit || exhibit.animals.length === 0) return;
+  
+  const escapedAnimal = exhibit.animals[Math.floor(Math.random() * exhibit.animals.length)];
+  exhibit.animals = exhibit.animals.filter(a => a !== escapedAnimal);
+  
+  addTicker(`🚨 ${escapedAnimal.name} escaped from ${exhibit.name}!`);
+  showToast(`🚨 ${escapedAnimal.name} escaped!`, "error");
+  
+  // Visitor satisfaction drops
+  state.visitorSatisfaction = Math.max(0, state.visitorSatisfaction - 15);
+  
+  // Small chance to recover the animal (costs money)
+  if (Math.random() < 0.5) {
+    const recoveryCost = Math.floor(escapedAnimal.dailyIncome * 20);
+    if (state.money >= recoveryCost) {
+      state.money -= recoveryCost;
+      showFloatingMoney(-recoveryCost);
+      exhibit.animals.push(escapedAnimal);
+      showToast(`✅ Recovered ${escapedAnimal.name} for $${recoveryCost}`, "info");
+    } else {
+      showToast(`💸 ${escapedAnimal.name} is gone forever...`, "error");
+    }
+  } else {
+    showToast(`💸 ${escapedAnimal.name} is gone forever...`, "error");
+  }
+}
+
+function repairFence(exhibitId) {
+  const exhibit = state.exhibits[exhibitId];
+  if (!exhibit) return;
+  
+  const damage = 100 - exhibit.fenceCondition;
+  const sizeMultiplier = exhibit.size === "large" ? 3 : exhibit.size === "medium" ? 2 : 1;
+  const repairCost = Math.floor(damage * 10 * sizeMultiplier);
+  
+  if (state.money < repairCost) {
+    return showToast(`Need $${repairCost} to repair fence!`, "error");
+  }
+  
+  state.money -= repairCost;
+  showFloatingMoney(-repairCost);
+  exhibit.fenceCondition = 100;
+  
+  addTicker(`🔧 Repaired ${exhibit.name} fence (-$${repairCost})`);
+  showToast(`✅ Fence repaired!`, "info");
+  updateUI();
+  renderExhibits();
+}
+
+  
 function advanceDay() {
   if (state.activeEvent) {
     showToast("Resolve the current event before ending the day!", "warn");
@@ -1996,6 +2096,21 @@ processDayIncome();
 processAnimalIncome();  // 🆕
 processUpkeep();
   processDailyMaintenance();
+  processFenceDegradation();
+// Fence condition warnings
+for (const id in state.exhibits) {
+  const exhibit = state.exhibits[id];
+  if (exhibit.buildDaysRemaining > 0) continue;
+  
+  const condition = exhibit.fenceCondition || 100;
+  if (condition < 30 && condition >= 10) {
+    addTicker(`🔴 ${exhibit.name} fence is critical! Repair immediately!`);
+  } else if (condition < 50 && condition >= 30) {
+    addTicker(`🔶 ${exhibit.name} fence needs urgent repair!`);
+  } else if (condition < 70 && condition >= 50) {
+    addTicker(`⚠️ ${exhibit.name} fence is wearing down.`);
+  }
+} 
   consumeDailyFood();
   renderExhibits();
   const delta = state.money - startMoney;
@@ -2416,15 +2531,78 @@ return `<span class="animalTag" data-exhibit="${id}" data-index="${i}" title="Ag
         <div style="font-size:0.75rem; opacity:0.7; margin-top:2px;">${sizeInfo.emoji} ${sizeInfo.label} Exhibit</div>
         ${statusBadge}
       </div>
-      <div class="exhibit-body">
-        <div class="exhibit-stat">
-          <span>🐾 Animals</span>
-          <strong>${group.animals.length}</strong>
-        </div>
-        <div class="exhibit-stat">
-          <span>😊 Happiness</span>
-          <strong style="color:${happiness >= 80 ? 'var(--accent)' : happiness >= 50 ? 'var(--warn)' : 'var(--danger)'}">${happiness}%</strong>
-        </div>
+      // Calculate fence status BEFORE building HTML
+let fenceStatusHTML = '';
+const fenceCondition = group.fenceCondition || 100;
+const fenceColor = fenceCondition >= 70 ? 'var(--accent)' : 
+                   fenceCondition >= 50 ? 'var(--warn)' : 
+                   fenceCondition >= 30 ? 'var(--danger)' : '#dc2626';
+const fenceEmoji = fenceCondition >= 70 ? '✅' : 
+                   fenceCondition >= 50 ? '⚠️' : 
+                   fenceCondition >= 30 ? '🔶' : '🔴';
+
+fenceStatusHTML = `
+  <div class="exhibit-stat">
+    <span>${fenceEmoji} Fence Condition</span>
+    <strong style="color: ${fenceColor};">${Math.round(fenceCondition)}%</strong>
+  </div>
+  <div class="happiness-bar" style="margin-bottom: 8px;">
+    <div style="height: 100%; width: ${fenceCondition}%; background: ${fenceColor}; transition: width 0.3s;"></div>
+  </div>
+`;
+
+// NOW build the HTML with fenceStatusHTML injected
+div.innerHTML = `
+  <div class="exhibit-header">
+    <h3>🏞 ${group.name}</h3>
+    <div style="font-size:0.75rem; opacity:0.7; margin-top:2px;">${sizeInfo.emoji} ${sizeInfo.label} Exhibit</div>
+    ${statusBadge}
+  </div>
+  <div class="exhibit-body">
+    <div class="exhibit-stat">
+      <span>🐾 Animals</span>
+      <strong>${group.animals.length}</strong>
+    </div>
+    <div class="exhibit-stat">
+      <span>😊 Happiness</span>
+      <strong style="color:${happiness >= 80 ? 'var(--accent)' : happiness >= 50 ? 'var(--warn)' : 'var(--danger)'}">${happiness}%</strong>
+    </div>
+    ${fenceStatusHTML}
+    ${pregnantCount > 0 ? `
+      <div class="exhibit-stat">
+        <span>🤰 Pregnant</span>
+        <strong style="color: var(--purple);">${pregnantCount}</strong>
+      </div>
+    ` : ''}
+    <div class="happiness-bar">
+      <div class="happiness-fill" style="width:${happiness}%"></div>
+    </div>
+    <div class="exhibit-stat">
+      <span>🍖 Daily Food</span>
+      <strong style="color: var(--warn);">$${dailyFoodCost}</strong>
+    </div>
+    <div class="exhibit-stat">
+      <span>🧾 Total Upkeep</span>
+      <strong style="color: var(--danger);">$${dailyExhibitCost}/day</strong>
+    </div>
+    <div class="exhibit-stat">
+      <span>🏗 Upgrades</span>
+      <strong>${upgradeCount}</strong>
+    </div>
+    <div class="animalList">${animalList}</div>
+    ${!isBuilding ? `
+      <div style="display:flex; gap:6px; margin-top:8px;">
+        <button class="secondary-btn" style="flex:1; padding:8px; font-size:0.85rem;">🏗 Upgrades</button>
+        <button class="secondary-btn" style="flex:1; padding:8px; font-size:0.85rem; background: linear-gradient(135deg, #f59e0b, #d97706); color: white;" onclick="repairFence('${id}')">🔧 Repair</button>
+        <button class="danger-btn" style="flex:1; padding:8px; font-size:0.85rem;">🗑 Remove</button>
+      </div>
+    ` : `
+      <div style="margin-top:8px; padding:10px; background: rgba(245, 158, 11, 0.1); border-radius: 8px; text-align:center; color: var(--warn); font-size:0.85rem;">
+        ⏳ Cannot modify while under construction
+      </div>
+    `}
+  </div>
+`;
         ${pregnantCount > 0 ? `
           <div class="exhibit-stat">
             <span>🤰 Pregnant</span>
@@ -3115,11 +3293,18 @@ function hireStaff(staffId) {
   state.money -= staff.cost;
   showFloatingMoney(-staff.cost);
   state.hiredStaff.push(staffId);
+  
+  // 🆕 Update maintenance level
+  if (staff.effects?.maintenanceLevel) {
+    state.maintenanceLevel = Math.max(state.maintenanceLevel, staff.effects.maintenanceLevel);
+    state.maintenanceWorkers++;
+  }
+  
   addTicker(`👷 Hired ${staff.name}`);
   updateUI();
   renderStaff();
 }
-
+  
 function renderMoveSelection() {
   const box = document.getElementById("exhibits");
   const fromGroup = state.exhibits[state.moveState.fromExhibit];
@@ -3265,7 +3450,7 @@ const RANDOM_EVENTS = [
     }
   }
   showToast(`✅ Cured ${cured} animals!`, "info");
-}, cost: 300 }
+}, cost: 300 },
 { text: 'Do Nothing', effect: () => {
   let affected = 0;
   for (const id in state.exhibits) {
@@ -3399,7 +3584,8 @@ function buildExhibit(size) {
     size: size,
     animals: [],
     upgrades: [],
-    buildDaysRemaining: info.buildDays
+    buildDaysRemaining: info.buildDays,
+    fenceCondition: 100  // 🆕 Start at 100%
   };
   addTicker(`🏗 Started building ${info.label} Exhibit (ready in ${info.buildDays} days)`);
   updateUI();
