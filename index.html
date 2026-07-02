@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ZooSmith V0.2.29</title>
+<title>ZooSmith V0.2.30</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <!-- =========================================
@@ -3068,11 +3068,14 @@ document.getElementById("confirmBuyBtn").onclick = () => {
   const exhibit = state.exhibits[id];
   const incompatible = exhibit.animals.some(existing => existing.id !== animal.id && !animal.compatibleWith.includes(existing.id));
   if (incompatible) return showToast("This animal cannot live with current exhibit animals!", "error");
-  const slotCost = getAnimalSlotCost(animal);
-  const available = getAvailableSlots();
-  if (available < slotCost) {
-    return showToast(`Need ${slotCost} keeper slot${slotCost > 1 ? 's' : ''}! Only ${available} available. Hire more keepers!`, "error");
-  }
+// 🆕 Keeper slots are now optional - animals can be kept without keepers
+// but they'll be unhappy if understaffed (handled in getExhibitHappiness)
+const slotCost = getAnimalSlotCost(animal);
+const available = getAvailableSlots();
+if (available < slotCost) {
+  showToast(`⚠️ No keepers available! ${animal.name} will be unhappy without staff.`, "warn");
+  // Continue anyway - allow the purchase
+}
   state.money -= animal.cost;
   showFloatingMoney(-animal.cost);
   exhibit.animals.push({
