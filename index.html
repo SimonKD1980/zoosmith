@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ZooSmith V0.2.27</title>
+<title>ZooSmith V0.2.28</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <!-- =========================================
@@ -3570,7 +3570,9 @@ document.getElementById("resetGameBtn").onclick = () => {
     food: { hay: 30, meat: 20, produce: 15 },
     completedResearch: [],
     activeResearch: null,
-    maintenance: { dailyMaintenanceCost: 0 }
+    maintenance: { dailyMaintenanceCost: 0 },
+    maintenanceWorkers: 0,  // 🆕 Add this
+  maintenanceLevel: 0  
   };
   ["reports", "exhibits", "shop", "achievements", "staff", "facilities", "visitors", "amenities"].forEach(id => document.getElementById(id).innerHTML = "");
   updateUI(); renderExhibits(); renderAchievements(); renderReports(); renderShop(); renderFacilities(); renderStaff(); renderSupplies(); renderResearch();
@@ -3607,6 +3609,8 @@ function loadGame() {
     state.completedResearch ??= [];
     state.activeResearch ??= null;
     state.maintenance ??= { dailyMaintenanceCost: 0 };
+    state.maintenanceWorkers ??= 0;  // 🆕 Add this
+state.maintenanceLevel ??= 0; 
     for (const id in state.exhibits) {
       state.exhibits[id].animals ??= [];
       state.exhibits[id].upgrades ??= [];
