@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ZooSmith V0.2.34</title>
+<title>ZooSmith V0.2.35</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <!-- =========================================
@@ -2295,16 +2295,26 @@ for (const id in state.exhibits) tryBreeding(state.exhibits[id]);
   if (state.activeResearch) {
     state.activeResearch.daysRemaining--;
     if (state.activeResearch.daysRemaining <= 0) {
-      const project = data.researchProjects[state.activeResearch.projectId];
-      state.completedResearch.push(state.activeResearch.projectId);
-      state.activeResearch = null;
-      if (project) {
-        addTicker(`🎉 Research complete: ${project.name}!`);
-        showToast(`🔬 ${project.name} complete! ${project.unlocks.length} new animals unlocked!`, "info");
+  const project = data.researchProjects[state.activeResearch.projectId];
+  state.completedResearch.push(state.activeResearch.projectId);
+  state.activeResearch = null;
+  if (project) {
+    addTicker(`🎉 Research complete: ${project.name}!`);
+    showToast(`🔬 ${project.name} complete! ${project.unlocks.length} new animals unlocked!`, "info");
+    
+    // 🐛 DEBUG: Log what should be unlocked
+    console.log("✅ Research completed:", project.id);
+    console.log("📋 Unlocks array:", project.unlocks);
+    console.log("🔍 Checking animals for matching researchRequired field:");
+    data.animals.forEach(animal => {
+      if (animal.researchRequired === project.id) {
+        console.log(`  ✅ ${animal.name} (id: ${animal.id}) should now be unlocked`);
       }
-      renderShop();
-    }
+    });
+    console.log("📊 All completed research:", state.completedResearch);
   }
+  renderShop();
+}
   
   state.day++;
   if (state.day > 30) {
