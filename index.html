@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ZooSmith V0.2.30</title>
+<title>ZooSmith V0.2.31</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <!-- =========================================
@@ -2034,6 +2034,74 @@ function processFenceDegradation() {
   }
 }
 
+function processAnimalHealth() {
+  const understaffed = isUnderstaffed();
+  const deaths = [];
+  
+  for (const id in state.exhibits) {
+    const exhibit = state.exhibits[id];
+    for (const animal of exhibit.animals) {
+      // Initialize health for old saves
+      if (animal.health === undefined) animal.health = 100;
+      
+      let healthChange = 0;
+      
+      // Staffing factor
+      if (understaffed) {
+        healthChange -= 5;  // No keepers = declining health
+      } else {
+        healthChange += 2;  // With keepers = slow recovery
+      }
+      
+      // Hunger factor
+      if (animal.wasHungry) {
+        healthChange -= 10;
+      }
+      
+      // Sickness factor
+      if (animal.sick) {
+        healthChange -= 3;
+      }
+      
+      // Apply health change
+      animal.health = Math.max(0, Math.min(100, animal.health + healthChange));
+      
+      // Become sick when health drops below 40
+      if (animal.health < 40 && !animal.sick && !animal.wasSickNotified) {
+        animal.sick = true;
+        animal.wasSickNotified = true;
+        addTicker(`🤒 ${animal.name} has fallen ill! Hire keepers or treat them.`);
+        showToast(`${animal.name} is sick!`, "warn");
+      }
+      
+      // Recover from sickness when health reaches 70+
+      if (animal.health >= 70 && animal.sick) {
+        animal.sick = false;
+        delete animal.wasSickNotified;
+        addTicker(`💚 ${animal.name} has recovered!`);
+      }
+      
+      // Death from poor health
+      if (animal.health <= 0) {
+        deaths.push({ animal, exhibitId: id, cause: 'neglect' });
+      }
+    }
+  }
+  
+  // Process deaths from neglect
+  for (const death of deaths) {
+    const exhibit = state.exhibits[death.exhibitId];
+    if (!exhibit) continue;
+    exhibit.animals = exhibit.animals.filter(a => a !== death.animal);
+    addTicker(`⚰️ ${death.animal.name} died from neglect.`);
+    showToast(`💔 ${death.animal.name} has died.`, 'error');
+    state.visitorSatisfaction = Math.max(0, state.visitorSatisfaction - 10);
+    const compensation = Math.floor(death.animal.dailyIncome * 2);
+    state.money += compensation;
+    showFloatingMoney(compensation);
+  }
+}
+  
 function triggerEscape(exhibitId) {
   const exhibit = state.exhibits[exhibitId];
   if (!exhibit || exhibit.animals.length === 0) return;
@@ -2100,6 +2168,7 @@ processAnimalIncome();  // 🆕
 processUpkeep();
   processDailyMaintenance();
   processFenceDegradation();
+  processAnimalHealth();
 // Fence condition warnings
 for (const id in state.exhibits) {
   const exhibit = state.exhibits[id];
@@ -2187,7 +2256,8 @@ for (const id in state.exhibits) tryBreeding(state.exhibits[id]);
             minInExhibit: animal.minInExhibit,
             maxInExhibit: animal.maxInExhibit,
             breedChance: animal.breedChance,
-            bornInZoo: true
+            bornInZoo: true,
+            health: 100
           };
           exhibit.animals.push(baby);
           animal.isPregnant = false;
@@ -2532,14 +2602,25 @@ function renderExhibits() {
     }
     
     const pregnantCount = group.animals.filter(a => a.isPregnant).length;
+    const sickAnimals = group.animals.filter(a => (a.health ?? 100) < 40);
+const criticalAnimals = group.animals.filter(a => (a.health ?? 100) < 20);
+let healthWarningHTML = '';
+if (criticalAnimals.length > 0) {
+  healthWarningHTML = `<div style="padding: 8px; background: rgba(220, 38, 38, 0.2); border: 1px solid var(--danger); border-radius: 8px; color: var(--danger); font-weight: 700; text-align: center; margin: 6px 0;">💀 ${criticalAnimals.length} animal${criticalAnimals.length > 1 ? 's' : ''} in CRITICAL condition!</div>`;
+} else if (sickAnimals.length > 0) {
+  healthWarningHTML = `<div style="padding: 8px; background: rgba(245, 158, 11, 0.15); border: 1px solid var(--warn); border-radius: 8px; color: var(--warn); font-weight: 700; text-align: center; margin: 6px 0;">🤒 ${sickAnimals.length} animal${sickAnimals.length > 1 ? 's' : ''} sick - hire keepers!</div>`;
+} else if (isUnderstaffed() && group.animals.length > 0) {
+  healthWarningHTML = `<div style="padding: 6px; background: rgba(245, 158, 11, 0.1); border-radius: 8px; color: var(--warn); font-size: 0.8rem; text-align: center; margin: 6px 0;">⚠️ Health declining - no keepers</div>`;
+}
     const animalList = group.animals.length > 0
       ? group.animals.map((a, i) => {
         const stage = getLifeStage(a);
         const pregnantTag = a.isPregnant ? '🤰 ' : '';
         const sickTag = a.sick ? '🤒 ' : '';
         const ageDisplay = getAnimalAgeDisplay(a);
-        return `<span class="animalTag" data-exhibit="${id}" data-index="${i}" title="Age: ${ageDisplay}">${sickTag}${pregnantTag}${stage.emoji} ${a.name}</span>`;
-      }).join("")
+        const health = a.health ?? 100;
+const healthEmoji = health >= 80 ? '' : health >= 50 ? ' 💛' : health >= 20 ? ' 🧡' : ' ❤️‍🩹';
+return `<span class="animalTag" data-exhibit="${id}" data-index="${i}" title="Age: ${ageDisplay} | Health: ${Math.round(health)}%">${sickTag}${pregnantTag}${stage.emoji} ${a.name}${healthEmoji}</span>`;      }).join("")
       : "<em style='color:var(--muted)'>No animals yet</em>";
     
     // ✅ Single clean template literal
@@ -2586,7 +2667,8 @@ function renderExhibits() {
           <span>🏗 Upgrades</span>
           <strong>${upgradeCount}</strong>
         </div>
-        <div class="animalList">${animalList}</div>
+        ${healthWarningHTML}
+<div class="animalList">${animalList}</div>
         ${!isBuilding ? `
           <div style="display:flex; gap:6px; margin-top:8px;">
             <button class="secondary-btn" style="flex:1; padding:8px; font-size:0.85rem;">🏗 Upgrades</button>
@@ -3095,7 +3177,8 @@ if (available < slotCost) {
     dislikedShelter: animal.dislikedShelter || [],
     dislikedDecorations: animal.dislikedDecorations || [],
     dislikedFacilities: animal.dislikedFacilities || [],
-    bornInZoo: false
+    bornInZoo: false,
+    health: 100  // 🆕 Start healthy
   });
   state.daysSinceNewAnimal = 0;
   addTicker(`✨ A new ${animal.name} arrived! Visitor excitement is high!`);
@@ -3131,7 +3214,25 @@ content.innerHTML = `
     <p>🏞 Exhibit: ${state.exhibits[exhibitId]?.name ?? "Unknown"}</p>
     ${animal.variation ? `<p>✨ Variant: ${animal.variation.name}</p>` : ""}
     <p>🍼 Born in zoo: ${animal.bornInZoo ? "Yes" : "No"}</p>
-    ${animal.sick ? `<p style="color:var(--danger);">🤒 Currently sick</p>` : ''}
+   ${(() => {
+  const h = animal.health ?? 100;
+  const color = h >= 80 ? 'var(--accent)' : h >= 50 ? 'var(--warn)' : h >= 20 ? 'var(--danger)' : '#dc2626';
+  const emoji = h >= 80 ? '💚' : h >= 50 ? '💛' : h >= 20 ? '🧡' : '❤️‍🩹';
+  const status = h >= 80 ? 'Healthy' : h >= 50 ? 'Unwell' : h >= 20 ? 'Sick' : 'Critical';
+  return `
+    <div style="margin: 10px 0; padding: 12px; background: #0b1220; border-radius: 8px; border: 1px solid ${color};">
+      <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
+        <span>${emoji} Health</span>
+        <strong style="color: ${color};">${Math.round(h)}% (${status})</strong>
+      </div>
+      <div class="happiness-bar" style="height: 10px;">
+        <div style="height: 100%; width: ${h}%; background: ${color}; transition: width 0.3s;"></div>
+      </div>
+      ${understaffed ? '<div style="margin-top: 8px; font-size: 0.8rem; color: var(--danger);">⚠️ Health declining - no keepers on staff!</div>' : ''}
+    </div>
+  `;
+})()}
+${animal.sick ? `<p style="color:var(--danger);">🤒 Currently sick - health declining faster</p>` : ''}
     ${stage.canBreed ? '<p style="color:var(--accent);">✅ Can breed</p>' : '<p style="color:var(--muted);">🔒 Too young to breed</p>'}
     ${pregnancyInfo}
     <div style="margin-top: 15px; display: flex; gap: 10px;">
