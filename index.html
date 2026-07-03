@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ZooSmith V0.2.32</title>
+<title>ZooSmith V0.2.33</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <!-- =========================================
@@ -3228,7 +3228,7 @@ content.innerHTML = `
       <div class="happiness-bar" style="height: 10px;">
         <div style="height: 100%; width: ${h}%; background: ${color}; transition: width 0.3s;"></div>
       </div>
-      ${understaffed ? '<div style="margin-top: 8px; font-size: 0.8rem; color: var(--danger);">⚠️ Health declining - no keepers on staff!</div>' : ''}
+      ${isUnderstaffed() ? '<div style="margin-top: 8px; font-size: 0.8rem; color: var(--danger);">⚠️ Health declining - no keepers on staff!</div>' : ''}
     </div>
   `;
 })()}
