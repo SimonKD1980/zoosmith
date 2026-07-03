@@ -2381,6 +2381,7 @@ function showSection(section, event) {
   document.querySelectorAll(".nav button").forEach(b => b.classList.remove("active"));
   document.getElementById(section).classList.add("active");
   if (event) event.target.classList.add("active");
+   if (section === "shop") renderShop();
   if (section === "staff") renderStaff();
   if (section === "reports") renderReports();
   if (section === "visitors") renderVisitors();
