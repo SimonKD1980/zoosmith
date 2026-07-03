@@ -1706,59 +1706,7 @@ function processVisitorBehavior(visitors) {
   }, 0);
   state.visitorSatisfaction = Math.max(0, Math.min(100, baseSatisfaction - penalty));
 }  
-  for (const id in data.amenities) {
-    const amenity = data.amenities[id];
-    const count = state.amenities[id] || 0;
-    if (amenity.revenue > 0 && count > 0) {
-      let buyerPercentage = 0.3;
-      if (id.includes('food') || id.includes('restaurant') || id.includes('cafe')) {
-        buyerPercentage = 0.50;
-      } else if (id.includes('gift') || id.includes('shop') || id.includes('store')) {
-        buyerPercentage = 0.20;
-      }
-      const potentialBuyers = Math.floor(visitors * buyerPercentage);
-      const maxServed = count * (amenity.maxCustomers || 50);
-      const actualBuyers = Math.min(potentialBuyers, maxServed);
-      const revenue = actualBuyers * amenity.revenue;
-      if (revenue > 0) {
-        if (id.includes('food') || id.includes('restaurant') || id.includes('cafe')) {
-          state.visitorSpending.food += revenue;
-        } else {
-          state.visitorSpending.gifts += revenue;
-        }
-        state.money += revenue;
-        if (revenue > 0) showFloatingMoney(revenue);
-      }
-      if (count === 0 && visitors > 30 && buyerPercentage >= 0.4) {
-        state.visitorComplaints.push({
-          icon: amenity.icon || "🏪",
-          text: `Some hungry visitors left to find food elsewhere.`,
-          type: "info",
-          time: new Date().toLocaleTimeString()
-        });
-        state.visitorSatisfaction -= 2 * (1 - cleanlinessFactor);
-      }
-    }
-  }
   
-  state.visitorSpending.total = state.visitorSpending.food + state.visitorSpending.gifts;
-  
-  let baseSatisfaction = 0;
-  if ((state.amenities.restroom || 0) > 0) baseSatisfaction += 20;
-  if ((state.amenities.bin || 0) > 0) baseSatisfaction += 15;
-  if ((state.amenities.bench || 0) > 0) baseSatisfaction += 15;
-  if ((state.amenities.food_stand || 0) > 0) baseSatisfaction += 20;
-  if ((state.amenities.gift_shop || 0) > 0) baseSatisfaction += 10;
-  
-  const totalAmenities = Object.values(state.amenities).reduce((sum, count) => sum + count, 0);
-  baseSatisfaction += Math.min(20, totalAmenities * 2);
-  
-  const penalty = state.visitorComplaints.reduce((sum, c) => {
-    return sum + (c.type === 'warning' ? 5 : c.type === 'info' ? 2 : 3);
-  }, 0);
-  state.visitorSatisfaction = Math.max(0, Math.min(100, baseSatisfaction - penalty));
-}
-
 function processDayIncome() {
   const visitors = generateVisitors();
   state.dailyVisitors = visitors;
