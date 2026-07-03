@@ -33,7 +33,7 @@
     "name": "Alpaca",
     "scienceName": "Vicugna pacos",
     "category": "Petting Zoo",
-    "unlock": "firstAnimal",
+    "unlock": null,
     "researchRequired": null,
     "cost": 1500,
     "dailyIncome": 70,
