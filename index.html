@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ZooSmith V0.2.33</title>
+<title>ZooSmith V0.2.34</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <!-- =========================================
@@ -1694,8 +1694,27 @@ function processUpkeep() {
 }
 
 function consumeDailyFood() {
-  const consumption = { hay: 0, meat: 0, produce: 0 };
   const hungryAnimals = [];
+  
+  // 🆕 If no keepers, animals aren't fed - food stays in storage
+  if (isUnderstaffed()) {
+    // Mark ALL animals as hungry (no feeding happened)
+    for (const id in state.exhibits) {
+      for (const animal of state.exhibits[id].animals) {
+        animal.wasHungry = true;
+        hungryAnimals.push(animal.name);
+      }
+    }
+    
+    if (hungryAnimals.length > 0) {
+      addTicker(`⚠️ No keepers! ${hungryAnimals.length} animals went unfed.`);
+      showToast("No keepers to feed the animals! Hire staff!", "error");
+    }
+    return { hay: 0, meat: 0, produce: 0 }; // No food consumed
+  }
+  
+  // ✅ Keepers are present - normal feeding
+  const consumption = { hay: 0, meat: 0, produce: 0 };
   for (const id in state.exhibits) {
     for (const animal of state.exhibits[id].animals) {
       const foodType = getDietFoodType(animal.diet);
@@ -1703,6 +1722,7 @@ function consumeDailyFood() {
       consumption[foodType] += units;
     }
   }
+  
   for (const foodType in consumption) {
     const needed = consumption[foodType];
     const available = state.food[foodType] || 0;
@@ -1725,13 +1745,13 @@ function consumeDailyFood() {
       }
     }
   }
+  
   if (hungryAnimals.length > 0) {
     addTicker(`⚠️ ${hungryAnimals.join(', ')}`);
     showToast("Animals are hungry! Buy more food!", "error");
   }
   return consumption;
 }
-
 function renderSupplies() {
   const box = document.getElementById("supplies");
   const consumption = { hay: 0, meat: 0, produce: 0 };
