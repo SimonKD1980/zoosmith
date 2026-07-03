@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ZooSmith V0.2.31</title>
+<title>ZooSmith V0.2.32</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <!-- =========================================
@@ -3588,21 +3588,37 @@ function closeEventModal() {
 
 /* =========================================
 8. EVENT LISTENERS
-========================================= */
-document.addEventListener("click", (e) => {
+========================================= */document.addEventListener("click", (e) => {
   const tag = e.target.closest(".animalTag");
+  console.log("🖱️ Click detected!");
+  console.log("Tag found:", tag);
   if (!tag) return;
+  
   const exhibitId = tag.dataset.exhibit;
   const index = parseInt(tag.dataset.index);
+  console.log("Exhibit ID:", exhibitId);
+  console.log("Animal index:", index);
+  console.log("UI Mode:", state.uiMode);
+  
   if (state.uiMode === "move") {
+    console.log("Move mode active, selecting animal");
     state.moveState.animalIndex = index;
     renderDestinationSelection();
     return;
   }
+  
   const animal = state.exhibits[exhibitId]?.animals?.[index];
-  if (animal) openAnimalInfo(animal, exhibitId, index);
+  console.log("Animal found:", animal);
+  console.log("Exhibit exists:", !!state.exhibits[exhibitId]);
+  console.log("Animals in exhibit:", state.exhibits[exhibitId]?.animals?.length);
+  
+  if (animal) {
+    console.log("Opening animal info modal");
+    openAnimalInfo(animal, exhibitId, index);
+  } else {
+    console.error("❌ Animal not found!");
+  }
 });
-
 document.getElementById("buildExhibitBtn").onclick = () => {
   const modal = document.getElementById("buildModal");
   const options = document.getElementById("buildSizeOptions");
