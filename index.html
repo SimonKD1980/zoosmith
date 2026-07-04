@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ZooSmith V0.2.42</title>
+<title>ZooSmith V0.2.43</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <!-- =========================================
@@ -3370,10 +3370,17 @@ function renderStaff() {
         </div>
         <div style="margin: 10px 0; padding: 8px; background: #0b1220; border-radius: 8px; text-align: center;">
           <div style="font-size: 0.85rem; color: var(--muted);">Hired: ${hiredCount} / ${maxStaff}</div>
-        </div>
-        <button class="primary-btn" ${isMaxed ? 'disabled' : ''}>
-          ${isMaxed ? '✓ Max Hired' : hiredCount > 0 ? `Hire Another ($${staff.cost.toLocaleString()})` : 'Hire Staff'}
-        </button>
+        </div><button class="primary-btn" ${isMaxed ? 'disabled' : ''}>
+${isMaxed ? '✓ Max Hired' : hiredCount > 0 ? `Hire Another ($${staff.cost.toLocaleString()})` : 'Hire Staff'}
+</button>
+${hiredCount > 0 ? `
+<button class="danger-btn" style="margin-top: 8px; width: 100%;" onclick="fireStaff('${staff.id}')">
+🔥 Fire ${staff.name} (${hiredCount} hired)
+</button>
+<div style="margin-top: 6px; font-size: 0.75rem; color: var(--muted); text-align: center;">
+💰 Severance refund: $${Math.floor(staff.cost * 0.2).toLocaleString()}
+</div>
+` : ''}
       </div>
     `;
     const btn = card.querySelector("button");
@@ -3674,6 +3681,52 @@ function hireStaff(staffId) {
   addTicker(`👷 Hired ${staff.name}`);
   updateUI();
   renderStaff();
+}
+
+function fireStaff(staffId) {
+  const staff = data.staff.find(s => s.id === staffId);
+  if (!staff) return;
+  
+  const hiredCount = countStaff(staffId);
+  if (hiredCount === 0) {
+    return showToast(`No ${staff.name}s to fire!`, "error");
+  }
+  
+  // Confirmation dialog
+  const refundAmount = Math.floor(staff.cost * 0.2); // 20% refund
+  if (!confirm(`Fire ${staff.name}?\n\nYou'll receive a small severance refund of $${refundAmount}.`)) {
+    return;
+  }
+  
+  // Remove first instance of this staff
+  const index = state.hiredStaff.indexOf(staffId);
+  if (index === -1) return;
+  state.hiredStaff.splice(index, 1);
+  
+  // Give small refund (severance)
+  state.money += refundAmount;
+  showFloatingMoney(refundAmount);
+  
+  // 🆕 Recalculate maintenance level if firing maintenance staff
+  if (staff.effects?.maintenanceLevel) {
+    state.maintenanceWorkers = Math.max(0, state.maintenanceWorkers - 1);
+    
+    // Recalculate highest maintenance level from remaining staff
+    let highestLevel = 0;
+    for (const id of state.hiredStaff) {
+      const s = data.staff.find(x => x.id === id);
+      if (s?.effects?.maintenanceLevel) {
+        highestLevel = Math.max(highestLevel, s.effects.maintenanceLevel);
+      }
+    }
+    state.maintenanceLevel = highestLevel;
+  }
+  
+  addTicker(`👋 Fired ${staff.name} (severance: $${refundAmount})`);
+  showToast(`${staff.name} has been let go.`, "warn");
+  updateUI();
+  renderStaff();
+  saveGame();
 }
   
 function renderMoveSelection() {
