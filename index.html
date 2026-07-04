@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ZooSmith V0.2.401</title>
+<title>ZooSmith V0.2.42</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <!-- =========================================
@@ -3530,16 +3530,51 @@ function closeAnimalInfo() {
 function sellAnimal(animal, exhibitId) {
   const exhibit = state.exhibits[exhibitId];
   if (exhibit) exhibit.animals = exhibit.animals.filter(a => a !== animal);
-  const salePrice = Math.floor(animal.dailyIncome * 10);
+  
+  // 🆕 Smart pricing based on age, health, and stage
+  const basePrice = animal.dailyIncome * 5;  // Reduced from 10× to 5×
+  
+  // Age multiplier: babies/juveniles sell for less
+  const stage = getLifeStage(animal);
+  let ageMultiplier = 1.0;
+  if (stage.stage === 'baby') ageMultiplier = 0.3;      // 30% of base
+  else if (stage.stage === 'juvenile') ageMultiplier = 0.6;  // 60% of base
+  else if (stage.stage === 'senior') ageMultiplier = 0.7;    // 70% of base
+  
+  // Health multiplier: sick/unhealthy animals sell for less
+  const health = animal.health ?? 100;
+  let healthMultiplier = 1.0;
+  if (health < 20) healthMultiplier = 0.3;      // Critical: 30%
+  else if (health < 50) healthMultiplier = 0.5; // Sick: 50%
+  else if (health < 80) healthMultiplier = 0.8; // Unwell: 80%
+  
+  // Sickness penalty
+  if (animal.sick) healthMultiplier *= 0.5;
+  
+  // Pregnancy bonus (buyer gets 2 animals soon!)
+  let pregnancyBonus = 0;
+  if (animal.isPregnant) pregnancyBonus = Math.floor(basePrice * 0.3);
+  
+  // Calculate final price
+  const salePrice = Math.floor(basePrice * ageMultiplier * healthMultiplier) + pregnancyBonus;
+  
   state.money += salePrice;
   showFloatingMoney(salePrice);
   state.animalsSold++;
-  addTicker(`💸 Sold ${animal.name} for $${salePrice}`);
+  
+  // Show detailed breakdown in ticker
+  const breakdown = [];
+  if (ageMultiplier !== 1.0) breakdown.push(`age ${Math.round(ageMultiplier * 100)}%`);
+  if (healthMultiplier !== 1.0) breakdown.push(`health ${Math.round(healthMultiplier * 100)}%`);
+  if (pregnancyBonus > 0) breakdown.push(`+pregnancy bonus`);
+  
+  const breakdownText = breakdown.length > 0 ? ` (${breakdown.join(', ')})` : '';
+  addTicker(`💸 Sold ${animal.name} for $${salePrice}${breakdownText}`);
+  
   closeAnimalInfo();
   updateUI();
   renderExhibits();
 }
-
 function openUpgradeMenu(exhibitId) {
   state.activeUpgradeExhibit = exhibitId;
   const exhibit = state.exhibits[exhibitId];
