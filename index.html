@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ZooSmith V0.2.43</title>
+<title>ZooSmith V0.2.44</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <!-- =========================================
@@ -1158,6 +1158,178 @@ TUTORIAL OVERLAY
   }
 }  
 
+/* =========================================
+RESEARCH TREE STYLES
+========================================= */
+.research-tree {
+  display: flex;
+  gap: 40px;
+  padding: 20px;
+  overflow-x: auto;
+  min-height: 500px;
+  position: relative;
+}
+.research-tier {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-width: 280px;
+  position: relative;
+}
+.research-tier-header {
+  text-align: center;
+  padding: 12px;
+  border-radius: 12px;
+  font-weight: 800;
+  font-size: 1rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  border: 2px solid;
+  background: rgba(0,0,0,0.3);
+}
+.research-node {
+  position: relative;
+  background: var(--card);
+  border: 2px solid #243042;
+  border-radius: 12px;
+  padding: 14px;
+  transition: all 0.3s;
+}
+.research-node.completed {
+  border-color: var(--accent);
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.1), var(--card));
+}
+.research-node.active {
+  border-color: var(--warn);
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.15), var(--card));
+  box-shadow: 0 0 20px rgba(245, 158, 11, 0.3);
+  animation: researchPulse 2s ease-in-out infinite;
+}
+.research-node.locked {
+  opacity: 0.5;
+  filter: grayscale(0.6);
+}
+.research-node.ready {
+  border-color: var(--blue);
+  cursor: pointer;
+}
+.research-node.ready:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(59, 130, 246, 0.3);
+}
+@keyframes researchPulse {
+  0%, 100% { box-shadow: 0 0 20px rgba(245, 158, 11, 0.3); }
+  50% { box-shadow: 0 0 30px rgba(245, 158, 11, 0.6); }
+}
+.research-node-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.research-node-icon {
+  font-size: 2rem;
+}
+.research-node-title {
+  font-weight: 800;
+  font-size: 1rem;
+  margin: 0;
+  flex: 1;
+}
+.research-node-status {
+  font-size: 0.7rem;
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.research-node-desc {
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin: 8px 0;
+  line-height: 1.4;
+}
+.research-node-stats {
+  display: flex;
+  gap: 8px;
+  margin: 8px 0;
+  flex-wrap: wrap;
+}
+.research-node-unlocks {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid #243042;
+}
+.research-node-unlocks-title {
+  font-size: 0.75rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 6px;
+}
+.research-unlock-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+/* Tree connector lines */
+.research-tree-container {
+  position: relative;
+}
+.research-connector {
+  position: absolute;
+  pointer-events: none;
+}
+/* Tier columns connector */
+.research-tier::before {
+  content: '';
+  position: absolute;
+  left: -20px;
+  top: 50px;
+  bottom: 20px;
+  width: 2px;
+  background: linear-gradient(to bottom, transparent, #243042 20%, #243042 80%, transparent);
+}
+.research-tier:first-child::before {
+  display: none;
+}
+/* Arrow between tiers */
+.research-tier-arrow {
+  position: absolute;
+  left: -30px;
+  top: 20px;
+  color: var(--muted);
+  font-size: 1.5rem;
+  z-index: 2;
+}
+.research-tier:first-child .research-tier-arrow {
+  display: none;
+}
+/* Progress bar for active research */
+.research-progress-bar {
+  width: 100%;
+  height: 6px;
+  background: #0b1220;
+  border-radius: 3px;
+  overflow: hidden;
+  margin-top: 8px;
+}
+.research-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--warn), var(--accent));
+  transition: width 0.3s;
+}
+@media (max-width: 768px) {
+  .research-tree {
+    gap: 20px;
+    padding: 10px;
+  }
+  .research-tier {
+    min-width: 240px;
+  }
+}
+  
 </style>
 </head>
 <body>
@@ -4330,7 +4502,15 @@ function renderResearch() {
     box.innerHTML = '<div style="text-align:center; padding:40px; color:var(--muted);">🔬 Loading research data...</div>';
     return;
   }
+
   const animals = data.animals || [];
+  const tiers = ['basic', 'advanced', 'exotic', 'legendary'];
+  const completedCount = (state.completedResearch || []).length;
+  const totalCount = Object.keys(data.researchProjects).length;
+  const unlockedAnimals = animals.filter(a => !a.researchRequired || isResearchComplete(a.researchRequired)).length;
+  const totalAnimals = animals.length;
+
+  // Active research info
   let activeResearchHTML = '';
   if (state.activeResearch) {
     const project = data.researchProjects[state.activeResearch.projectId];
@@ -4345,13 +4525,12 @@ function renderResearch() {
             <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
               <div>
                 <span style="font-size: 2rem; margin-right: 10px;">${project.icon}</span>
-                <h3 style="display: inline;">Currently Researching: ${project.name}</h3>
+                <h3 style="display: inline; margin: 0;">Currently Researching: ${project.name}</h3>
               </div>
               <span class="stat-badge" style="background: ${tier.color}; color: #000; border-color: ${tier.color};">
                 ${tier.emoji} ${tier.label}
               </span>
             </div>
-            <div class="subtitle">${project.desc}</div>
           </div>
           <div class="card-body">
             <div style="display: flex; justify-content: space-between; margin-bottom: 10px; flex-wrap: wrap; gap: 10px;">
@@ -4362,12 +4541,12 @@ function renderResearch() {
                 ${Math.round(progress)}% complete
               </div>
             </div>
-            <div class="happiness-bar" style="height: 14px;">
-              <div style="height: 100%; width: ${progress}%; background: linear-gradient(90deg, ${tier.color}, ${tier.color}cc); transition: width 0.3s;"></div>
+            <div class="research-progress-bar" style="height: 14px;">
+              <div class="research-progress-fill" style="width: ${progress}%;"></div>
             </div>
             <div style="margin-top: 12px; padding: 10px; background: #0b1220; border-radius: 8px;">
               <div style="font-size: 0.85rem; color: var(--muted); margin-bottom: 6px;">🔓 Unlocks:</div>
-              <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+              <div class="research-unlock-list">
                 ${(project.unlocks || []).map(id => {
                   const animal = animals.find(a => a.id === id);
                   return animal ? `<span class="stat-badge green">${animal.name}</span>` : '';
@@ -4381,85 +4560,89 @@ function renderResearch() {
   } else {
     activeResearchHTML = `
       <div class="premium-card" style="grid-column: 1 / -1;">
-        <div class="card-body" style="text-align: center; padding: 30px;">
-          <div style="font-size: 3rem; margin-bottom: 10px;">🔬</div>
-          <h3 style="margin: 0 0 8px 0;">No Active Research</h3>
-          <p style="color: var(--muted); margin: 0;">Select a project below to begin research</p>
+        <div class="card-body" style="text-align: center; padding: 20px;">
+          <div style="font-size: 2.5rem; margin-bottom: 8px;">🔬</div>
+          <h3 style="margin: 0 0 4px 0;">No Active Research</h3>
+          <p style="color: var(--muted); margin: 0; font-size: 0.9rem;">Select a project from the tree below to begin</p>
         </div>
       </div>
     `;
   }
-  const completedCount = (state.completedResearch || []).length;
-  const totalCount = Object.keys(data.researchProjects).length;
-  const unlockedAnimals = animals.filter(a => !a.researchRequired || isResearchComplete(a.researchRequired)).length;
-  const totalAnimals = animals.length;
-  const tiers = ['basic', 'advanced', 'exotic', 'legendary'];
-  let projectsHTML = '';
-  tiers.forEach(tierKey => {
+
+  // Build tree tiers
+  let treeHTML = '';
+  tiers.forEach((tierKey, tierIndex) => {
     const tier = TIER_INFO[tierKey];
     const tierProjects = Object.values(data.researchProjects).filter(p => p.tier === tierKey);
     if (tierProjects.length === 0) return;
-    projectsHTML += `
-      <div style="grid-column: 1 / -1; margin-top: 10px;">
-        <h3 style="color: ${tier.color}; margin: 20px 0 10px 0; font-size: 1.2rem;">
-          ${tier.emoji} ${tier.label} Research
-        </h3>
-      </div>
-    `;
-    tierProjects.forEach(project => {
+
+    // Sort: projects without prerequisites first, then by prerequisite
+    const sorted = [...tierProjects].sort((a, b) => {
+      if (!a.requires && b.requires) return -1;
+      if (a.requires && !b.requires) return 1;
+      return 0;
+    });
+
+    let nodesHTML = '';
+    sorted.forEach(project => {
       const completed = isResearchComplete(project.id);
       const isActive = state.activeResearch?.projectId === project.id;
       const prereqMet = !project.requires || isResearchComplete(project.requires);
       const canAfford = state.money >= project.cost;
       const canStart = canStartResearch(project.id);
-      let statusBadge = '';
-      let buttonHTML = '';
-      let cardStyle = '';
+
+      let statusClass = 'locked';
+      let statusText = '🔒 Locked';
+      let statusColor = 'var(--muted)';
+      let statusBg = '#243042';
+
       if (completed) {
-        statusBadge = `<span class="stat-badge green">✅ Completed</span>`;
-        cardStyle = 'border-color: var(--accent); opacity: 0.85;';
-        buttonHTML = `<button class="primary-btn" disabled style="opacity: 0.5;">Research Complete</button>`;
+        statusClass = 'completed';
+        statusText = '✅ Complete';
+        statusColor = 'var(--accent)';
+        statusBg = 'rgba(34, 197, 94, 0.15)';
       } else if (isActive) {
-        statusBadge = `<span class="stat-badge" style="background: ${tier.color}; color: #000;">🔄 In Progress</span>`;
-        cardStyle = `border-color: ${tier.color};`;
-        buttonHTML = `<button class="primary-btn" disabled style="opacity: 0.5;">Researching...</button>`;
-      } else if (!prereqMet) {
-        const prereqProject = data.researchProjects[project.requires];
-        statusBadge = `<span class="stat-badge danger">🔒 Locked</span>`;
-        cardStyle = 'opacity: 0.5;';
-        buttonHTML = `<button class="secondary-btn" disabled style="opacity: 0.5;">Requires: ${prereqProject?.name || '???'}</button>`;
-      } else if (!canAfford) {
-        statusBadge = `<span class="stat-badge warn">💰 Need $${project.cost.toLocaleString()}</span>`;
-        buttonHTML = `<button class="primary-btn" disabled style="opacity: 0.5;">Not Enough Money</button>`;
-      } else if (state.activeResearch) {
-        statusBadge = `<span class="stat-badge blue">⏳ Lab Busy</span>`;
-        buttonHTML = `<button class="secondary-btn" disabled style="opacity: 0.5;">Lab Occupied</button>`;
+        statusClass = 'active';
+        statusText = '🔄 In Progress';
+        statusColor = 'var(--warn)';
+        statusBg = 'rgba(245, 158, 11, 0.15)';
+      } else if (prereqMet && canAfford && !state.activeResearch) {
+        statusClass = 'ready';
+        statusText = '✨ Ready';
+        statusColor = 'var(--blue)';
+        statusBg = 'rgba(59, 130, 246, 0.15)';
+      } else if (prereqMet) {
+        statusClass = '';
+        statusText = !canAfford ? '💰 Need Funds' : '⏳ Lab Busy';
+        statusColor = 'var(--warn)';
+        statusBg = 'rgba(245, 158, 11, 0.1)';
       } else {
-        statusBadge = `<span class="stat-badge green">✅ Ready</span>`;
-        buttonHTML = `<button class="primary-btn" onclick="startResearch('${project.id}')">Start Research</button>`;
+        const prereqProject = data.researchProjects[project.requires];
+        statusText = `🔒 Requires: ${prereqProject?.name || '???'}`;
       }
-      projectsHTML += `
-        <div class="premium-card" style="${cardStyle}">
-          <div class="card-header">
-            <div style="display: flex; justify-content: space-between; align-items: start; flex-wrap: wrap; gap: 10px;">
-              <div>
-                <span style="font-size: 2rem;">${project.icon}</span>
-                <h3 style="display: inline; margin-left: 8px;">${project.name}</h3>
-              </div>
-              ${statusBadge}
-            </div>
-            <div class="subtitle">${project.desc}</div>
+
+      const onclickAttr = canStart ? `onclick="startResearch('${project.id}')"` : '';
+
+      nodesHTML += `
+        <div class="research-node ${statusClass}" ${onclickAttr} style="cursor: ${canStart ? 'pointer' : 'default'};">
+          <div class="research-node-header">
+            <span class="research-node-icon">${project.icon}</span>
+            <h4 class="research-node-title">${project.name}</h4>
           </div>
-          <div class="card-body">
-            <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px;">
-              <span class="stat-badge warn">💰 $${project.cost.toLocaleString()}</span>
-              <span class="stat-badge blue">⏱ ${project.days} days</span>
-              ${project.requires ? `<span class="stat-badge purple">🔗 Requires: ${data.researchProjects[project.requires]?.name || '???'}</span>` : ''}
-            </div>
-            <div style="padding: 10px; background: #0b1220; border-radius: 8px; margin-bottom: 10px;">
-              <div style="font-size: 0.85rem; color: var(--muted); margin-bottom: 6px;">🔓 Unlocks ${(project.unlocks || []).length} animal${(project.unlocks || []).length !== 1 ? 's' : ''}:</div>
-              <div style="display: flex; flex-wrap: wrap; gap: 6px;">
-                ${(project.unlocks || []).map(id => {
+          <span class="research-node-status" style="background: ${statusBg}; color: ${statusColor};">
+            ${statusText}
+          </span>
+          <p class="research-node-desc">${project.desc}</p>
+          <div class="research-node-stats">
+            <span class="stat-badge warn">💰 $${project.cost.toLocaleString()}</span>
+            <span class="stat-badge blue">⏱ ${project.days} days</span>
+            ${project.requires ? `<span class="stat-badge purple">🔗 ${data.researchProjects[project.requires]?.name || '???'}</span>` : ''}
+          </div>
+          ${(project.unlocks && project.unlocks.length > 0) ? `
+            <div class="research-node-unlocks">
+              <div class="research-node-unlocks-title">🔓 Unlocks ${project.unlocks.length} animal${project.unlocks.length !== 1 ? 's' : ''}</div>
+              <div class="research-unlock-list">
+                ${project.unlocks.map(id => {
                   const animal = animals.find(a => a.id === id);
                   if (!animal) return '';
                   const unlocked = !animal.researchRequired || isResearchComplete(animal.researchRequired);
@@ -4467,17 +4650,27 @@ function renderResearch() {
                 }).join('')}
               </div>
             </div>
-            ${buttonHTML}
-          </div>
+          ` : ''}
         </div>
       `;
     });
+
+    treeHTML += `
+      <div class="research-tier">
+        <span class="research-tier-arrow">→</span>
+        <div class="research-tier-header" style="color: ${tier.color}; border-color: ${tier.color};">
+          ${tier.emoji} ${tier.label}
+        </div>
+        ${nodesHTML}
+      </div>
+    `;
   });
+
   box.innerHTML = `
     <div class="premium-card" style="grid-column: 1 / -1; margin-bottom: 10px;">
       <div class="card-header">
-        <h3>🔬 Research & Development</h3>
-        <div class="subtitle">Unlock new animals and advance your zoo's knowledge</div>
+        <h3>🌳 Research Tree</h3>
+        <div class="subtitle">Unlock new animals by progressing through the research tree</div>
       </div>
       <div class="card-body" style="padding: 12px 16px;">
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px;">
@@ -4497,13 +4690,21 @@ function renderResearch() {
       </div>
     </div>
     ${activeResearchHTML}
-    <div class="grid-layout">
-      ${projectsHTML}
+    <div class="premium-card" style="grid-column: 1 / -1;">
+      <div class="card-header">
+        <h3>🗺️ Progression Path</h3>
+        <div class="subtitle">Scroll horizontally to see all tiers →</div>
+      </div>
+      <div class="card-body">
+        <div class="research-tree">
+          ${treeHTML}
+        </div>
+      </div>
     </div>
   `;
 }
 
-function changeLeaderboardCategory(category) {
+  function changeLeaderboardCategory(category) {
   leaderboardCategory = category;
   renderLeaderboard();
 }
