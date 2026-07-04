@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ZooSmith V0.2.39</title>
+<title>ZooSmith V0.2.40</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <!-- =========================================
@@ -1014,6 +1014,150 @@ LEADERBOARD STYLES
   .rank-badge { font-size: 1.2rem; }
   .player-score { font-size: 1rem; }
 }
+
+/* =========================================
+TUTORIAL OVERLAY
+========================================= */
+.tutorial-overlay {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  max-width: 360px;
+  background: linear-gradient(135deg, #1e293b, #0f172a);
+  border: 2px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 20px;
+  box-shadow: 0 10px 30px rgba(34, 197, 94, 0.3), 0 0 0 4px rgba(34, 197, 94, 0.1);
+  z-index: 999;
+  animation: tutorialSlideIn 0.4s ease;
+}
+@keyframes tutorialSlideIn {
+  from { transform: translateY(30px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+.tutorial-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+.tutorial-step-badge {
+  background: var(--accent);
+  color: #000;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+.tutorial-close {
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 0;
+  width: 24px;
+  height: 24px;
+  line-height: 1;
+}
+.tutorial-close:hover {
+  color: var(--text);
+  transform: none;
+}
+.tutorial-title {
+  font-size: 1.1rem;
+  font-weight: 800;
+  margin: 0 0 8px 0;
+  color: var(--text);
+}
+.tutorial-message {
+  font-size: 0.9rem;
+  color: var(--muted);
+  line-height: 1.5;
+  margin: 0 0 15px 0;
+}
+.tutorial-action {
+  background: rgba(34, 197, 94, 0.1);
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.tutorial-progress {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 12px;
+}
+.tutorial-dot {
+  flex: 1;
+  height: 4px;
+  background: #243042;
+  border-radius: 2px;
+  transition: background 0.3s;
+}
+.tutorial-dot.active { background: var(--accent); }
+.tutorial-dot.done { background: var(--accent); opacity: 0.5; }
+.tutorial-buttons {
+  display: flex;
+  gap: 8px;
+}
+.tutorial-skip {
+  flex: 1;
+  background: transparent;
+  border: 1px solid #243042;
+  color: var(--muted);
+  padding: 8px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.tutorial-skip:hover {
+  border-color: var(--muted);
+  color: var(--text);
+  transform: none;
+}
+.tutorial-next {
+  flex: 1;
+  background: var(--accent);
+  color: #000;
+  padding: 8px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  border: none;
+  transition: all 0.2s;
+}
+.tutorial-next:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3);
+}
+.tutorial-highlight {
+  animation: tutorialPulse 2s ease-in-out infinite;
+  position: relative;
+  z-index: 10;
+}
+@keyframes tutorialPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); }
+  50% { box-shadow: 0 0 0 8px rgba(34, 197, 94, 0); }
+}
+@media (max-width: 768px) {
+  .tutorial-overlay {
+    bottom: 10px;
+    right: 10px;
+    left: 10px;
+    max-width: none;
+  }
+}  
+
 </style>
 </head>
 <body>
@@ -1128,6 +1272,8 @@ MODALS
 </div>
 
 <!-- Toast notifications container -->
+  <!-- Tutorial overlay container -->
+<div id="tutorialOverlay"></div>
 <div id="toast-container"></div>
 
 <!-- =========================================
@@ -1220,6 +1366,8 @@ let state = {
   activeResearch: null,
   maintenanceWorkers: 0,  // 🆕 Track maintenance staff count
   maintenanceLevel: 0     // 🆕 0=none, 1=junior, 2=senior, 3=chief
+  tutorialStep: 0,           // 🆕 0=not started, 1-5=steps, 6=complete
+  tutorialSkipped: false 
 };
 
 // Helper to handle both strings and arrays from JSON
@@ -3854,6 +4002,13 @@ function loadGame() {
     state.maintenance ??= { dailyMaintenanceCost: 0 };
     state.maintenanceWorkers ??= 0;  // 🆕 Add this
 state.maintenanceLevel ??= 0; 
+    state.tutorialStep ??= 0;
+state.tutorialSkipped ??= false;
+// If they have animals/exhibits already, skip tutorial
+if (getAllAnimals().length > 0 || Object.keys(state.exhibits).length > 0) {
+  state.tutorialSkipped = true;
+  state.tutorialStep = TUTORIAL_STEPS.length;
+}
     for (const id in state.exhibits) {
       state.exhibits[id].animals ??= [];
       state.exhibits[id].upgrades ??= [];
@@ -4285,6 +4440,193 @@ function escapeHtml(text) {
 }
 
 /* =========================================
+TUTORIAL / ONBOARDING SYSTEM
+========================================= */
+const TUTORIAL_STEPS = [
+  {
+    title: "👋 Welcome to ZooSmith!",
+    message: "You're about to build the world's greatest zoo. Let's start with the basics.",
+    action: "👉 Click 'Build Exhibit' to create your first enclosure",
+    highlight: "buildExhibitBtn",
+    autoAdvance: () => Object.keys(state.exhibits).length > 0
+  },
+  {
+    title: "🧑‍🌾 Hire a Keeper",
+    message: "Animals need caretakers! Without keepers, they'll go hungry and unhappy.",
+    action: "👉 Go to the Staff tab and hire a Junior Keeper",
+    highlight: null,
+    switchTab: "staff",
+    autoAdvance: () => state.hiredStaff.length > 0
+  },
+  {
+    title: "🦁 Buy Your First Animal",
+    message: "Time to bring in some wildlife! Pick an animal that fits your exhibit.",
+    action: "👉 Go to the Shop tab and buy an animal",
+    highlight: null,
+    switchTab: "shop",
+    autoAdvance: () => getAllAnimals().length > 0
+  },
+  {
+    title: "🍽 Stock Up on Food",
+    message: "Your animals will get hungry! Make sure you have food in storage.",
+    action: "👉 Check the Supplies tab and buy some food",
+    highlight: null,
+    switchTab: "supplies",
+    autoAdvance: () => state.tutorialStep >= 4
+  },
+  {
+    title: "⏭ End the Day",
+    message: "Advance time to earn income, feed animals, and see what happens!",
+    action: "👉 Click 'End Day' to progress",
+    highlight: "endDayBtn",
+    autoAdvance: () => state.day > 1 || state.month > 1
+  },
+  {
+    title: "🎉 You're Ready!",
+    message: "You've learned the basics! Now go build your dream zoo. Good luck, Zookeeper!",
+    action: "💡 Tip: Watch for random events, breed animals, and unlock new species through research.",
+    highlight: null,
+    autoAdvance: () => false
+  }
+];
+
+function renderTutorial() {
+  const container = document.getElementById("tutorialOverlay");
+  if (!container) return;
+  
+  // Don't show if skipped or completed
+  if (state.tutorialSkipped || state.tutorialStep >= TUTORIAL_STEPS.length) {
+    container.innerHTML = "";
+    return;
+  }
+  
+  // Auto-start tutorial for new players
+  if (state.tutorialStep === 0) {
+    state.tutorialStep = 1;
+  }
+  
+  const step = TUTORIAL_STEPS[state.tutorialStep - 1];
+  if (!step) return;
+  
+  // Check for auto-advance
+  if (step.autoAdvance && step.autoAdvance()) {
+    setTimeout(() => advanceTutorial(), 500);
+    return;
+  }
+  
+  // Switch to the right tab if needed
+  if (step.switchTab) {
+    const currentActive = document.querySelector(".section.active");
+    if (!currentActive || currentActive.id !== step.switchTab) {
+      // Don't force-switch if user is in a modal
+      if (!document.querySelector(".modal.active")) {
+        showSection(step.switchTab);
+      }
+    }
+  }
+  
+  // Highlight the target element
+  document.querySelectorAll(".tutorial-highlight").forEach(el => {
+    el.classList.remove("tutorial-highlight");
+  });
+  if (step.highlight) {
+    const target = document.getElementById(step.highlight);
+    if (target) target.classList.add("tutorial-highlight");
+  }
+  
+  // Build progress dots
+  const progressDots = TUTORIAL_STEPS.map((_, i) => {
+    const dotClass = i < state.tutorialStep - 1 ? "done" : 
+                     i === state.tutorialStep - 1 ? "active" : "";
+    return `<div class="tutorial-dot ${dotClass}"></div>`;
+  }).join("");
+  
+  const isLastStep = state.tutorialStep === TUTORIAL_STEPS.length;
+  
+  container.innerHTML = `
+    <div class="tutorial-overlay">
+      <div class="tutorial-header">
+        <span class="tutorial-step-badge">Step ${state.tutorialStep} of ${TUTORIAL_STEPS.length}</span>
+        <button class="tutorial-close" onclick="skipTutorial()" title="Skip tutorial">✕</button>
+      </div>
+      <h3 class="tutorial-title">${step.title}</h3>
+      <p class="tutorial-message">${step.message}</p>
+      ${step.action ? `<div class="tutorial-action">🎯 ${step.action}</div>` : ''}
+      <div class="tutorial-progress">${progressDots}</div>
+      <div class="tutorial-buttons">
+        <button class="tutorial-skip" onclick="skipTutorial()">Skip Tutorial</button>
+        ${isLastStep ? 
+          `<button class="tutorial-next" onclick="completeTutorial()">Let's Go! 🚀</button>` :
+          `<button class="tutorial-next" onclick="advanceTutorial()">Got it ✓</button>`
+        }
+      </div>
+    </div>
+  `;
+}
+
+function advanceTutorial() {
+  if (state.tutorialStep < TUTORIAL_STEPS.length) {
+    state.tutorialStep++;
+    saveGame();
+    renderTutorial();
+  }
+}
+
+function skipTutorial() {
+  if (!confirm("Are you sure you want to skip the tutorial? You can always learn by exploring!")) {
+    return;
+  }
+  state.tutorialSkipped = true;
+  state.tutorialStep = TUTORIAL_STEPS.length;
+  document.querySelectorAll(".tutorial-highlight").forEach(el => {
+    el.classList.remove("tutorial-highlight");
+  });
+  saveGame();
+  renderTutorial();
+  showToast("Tutorial skipped. Good luck! 🍀", "info");
+}
+
+function completeTutorial() {
+  state.tutorialStep = TUTORIAL_STEPS.length;
+  document.querySelectorAll(".tutorial-highlight").forEach(el => {
+    el.classList.remove("tutorial-highlight");
+  });
+  saveGame();
+  renderTutorial();
+  showToast("🎉 Tutorial complete! You're ready to build your zoo!", "info");
+}
+
+// Reset tutorial when game is reset
+const originalResetHandler = document.getElementById("resetGameBtn").onclick;
+document.getElementById("resetGameBtn").onclick = function() {
+  if (!confirm("Are you sure you want to reset your zoo? This cannot be undone.")) return;
+  localStorage.removeItem("zooSave");
+  state = {
+    money: 10000, day: 1, month: 1, year: 1, ticketPrice: 20, exhibits: {}, builtEnclosures: {},
+    zooFacilities: [], hiredStaff: [], achievements: {}, animalCounters: {}, monthlyReports: [],
+    moveState: { active: false, fromExhibit: null, animalIndex: null }, uiMode: "normal",
+    pendingAnimal: null, activeUpgradeExhibit: null, bredAnimals: 0, animalsSold: 0,
+    daysSinceNewAnimal: 0, dailyVisitors: 0, visitorSpending: { food: 0, gifts: 0, total: 0 },
+    visitorComplaints: [],
+    amenities: {},
+    visitorSatisfaction: 0,
+    food: { hay: 30, meat: 20, produce: 15 },
+    completedResearch: [],
+    activeResearch: null,
+    maintenance: { dailyMaintenanceCost: 0 },
+    maintenanceWorkers: 0,
+    maintenanceLevel: 0,
+    tutorialStep: 0,
+    tutorialSkipped: false
+  };
+  ["reports", "exhibits", "shop", "achievements", "staff", "facilities", "visitors", "amenities"].forEach(id => document.getElementById(id).innerHTML = "");
+  updateUI(); renderExhibits(); renderAchievements(); renderReports(); renderShop(); renderFacilities(); renderStaff(); renderSupplies(); renderResearch();
+  showToast("Zoo has been reset! Tutorial will start fresh. 🔄", "info");
+  setTimeout(renderTutorial, 100);
+};
+
+  
+/* =========================================
 11. GAME INITIALIZATION
 ========================================= */
 loadGame();
@@ -4306,6 +4648,15 @@ renderStaff();
 leaderboardPlayerId = getPlayerId();
 setInterval(saveGame, 10000);
 window.addEventListener("beforeunload", saveGame);
+// Start tutorial for new players
+setTimeout(renderTutorial, 1000);
+
+// Re-render tutorial after each day ends (for auto-advance)
+const originalAdvanceDay = advanceDay;
+window.advanceDay = function() {
+  originalAdvanceDay();
+  setTimeout(renderTutorial, 100);
+};
 </script>
 </body>
 </html>
