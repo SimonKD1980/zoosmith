@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ZooSmith V0.2.38</title>
+<title>ZooSmith V0.2.39</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <!-- =========================================
@@ -358,6 +358,15 @@ button:hover { transform: scale(1.02); }
   margin: 0;
   font-size: 1.1rem;
   font-weight: 800;
+}
+.exhibit-name {
+  cursor: pointer;
+  transition: color 0.2s, transform 0.2s;
+  display: inline-block;
+}
+.exhibit-name:hover {
+  color: var(--gold);
+  transform: translateX(2px);
 }
 .exhibit-body {
   padding: 12px;
@@ -2204,6 +2213,33 @@ function triggerEscape(exhibitId) {
   }
 }
 
+function renameExhibit(exhibitId) {
+  const exhibit = state.exhibits[exhibitId];
+  if (!exhibit) return;
+  
+  const newName = prompt(`Rename "${exhibit.name}" to:`, exhibit.name);
+  if (newName === null) return; // User cancelled
+  
+  const trimmed = newName.trim();
+  if (trimmed.length === 0) {
+    showToast("Name cannot be empty!", "error");
+    return;
+  }
+  if (trimmed.length > 30) {
+    showToast("Name must be 30 characters or less!", "error");
+    return;
+  }
+  if (trimmed === exhibit.name) return; // No change
+  
+  exhibit.name = trimmed;
+  addTicker(`✏️ Renamed exhibit to "${trimmed}"`);
+  showToast(`Exhibit renamed to "${trimmed}"`, "info");
+  updateUI();
+  renderExhibits();
+  saveGame();
+}  
+
+  
 function repairFence(exhibitId) {
   const exhibit = state.exhibits[exhibitId];
   if (!exhibit) return;
@@ -2708,12 +2744,12 @@ return `<span class="animalTag" data-exhibit="${id}" data-index="${i}" title="Ag
       : "<em style='color:var(--muted)'>No animals yet</em>";
     
     // ✅ Single clean template literal
-    div.innerHTML = `
-      <div class="exhibit-header">
-        <h3>🏞 ${group.name}</h3>
-        <div style="font-size:0.75rem; opacity:0.7; margin-top:2px;">${sizeInfo.emoji} ${sizeInfo.label} Exhibit</div>
-        ${statusBadge}
-      </div>
+div.innerHTML = `
+  <div class="exhibit-header">
+    <h3 class="exhibit-name" onclick="renameExhibit('${id}')" title="Click to rename">🏞 ${group.name} <span style="font-size: 0.7rem; opacity: 0.6; margin-left: 6px;">✏️</span></h3>
+    <div style="font-size:0.75rem; opacity:0.7; margin-top:2px;">${sizeInfo.emoji} ${sizeInfo.label} Exhibit</div>
+    ${statusBadge}
+  </div>
       <div class="exhibit-body">
         <div class="exhibit-stat">
           <span>🐾 Animals</span>
