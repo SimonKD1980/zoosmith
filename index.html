@@ -1,9 +1,12 @@
 <!DOCTYPE html>
 <html>
 <head>
+<meta name="theme-color" content="#0f172a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ZooSmith V0.2.44</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>ZooSmith V0.2.45</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <!-- =========================================
@@ -660,27 +663,58 @@ button:disabled {
   background: linear-gradient(90deg, var(--blue), var(--accent));
   transition: width 0.3s;
 }
-
 /* =========================================
-MOBILE RESPONSIVE FIXES
+MOBILE RESPONSIVE - ENHANCED
 ========================================= */
 @media (max-width: 768px) {
-  header { padding: 8px; }
+  /* Prevent zoom on double-tap */
+  * { touch-action: manipulation; }
+  
+  /* Safe area for notched phones */
+  body {
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+  
+  header { 
+    padding: 8px; 
+    position: sticky;
+    top: 0;
+    z-index: 50;
+  }
+  
+  /* Better ticker on mobile */
   #ticker {
     font-size: 13px;
-    padding: 4px 8px;
+    padding: 6px 10px;
     max-width: 100%;
     white-space: normal;
     height: auto;
     margin-bottom: 8px;
+    text-align: center;
   }
+  
+  /* Stats bar - 2 columns on mobile */
   .stats-bar {
-    gap: 8px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
     font-size: 12px;
+    padding: 4px;
   }
+  
   .stats-bar span {
+    background: rgba(255,255,255,0.05);
+    padding: 4px 8px;
+    border-radius: 6px;
     white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
+  
+  /* Navigation - better scrolling */
   .nav {
     overflow-x: auto;
     overflow-y: hidden;
@@ -688,44 +722,149 @@ MOBILE RESPONSIVE FIXES
     scrollbar-width: none;
     padding: 8px;
     gap: 6px;
+    position: sticky;
+    top: 0;
+    background: var(--panel);
+    z-index: 40;
   }
-  .nav::-webkit-scrollbar {
-    display: none;
-  }
+  .nav::-webkit-scrollbar { display: none; }
+  
   .nav button {
     flex: 0 0 auto;
-    min-width: 100px;
+    min-width: 90px;
     padding: 10px 12px;
     font-size: 13px;
     white-space: nowrap;
   }
+  
+  /* Action buttons - full width on mobile */
   div[style*="padding: 10px"] {
     flex-wrap: wrap !important;
     gap: 6px !important;
+    padding: 10px !important;
   }
   div[style*="padding: 10px"] button {
     flex: 1 1 calc(50% - 6px);
     min-width: 120px;
     font-size: 13px;
-    padding: 10px 8px;
+    padding: 12px 8px;
+    min-height: 44px; /* Apple's recommended tap target */
   }
+  
   .section { padding: 8px; }
+  
+  /* Grid layouts - single column */
   .grid-layout {
     grid-template-columns: 1fr !important;
     gap: 12px;
   }
+  
+  /* Exhibits - full width */
   #exhibits.active {
     min-height: auto;
     padding: 12px;
-  }
-  .map-grid {
     grid-template-columns: 1fr !important;
-    gap: 15px;
+  }
+  
+  /* Shop cards - better mobile layout */
+  .shop-card-img {
+    height: 160px;
+    object-fit: cover;
+  }
+  
+  .card-body {
+    padding: 12px;
+    gap: 8px;
+  }
+  
+  .card-header {
+    padding: 12px;
+  }
+  
+  .card-header h3 {
+    font-size: 1.1rem;
+  }
+  
+  .card-price {
+    font-size: 1.3rem;
+  }
+  
+  /* Exhibit cards - full width */
+  .exhibitCard {
+    width: 100%;
+  }
+  .exhibit-header {
+    padding: 12px;
+  }
+  .exhibit-header h3 {
+    font-size: 1rem;
+  }
+  .exhibit-body {
     padding: 10px;
   }
-  #visitors.active .grid-layout {
-    grid-template-columns: 1fr !important;
+  
+  /* Animal tags - bigger tap targets */
+  .animalTag {
+    font-size: 13px;
+    padding: 8px 12px;
+    min-height: 36px;
+    display: inline-flex;
+    align-items: center;
   }
+  
+  /* Modals - full screen on mobile */
+  .modal-content {
+    width: 95%;
+    max-width: none;
+    padding: 16px;
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+  .modal-content h3 {
+    font-size: 1.1rem;
+  }
+  
+  /* Buttons - bigger tap targets */
+  button {
+    padding: 12px;
+    font-size: 14px;
+    min-height: 44px;
+  }
+  
+  .primary-btn,
+  .secondary-btn,
+  .danger-btn {
+    padding: 12px 8px;
+    font-size: 13px;
+    min-height: 44px;
+  }
+  
+  /* Stat badges - wrap nicely */
+  .stat-badge {
+    font-size: 0.7rem;
+    padding: 4px 8px;
+  }
+  
+  /* Toast notifications - full width */
+  #toast-container {
+    top: auto;
+    bottom: 10px;
+    right: 10px;
+    left: 10px;
+  }
+  .toast {
+    min-width: auto;
+    width: 100%;
+    font-size: 13px;
+    padding: 12px 15px;
+  }
+  
+  /* Floating money - better positioning */
+  .floating-money {
+    font-size: 1rem;
+  }
+  
+  /* Visitor stats - 2 columns */
   .visitor-overview {
     grid-template-columns: repeat(2, 1fr) !important;
     gap: 8px;
@@ -739,115 +878,57 @@ MOBILE RESPONSIVE FIXES
   .visitor-stat-card .stat-value {
     font-size: 1.8rem;
   }
+  
+  /* Spending breakdown - single column */
   .spending-breakdown {
     grid-template-columns: 1fr !important;
   }
-  .premium-card {
-    border-radius: 10px;
-  }
-  .card-header {
-    padding: 12px;
-  }
-  .card-header h3 {
-    font-size: 1.1rem;
-  }
-  .card-body {
-    padding: 12px;
-    gap: 8px;
-  }
-  .card-price {
-    font-size: 1.3rem;
-  }
-  .card-desc {
-    font-size: 0.85rem;
-  }
-  .shop-card-img {
-    height: 140px;
-  }
-  .exhibitCard {
-    width: 100%;
-  }
-  .exhibit-header {
-    padding: 12px;
-  }
-  .exhibit-header h3 {
-    font-size: 1rem;
-  }
-  .exhibit-body {
-    padding: 10px;
-  }
-  .map-entrance {
-    padding: 12px 20px;
-    font-size: 1rem;
-  }
-  button {
-    padding: 10px;
-    font-size: 14px;
-  }
-  .primary-btn,
-  .secondary-btn,
-  .danger-btn {
-    padding: 10px 8px;
-    font-size: 13px;
-  }
-  .stat-badge {
-    font-size: 0.7rem;
-    padding: 3px 8px;
-  }
-  .modal-content {
-    width: 95%;
-    max-width: none;
-    padding: 15px;
-  }
-  .modal-content h3 {
-    font-size: 1.1rem;
-  }
-  #toast-container {
-    top: 10px;
-    right: 10px;
-    left: 10px;
-  }
-  .toast {
-    min-width: auto;
-    width: 100%;
-    font-size: 13px;
-    padding: 10px 15px;
-  }
-  .floating-money {
-    font-size: 1rem;
-  }
+  
+  /* Reports - single column */
   .report-body {
     grid-template-columns: 1fr !important;
   }
+  
+  /* Achievements */
   .achievement-card {
     padding: 15px;
   }
   .achievement-icon {
     font-size: 2.5rem;
   }
+  
+  /* Complaints list */
   .complaints-list {
     max-height: 250px;
   }
   .complaint-item {
-    padding: 8px;
+    padding: 10px;
     font-size: 0.85rem;
   }
-  .animalTag {
-    font-size: 12px;
-    padding: 5px 8px;
+  
+  /* Leaderboard */
+  .leaderboard-row {
+    grid-template-columns: 50px 1fr 100px;
+    padding: 12px;
   }
-  .map-legend {
-    padding: 10px;
-  }
-  .legend-items {
-    gap: 10px;
-  }
+  .rank-badge { font-size: 1.2rem; }
+  .player-score { font-size: 1rem; }
+  
+  /* Staff & role badges */
   .role-badge {
     font-size: 0.65rem;
-    padding: 3px 8px;
+    padding: 4px 8px;
   }
   .salary-highlight {
     font-size: 1.1rem;
+  }
+  
+  /* Tutorial overlay - full width */
+  .tutorial-overlay {
+    bottom: 10px;
+    right: 10px;
+    left: 10px;
+    max-width: none;
   }
 }
 
@@ -857,13 +938,13 @@ MOBILE RESPONSIVE FIXES
     grid-template-columns: 1fr !important;
   }
   .nav button {
-    min-width: 85px;
+    min-width: 80px;
     font-size: 12px;
     padding: 8px 10px;
   }
   .stats-bar {
     font-size: 11px;
-    gap: 6px;
+    gap: 4px;
   }
   .card-price {
     font-size: 1.2rem;
@@ -871,8 +952,21 @@ MOBILE RESPONSIVE FIXES
   .visitor-stat-card .stat-value {
     font-size: 1.5rem;
   }
+  .animalTag {
+    font-size: 12px;
+    padding: 6px 10px;
+  }
 }
 
+/* Landscape mobile - use 2 columns */
+@media (max-width: 900px) and (orientation: landscape) {
+  .grid-layout {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+  #exhibits.active {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+}
 /* =========================================
 LEADERBOARD STYLES
 ========================================= */
@@ -4946,6 +5040,32 @@ window.advanceDay = function() {
   originalAdvanceDay();
   setTimeout(renderTutorial, 100);
 };
+
+  /* =========================================
+MOBILE TOUCH IMPROVEMENTS
+========================================= */
+// Prevent double-tap zoom on buttons
+let lastTouchEnd = 0;
+document.addEventListener('touchend', (e) => {
+  const now = Date.now();
+  if (now - lastTouchEnd <= 300) {
+    e.preventDefault();
+  }
+  lastTouchEnd = now;
+}, { passive: false });
+
+// Hide address bar on scroll (iOS)
+window.addEventListener('load', () => {
+  setTimeout(() => window.scrollTo(0, 1), 100);
+});
+
+// Improve scroll performance
+document.querySelectorAll('.nav, .complaints-list').forEach(el => {
+  el.style.webkitOverflowScrolling = 'touch';
+});
+  
 </script>
+
+  
 </body>
 </html>
