@@ -83,5 +83,33 @@
       "animalHappiness": 5,
       "maxStaff": 2
     }
-  }    
+  } ,
+{
+  "id": "zoo_guide",
+  "name": "Zoo Guide",
+  "role": "Hospitality",
+  "icon": "🗣️",
+  "description": "Entertains guests and leads tours, boosting visitor happiness and spending.",
+  "cost": 600,
+  "salary": 25,
+  "effects": {
+    "visitorHappiness": 15,
+    "maxStaff": 4
+  }
+},
+{
+  "id": "zoologist",
+  "name": "Zoologist",
+  "role": "Specialist",
+  "icon": "🧬",
+  "description": "Studies animal behavior to significantly increase breeding success rates.",
+  "cost": 3000,
+  "salary": 80,
+  "effects": {
+    "breedingBonus": 0.25,
+    "animalHappiness": 10,
+    "maxStaff": 2
+  }
+}
+    
 ]
