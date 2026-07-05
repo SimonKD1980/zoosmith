@@ -56,4 +56,32 @@
     "maintenanceLevel": 3
   }
 }
+  {
+    "id": "cleaner_park",
+    "name": "Park Sweeper",
+    "role": "Maintenance",
+    "icon": "🧹",
+    "description": "Keeps the park pathways tidy, empties bins, and keeps visitors happy.",
+    "cost": 500,
+    "salary": 20,
+    "effects": {
+      "cleanPark": 15,
+      "visitorHappiness": 5,
+      "maxStaff": 3
+    }
+  },
+  {
+    "id": "cleaner_exhibit",
+    "name": "Exhibit Sanitizer",
+    "role": "Specialist",
+    "icon": "✨",
+    "description": "Deep cleans the animal enclosures to keep the animals healthy and boost your Zoo Rating.",
+    "cost": 1500,
+    "salary": 45,
+    "effects": {
+      "cleanExhibits": 20,
+      "animalHappiness": 5,
+      "maxStaff": 2
+    }
+  }    
 ]
