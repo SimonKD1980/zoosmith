@@ -2706,12 +2706,14 @@ function advanceDay() {
     return;
   }
   const startMoney = state.money;
-processDayIncome();
+consumeDailyFood();
+  processAnimalHealth();
+  processDayIncome();
 processAnimalIncome();  // 🆕
 processUpkeep();
   processDailyMaintenance();
   processFenceDegradation();
-  processAnimalHealth();
+  
 // Fence condition warnings
 for (const id in state.exhibits) {
   const exhibit = state.exhibits[id];
@@ -2726,7 +2728,7 @@ for (const id in state.exhibits) {
     addTicker(`⚠️ ${exhibit.name} fence is wearing down.`);
   }
 } 
-  consumeDailyFood();
+  
   renderExhibits();
   const delta = state.money - startMoney;
   if (delta !== 0) showFloatingMoney(delta);
