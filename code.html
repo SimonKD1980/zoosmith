@@ -2384,6 +2384,7 @@ const RANDOM_EVENTS = [
 ];
 let currentEvent = null;
 function triggerRandomEvent() {
+return;  // ← ADD THIS LINE BACK
 if (Math.random() > 0.30) return;
 const available = RANDOM_EVENTS.filter(e => !e.condition || e.condition());
 if (available.length === 0) return;
