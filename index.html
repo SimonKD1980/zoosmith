@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>ZooSmith V0.2.45</title>
+<title>ZooSmith V0.2.46</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <!-- =========================================
@@ -1963,13 +1963,33 @@ function calculateAttraction() {
 function generateVisitors() {
   const attraction = calculateAttraction();
   if (attraction <= 0) return 0;
-  const baseVisitors = 5;
+  
+  // 🆕 Base visitors only if you have basic amenities
+  const hasRestroom = (state.amenities.restroom || 0) > 0;
+  const hasFood = (state.amenities.food_stand || 0) > 0 || 
+                  (state.amenities.cafe || 0) > 0 || 
+                  (state.amenities.restaurant || 0) > 0;
+  
+  let baseVisitors = 0;
+  if (hasRestroom && hasFood) baseVisitors = 5;      // Full amenities = normal base
+  else if (hasRestroom || hasFood) baseVisitors = 2; // Partial amenities = low base
+  else baseVisitors = 0;                              // No amenities = no base visitors
+  
+  // Animal attraction bonus
   const animalBonus = Math.floor(2 * Math.sqrt(attraction));
   let visitors = baseVisitors + animalBonus;
+  
+  // Novelty decay
   const decayFactor = Math.min(1, state.daysSinceNewAnimal / 20);
   const noveltyMultiplier = 1 - (decayFactor * 0.4);
   visitors = Math.floor(visitors * noveltyMultiplier);
-  return Math.max(3, visitors);
+  
+  // 🆕 Satisfaction multiplier - bad zoos lose visitors
+  const satisfactionMultiplier = state.visitorSatisfaction / 100;
+  visitors = Math.floor(visitors * satisfactionMultiplier);
+  
+  // 🆕 No minimum - can have 0 visitors if zoo is terrible
+  return Math.max(0, visitors);
 }
 
 function processVisitorBehavior(visitors) {
@@ -2849,14 +2869,15 @@ function updateUI() {
   document.getElementById("month").textContent = state.month;
   document.getElementById("year").textContent = state.year;
   document.getElementById("ticketPrice").textContent = state.ticketPrice;
-  const allAnimals = getAllAnimals();
-  if (allAnimals.length === 0) {
-    document.getElementById("novelty").textContent = "0%";
-  } else {
-    const decayFactor = Math.min(1, state.daysSinceNewAnimal / 10);
-    const noveltyMultiplier = 1 - (decayFactor * 0.9);
-    document.getElementById("novelty").textContent = Math.round(noveltyMultiplier * 100) + "%";
-  }
+const allAnimals = getAllAnimals();
+if (allAnimals.length === 0) {
+  document.getElementById("novelty").textContent = "0%";
+} else {
+  // 🆕 Novelty now drops to 0% after 10 days without new animals
+  const decayFactor = Math.min(1, state.daysSinceNewAnimal / 10);
+  const noveltyMultiplier = 1 - decayFactor;
+  document.getElementById("novelty").textContent = Math.round(noveltyMultiplier * 100) + "%";
+}
   const usedSlots = getUsedSlots();
   const totalSlots = getKeeperSlots();
   const staffingEl = document.getElementById("staffSlots");
