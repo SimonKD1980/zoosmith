@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>ZooSmith V0.2.48</title>
+<title>ZooSmith V0.2.49</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
@@ -685,14 +685,48 @@ return { tierNum: parseInt(tierNum), ...tier };
 return { tierNum: 1, ...ZOO_RATING_TIERS[1] };
 }
 function calculateZooRating() {
-const allAnimals = getAllAnimals();
-const totalSpecies = data.animals.length || 1;
-const speciesCount = new Set(allAnimals.map(a => a.id)).size;
-const varietyScore = Math.min(100, (speciesCount / Math.max(5, totalSpecies * 0.3)) * 100);
-let avgHealth = 100;
-if (allAnimals.length > 0) {
-const totalHealth = allAnimals.reduce((sum, a) => sum + (a.health ?? 100), 0);
-avgHealth = totalHealth / allAnimals.length;
+  const allAnimals = getAllAnimals();
+  const totalSpecies = data.animals.length || 1;
+  
+  // Factor 1: Animal Variety (20%)
+  const speciesCount = new Set(allAnimals.map(a => a.id)).size;
+  const varietyScore = Math.min(100, (speciesCount / Math.max(5, totalSpecies * 0.3)) * 100);
+  
+  // Factor 2: Average Animal Health (20%) - reduced from 25%
+  let avgHealth = 100;
+  if (allAnimals.length > 0) {
+    const totalHealth = allAnimals.reduce((sum, a) => sum + (a.health ?? 100), 0);
+    avgHealth = totalHealth / allAnimals.length;
+  }
+  
+  // Factor 3: Visitor Satisfaction (15%) - reduced from 20%
+  const satisfactionScore = state.visitorSatisfaction;
+  
+  // Factor 4: Cleanliness (10%) - reduced from 15%
+  const staffEffects = getStaffEffects();
+  const cleanlinessScore = Math.min(100, staffEffects.cleanPark + staffEffects.cleanExhibits);
+  
+  // 🆕 Factor 5: Death Penalty (25%) - MUCH stronger, now the biggest factor
+  // Each unnatural death costs 10 points (not 5)
+  const deathPenalty = Math.min(100, (state.unnaturalDeaths || 0) * 10);
+  const deathScore = 100 - deathPenalty;
+  
+  // Factor 6: Amenities (10%)
+  const amenityTypes = ['restroom', 'bin', 'bench', 'food_stand', 'gift_shop'];
+  const amenitiesOwned = amenityTypes.filter(id => (state.amenities[id] || 0) > 0).length;
+  const amenitiesScore = (amenitiesOwned / amenityTypes.length) * 100;
+  
+  // Weighted calculation (weights now add to 100%)
+  const rating = Math.round(
+    (varietyScore * 0.20) +
+    (avgHealth * 0.20) +
+    (satisfactionScore * 0.15) +
+    (cleanlinessScore * 0.10) +
+    (deathScore * 0.25) +
+    (amenitiesScore * 0.10)
+  );
+  
+  return Math.max(0, Math.min(100, rating));
 }
 const satisfactionScore = state.visitorSatisfaction;
 const staffEffects = getStaffEffects();
@@ -745,6 +779,7 @@ maintenanceWorkers: 0,
 maintenanceLevel: 0,
 tutorialStep: 0,
 tutorialSkipped: false,
+  recentDeathPenalty: 0, 
 zooRating: 0,
 unnaturalDeaths: 0,
 naturalDeaths: 0,
@@ -1406,6 +1441,7 @@ else if (exhibit.fenceCondition < 50 && Math.random() < 0.1 && exhibit.animals.l
 }
 }
 function processAnimalHealth() {
+state.recentDeathPenalty = Math.min(50, state.recentDeathPenalty + 15);
 const understaffed = isUnderstaffed();
 const deaths = [];
 for (const id in state.exhibits) {
@@ -1511,6 +1547,9 @@ processAnimalIncome();
 processUpkeep();
 processDailyMaintenance();
 processFenceDegradation();
+if (state.recentDeathPenalty > 0) {
+  state.recentDeathPenalty = Math.max(0, state.recentDeathPenalty - 5);
+}
 for (const id in state.exhibits) {
 const exhibit = state.exhibits[id];
 if (exhibit.buildDaysRemaining > 0) continue;
