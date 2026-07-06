@@ -709,7 +709,8 @@ function calculateZooRating() {
   // 🆕 Factor 5: Death Penalty (25%) - MUCH stronger, now the biggest factor
   // Each unnatural death costs 10 points (not 5)
   const deathPenalty = Math.min(100, (state.unnaturalDeaths || 0) * 10);
-	const deathScore = allAnimals.length > 0 ? (100 - deathPenalty) : 0; // 👈 FIX: 0 points if no animals exist
+	const deathScore = allAnimals.length > 0 ? (100 - deathPenalty) : 0; // 👈 FIX: 0 if no animals
+const amenityTypes = ['restroom', 'bin', 'bench', 'food_stand', 'gift_shop'];
   
   // Factor 6: Amenities (10%)
   const amenityTypes = ['restroom', 'bin', 'bench', 'food_stand', 'gift_shop'];
@@ -1871,8 +1872,7 @@ const healthEmoji = health >= 80 ? '' : health >= 50 ? ' 💛' : health >= 20 ? 
 return `<span class="animalTag" data-exhibit="${id}" data-index="${i}" title="Age: ${ageDisplay} | Health: ${Math.round(health)}%">${sickTag}${pregnantTag}${stage.emoji} ${a.name}${healthEmoji}</span>`;
 }).join("")
 : "<em style='color:var(--muted)'>No animals yet</em>";
-div.innerHTML = `
-    const exhibitType = data.exhibitTypes[group.type] || data.exhibitTypes.terrestrial || { emoji: '🏞️', name: 'Standard Exhibit' };
+div.innerHTML = `    const exhibitType = data.exhibitTypes[group.type] || data.exhibitTypes.terrestrial || { emoji: '🏞️', name: 'Standard Exhibit' };
     div.innerHTML = `
 <div class="exhibit-header">
     <h3 class="exhibit-name" onclick="renameExhibit('${id}')" title="Click to rename">${exhibitType.emoji} ${group.name} <span style="font-size: 0.7rem; opacity: 0.6; margin-left: 6px;">️</span></h3>
