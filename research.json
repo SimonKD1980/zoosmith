@@ -97,7 +97,7 @@
     "tier": "legendary",
     "unlocks": ["unicorn"],
     "requires": "rare_exotics"
-  }
+  },
     {
     "id": "research_aquatic_habitats",
     "name": "Aquatic Habitat Design",
