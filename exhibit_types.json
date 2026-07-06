@@ -9,7 +9,7 @@
   {
     "id": "aquatic",
     "name": "Aquatic Tank",
-    "emoji": "",
+    "emoji": "🐠",
     "description": "Water tank for semi-aquatic and aquatic animals.",
     "unlockResearch": "research_aquatic_habitats"
   },
