@@ -18,7 +18,7 @@
     "cost": 3500,
     "days": 7,
     "tier": "basic",
-    "unlocks": ["fox", "otter", "red_panda", "lynx"],
+    "unlocks": ["red_panda"],
     "requires": null
   },
   {
@@ -29,7 +29,7 @@
     "cost": 3000,
     "days": 6,
     "tier": "basic",
-    "unlocks": ["macaw", "toucan", "peacock", "flamingo"],
+    "unlocks": ["greater_flamingo"],
     "requires": null
   },
   {
@@ -40,7 +40,7 @@
     "cost": 10000,
     "days": 15,
     "tier": "advanced",
-    "unlocks": ["lion", "tiger", "wolf", "bear"],
+    "unlocks": ["african_lion", "bengal_tiger", "gray_wolf", "black_bear"],
     "requires": "small_carnivores"
   },
   {
@@ -51,7 +51,7 @@
     "cost": 12000,
     "days": 18,
     "tier": "advanced",
-    "unlocks": ["gorilla", "chimpanzee", "orangutan", "lemur"],
+    "unlocks": ["lowland_gorilla", "chimpanzee"],
     "requires": "basic_herbivores"
   },
   {
@@ -62,7 +62,7 @@
     "cost": 15000,
     "days": 20,
     "tier": "advanced",
-    "unlocks": ["dolphin", "penguin", "seal", "sea_lion"],
+    "unlocks": ["california_sea_lion"],
     "requires": "avian_specialist"
   },
   {
@@ -73,7 +73,7 @@
     "cost": 25000,
     "days": 30,
     "tier": "exotic",
-    "unlocks": ["elephant", "rhino", "giraffe", "hippo"],
+    "unlocks": ["african_elephant", "black_rhinoceros", "giraffe", "hippopotamus"],
     "requires": "advanced_predators"
   },
   {
@@ -84,7 +84,7 @@
     "cost": 40000,
     "days": 45,
     "tier": "exotic",
-    "unlocks": ["snow_leopard", "pangolin", "okapi"],
+    "unlocks": ["snow_leopard", "okapi"],
     "requires": "exotic_megafauna"
   },
   {
@@ -95,7 +95,7 @@
     "cost": 100000,
     "days": 60,
     "tier": "legendary",
-    "unlocks": ["unicorn", "dragon", "phoenix", "griffin"],
+    "unlocks": ["unicorn"],
     "requires": "rare_exotics"
   }
 ]
