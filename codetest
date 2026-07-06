@@ -1,0 +1,1797 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="theme-color" content="#0f172a">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>ZooSmith V0.3.3</title>
+    
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
+        import { getFirestore, doc, setDoc, getDoc, getDocs, collection, query, orderBy, limit, updateDoc, increment }
+        from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
+        
+        const firebaseConfig = {
+            apiKey: "AIzaSyBZRRK6LopojbwniZ9iWQzmyiHdwu84Dcs",
+            authDomain: "zoo-tycoon-leaderboard.firebaseapp.com",
+            projectId: "zoo-tycoon-leaderboard",
+            storageBucket: "zoo-tycoon-leaderboard.firebasestorage.app",
+            messagingSenderId: "784281338962",
+            appId: "1:784281338962:web:485d7f315ead583bcfcb8b"
+        };
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        window.firebaseDB = db;
+        window.firebaseModules = { doc, setDoc, getDoc, getDocs, collection, query, orderBy, limit, updateDoc, increment };
+        console.log("🔥 Firebase connected!");
+    </script>
+
+    <style>
+        :root {
+            --bg: #0f172a; --panel: #111827; --card: #1f2937; --card-hover: #273548;
+            --text: #e5e7eb; --muted: #9ca3af; --accent: #22c55e; --danger: #ef4444;
+            --warn: #f59e0b; --blue: #3b82f6; --purple: #a855f7; --gold: #fbbf24; --radius: 14px;
+        }
+        body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; background: var(--bg); color: var(--text); }
+        header { background: var(--panel); padding: 12px; font-size: 14px; border-bottom: 1px solid #243042; text-align: center; }
+        #ticker { background: #1e2a38; color: #0f0; padding: 6px 10px; font-size: 16px; height: 20px; overflow: hidden; white-space: nowrap; width: fit-content; margin: 0 auto 10px; border-radius: 8px; }
+        .stats-bar { display: flex; justify-content: center; gap: 15px; flex-wrap: wrap; font-weight: 600; position: relative; }
+        .stats-bar span { color: var(--accent); }
+        .nav { display: flex; gap: 6px; padding: 10px; background: var(--panel); }
+        .nav button { flex: 1; padding: 10px; border: 1px solid #243042; background: #0b1220; color: var(--text); border-radius: 10px; cursor: pointer; transition: 0.2s; }
+        .nav button:hover { transform: translateY(-1px); border-color: var(--accent); }
+        .nav button.active { background: var(--accent); color: #000; font-weight: bold; }
+        button { border: none; border-radius: var(--radius); padding: 12px; font-size: 15px; cursor: pointer; background: var(--accent); color: #000; transition: 0.2s; }
+        button:hover { transform: scale(1.02); }
+        .removeBtn { background: var(--danger); color: white; }
+        .moveBtn { background: var(--blue); color: white; }
+        .buildBtn { background: var(--warn); color: black; }
+        .category-tab:hover { border-color: var(--accent) !important; transform: translateY(-1px); }
+        .category-tab.active:hover { transform: none; }
+        .section { display: none; padding: 12px; }
+        .section.active { display: block; }
+        #reports.active { display: grid; grid-template-columns: 1fr; gap: 20px; }
+        #exhibits.active { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; width: 100%; min-height: 650px; background: linear-gradient(#2e7d32, #1b5e20); border-radius: 12px; padding: 20px; align-content: start; box-sizing: border-box; }
+        #visitors.active { display: grid; grid-template-columns: 1fr; gap: 20px; }
+        .animalList { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+        .animalTag { background: #0b1220; border: 1px solid #243042; padding: 6px 10px; border-radius: 10px; cursor: pointer; font-size: 13px; transition: all 0.2s; }
+        .animalTag:hover { border-color: var(--accent); color: var(--accent); }
+        .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); justify-content: center; align-items: center; z-index: 100; }
+        .modal.active { display: flex; }
+        .modal-content { background: var(--card); padding: 20px; width: 90%; max-width: 400px; border-radius: var(--radius); border: 1px solid #243042; color: var(--text); }
+        .modal-content h3 { margin-top: 0; }
+        .modal-content select { width: 100%; padding: 10px; font-size: 16px; margin-bottom: 10px; background: #0b1220; color: var(--text); border: 1px solid #243042; border-radius: 8px;}
+        .modal-content button { width: 100%; margin-bottom: 10px; }
+        .grid-layout { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; padding: 10px 0; }
+        .premium-card { background: var(--card); border-radius: var(--radius); overflow: hidden; border: 1px solid #243042; transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1); display: flex; flex-direction: column; box-shadow: 0 4px 6px rgba(0,0,0,0.3); position: relative; }
+        .premium-card:hover { transform: translateY(-6px); box-shadow: 0 12px 28px rgba(34, 197, 94, 0.15), 0 10px 10px rgba(0,0,0,0.4); border-color: var(--accent); }
+        .card-header { padding: 16px; background: linear-gradient(135deg, #1e293b, #0f172a); border-bottom: 2px solid #243042; position: relative; }
+        .card-header h3 { margin: 0 0 4px 0; font-size: 1.25rem; font-weight: 800; letter-spacing: -0.5px; }
+        .card-header .subtitle { font-size: 0.85rem; color: var(--muted); font-style: italic; }
+        .card-body { padding: 16px; flex: 1; display: flex; flex-direction: column; gap: 10px; }
+        .card-stats { display: flex; flex-wrap: wrap; gap: 6px; }
+        .stat-badge { background: #0b1220; padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; border: 1px solid #243042; color: var(--muted); font-weight: 600; }
+        .stat-badge.green { color: var(--accent); border-color: var(--accent); }
+        .stat-badge.blue { color: var(--blue); border-color: var(--blue); }
+        .stat-badge.warn { color: var(--warn); border-color: var(--warn); }
+        .stat-badge.danger { color: var(--danger); border-color: var(--danger); }
+        .stat-badge.purple { color: var(--purple); border-color: var(--purple); }
+        .card-desc { font-size: 0.9rem; color: var(--muted); line-height: 1.4; margin: 0; }
+        .card-price { font-size: 1.5rem; font-weight: 800; color: var(--accent); margin: 4px 0; }
+        .card-price small { font-size: 0.85rem; color: var(--muted); font-weight: 500; }
+        .card-actions { padding: 12px 16px; border-top: 1px solid #243042; display: flex; gap: 8px; flex-wrap: wrap; }
+        .primary-btn { flex: 1; background: linear-gradient(135deg, #22c55e, #16a34a); color: white; font-weight: 700; padding: 10px; border-radius: 10px; border: none; cursor: pointer; transition: all 0.2s; box-shadow: 0 4px 6px rgba(34, 197, 94, 0.2); }
+        .primary-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 12px rgba(34, 197, 94, 0.4); }
+        .secondary-btn { flex: 1; background: linear-gradient(135deg, #3b82f6, #2563eb); color: white; font-weight: 700; padding: 10px; border-radius: 10px; border: none; cursor: pointer; transition: all 0.2s; }
+        .secondary-btn:hover { transform: translateY(-2px); }
+        .danger-btn { background: linear-gradient(135deg, #ef4444, #dc2626); color: white; font-weight: 700; padding: 10px; border-radius: 10px; border: none; cursor: pointer; transition: all 0.2s; }
+        .danger-btn:hover { transform: translateY(-2px); }
+        .happiness-bar { width: 100%; height: 8px; background: #0b1220; border-radius: 4px; overflow: hidden; margin-top: 4px; }
+        .happiness-fill { height: 100%; background: linear-gradient(90deg, #ef4444, #f59e0b, #22c55e); transition: width 0.3s; }
+        .shop-card-img { width: 100%; height: 180px; object-fit: contain; border-bottom: 2px solid #243042; transition: transform 0.4s ease; background: linear-gradient(135deg, #2e7d32, #1b5e20); }
+        @media (max-width: 768px) { .shop-card-img { height: auto; min-height: 120px; max-height: 200px; } }
+        .exhibitCard { position: relative; width: 100%; background: var(--card); border-radius: var(--radius); border: 1px solid #243042; overflow: hidden; transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1); box-shadow: 0 4px 10px rgba(0,0,0,0.4); }
+        .exhibitCard:hover { transform: translateY(-4px) scale(1.02); box-shadow: 0 12px 24px rgba(34, 197, 94, 0.2); border-color: var(--accent); }
+        .exhibit-header { padding: 14px; background: linear-gradient(135deg, #166534, #14532d); border-bottom: 2px solid #243042; }
+        .exhibit-header h3 { margin: 0; font-size: 1.1rem; font-weight: 800; }
+        .exhibit-name { cursor: pointer; transition: color 0.2s, transform 0.2s; display: inline-block; }
+        .exhibit-name:hover { color: var(--gold); transform: translateX(2px); }
+        .exhibit-body { padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+        .exhibit-stat { display: flex; justify-content: space-between; font-size: 0.85rem; color: var(--muted); }
+        .exhibit-stat strong { color: var(--text); }
+        .achievement-card { background: var(--card); border-radius: var(--radius); padding: 20px; border: 1px solid #243042; transition: all 0.3s; position: relative; overflow: hidden; }
+        .achievement-card.locked { opacity: 0.5; filter: grayscale(0.6); }
+        .achievement-card.unlocked { border-color: var(--gold); box-shadow: 0 0 20px rgba(251, 191, 36, 0.2); background: linear-gradient(135deg, #1f2937, #2d1f0a); }
+        .achievement-card.unlocked::before { content: ''; position: absolute; top: -50%; right: -50%; width: 200%; height: 200%; background: radial-gradient(circle, rgba(251, 191, 36, 0.1) 0%, transparent 70%); pointer-events: none; }
+        .achievement-icon { font-size: 3rem; margin-bottom: 10px; display: block; }
+        .achievement-card h3 { margin: 0 0 6px 0; font-size: 1.1rem; font-weight: 800; }
+        .achievement-card p { margin: 0; color: var(--muted); font-size: 0.9rem; }
+        .achievement-status { margin-top: 10px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; }
+        .achievement-status.done { color: var(--gold); }
+        .achievement-status.pending { color: var(--muted); }
+        .report-card { background: var(--card); border-radius: var(--radius); border: 1px solid #243042; overflow: hidden; transition: all 0.3s; }
+        .report-card:hover { transform: translateY(-4px); border-color: var(--blue); box-shadow: 0 12px 24px rgba(59, 130, 246, 0.15); }
+        .report-header { padding: 16px; background: linear-gradient(135deg, #1e40af, #1e3a8a); border-bottom: 2px solid #243042; }
+        .report-header h3 { margin: 0; font-size: 1.2rem; font-weight: 800; }
+        .report-body { padding: 16px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .report-stat { background: #0b1220; padding: 12px; border-radius: 10px; border: 1px solid #243042; }
+        .report-stat .label { font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
+        .report-stat .value { font-size: 1.4rem; font-weight: 800; color: var(--text); }
+        .report-stat.income .value { color: var(--accent); }
+        .report-stat.visitors .value { color: var(--blue); }
+        .report-stat.happiness .value { color: var(--warn); }
+        .facility-icon, .staff-icon { font-size: 2.5rem; margin-bottom: 8px; display: block; }
+        .role-badge { display: inline-block; background: linear-gradient(135deg, var(--purple), #7c3aed); color: white; padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+        .salary-highlight { font-size: 1.3rem; font-weight: 800; color: var(--warn); margin: 8px 0; }
+        button:disabled { opacity: 0.5; cursor: not-allowed; transform: none !important; }
+        #toast-container { position: fixed; top: 20px; right: 20px; z-index: 1000; display: flex; flex-direction: column; gap: 10px; pointer-events: none; }
+        .toast { background: var(--card); color: var(--text); padding: 12px 20px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); border-left: 5px solid var(--accent); animation: slideIn 0.3s ease, fadeOut 0.3s ease 2.7s forwards; min-width: 250px; font-weight: 600; pointer-events: auto; }
+        .toast.error { border-left-color: var(--danger); }
+        .toast.warn { border-left-color: var(--warn); }
+        .toast.info { border-left-color: var(--blue); }
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        @keyframes fadeOut { to { transform: translateX(100%); opacity: 0; } }
+        .floating-money { position: absolute; font-weight: 800; font-size: 1.2rem; pointer-events: none; animation: floatUp 1.5s ease-out forwards; z-index: 50; text-shadow: 0 2px 4px rgba(0,0,0,0.5); }
+        .floating-money.positive { color: var(--accent); }
+        .floating-money.negative { color: var(--danger); }
+        @keyframes floatUp { 0% { transform: translateY(0); opacity: 1; } 100% { transform: translateY(-50px); opacity: 0; } }
+        .visitor-overview { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px; }
+        .visitor-stat-card { background: var(--card); border-radius: var(--radius); padding: 20px; border: 1px solid #243042; text-align: center; }
+        .visitor-stat-card h4 { margin: 0 0 10px 0; color: var(--muted); font-size: 0.9rem; text-transform: uppercase; letter-spacing: 1px; }
+        .visitor-stat-card .stat-value { font-size: 2.5rem; font-weight: 800; color: var(--text); }
+        .visitor-stat-card .stat-value.green { color: var(--accent); }
+        .visitor-stat-card .stat-value.blue { color: var(--blue); }
+        .visitor-stat-card .stat-value.warn { color: var(--warn); }
+        .visitor-stat-card .stat-value.gold { color: var(--gold); }
+        .complaints-list { background: var(--card); border-radius: var(--radius); border: 1px solid #243042; padding: 15px; max-height: 300px; overflow-y: auto; }
+        .complaint-item { display: flex; align-items: center; gap: 10px; padding: 10px; margin-bottom: 8px; background: #0b1220; border-radius: 8px; border-left: 3px solid var(--danger); animation: slideIn 0.3s ease; }
+        .complaint-item.warning { border-left-color: var(--warn); }
+        .complaint-item.info { border-left-color: var(--blue); }
+        .complaint-icon { font-size: 1.5rem; }
+        .complaint-text { flex: 1; font-size: 0.9rem; }
+        .complaint-time { font-size: 0.75rem; color: var(--muted); }
+        .spending-breakdown { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; }
+        .spending-card { background: var(--card); border-radius: var(--radius); padding: 15px; border: 1px solid #243042; }
+        .spending-card h4 { margin: 0 0 10px 0; color: var(--muted); font-size: 0.9rem; }
+        .spending-card .amount { font-size: 1.8rem; font-weight: 800; color: var(--accent); }
+        .spending-card .percentage { font-size: 0.85rem; color: var(--muted); margin-top: 5px; }
+        .amenity-bar { width: 100%; height: 6px; background: #0b1220; border-radius: 3px; margin-top: 8px; overflow: hidden; }
+        .amenity-fill { height: 100%; background: linear-gradient(90deg, var(--blue), var(--accent)); transition: width 0.3s; }
+        .rating-badge { background: linear-gradient(135deg, rgba(251, 191, 36, 0.2), rgba(251, 191, 36, 0.05)); border: 1px solid var(--gold); color: var(--gold); padding: 4px 10px; border-radius: 20px; font-size: 0.85rem; font-weight: 700; cursor: pointer; transition: all 0.2s; }
+        .rating-badge:hover { transform: scale(1.05); box-shadow: 0 0 10px rgba(251, 191, 36, 0.3); }
+        .research-tree { display: flex; gap: 40px; padding: 20px; overflow-x: auto; min-height: 500px; position: relative; }
+        .research-tier { display: flex; flex-direction: column; gap: 20px; min-width: 280px; position: relative; }
+        .research-tier-header { text-align: center; padding: 12px; border-radius: 12px; font-weight: 800; font-size: 1rem; text-transform: uppercase; letter-spacing: 1px; border: 2px solid; background: rgba(0,0,0,0.3); }
+        .research-node { position: relative; background: var(--card); border: 2px solid #243042; border-radius: 12px; padding: 14px; transition: all 0.3s; }
+        .research-node.completed { border-color: var(--accent); background: linear-gradient(135deg, rgba(34, 197, 94, 0.1), var(--card)); }
+        .research-node.active { border-color: var(--warn); background: linear-gradient(135deg, rgba(245, 158, 11, 0.15), var(--card)); box-shadow: 0 0 20px rgba(245, 158, 11, 0.3); animation: researchPulse 2s ease-in-out infinite; }
+        .research-node.locked { opacity: 0.5; filter: grayscale(0.6); }
+        .research-node.ready { border-color: var(--blue); cursor: pointer; }
+        .research-node.ready:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(59, 130, 246, 0.3); }
+        @keyframes researchPulse { 0%, 100% { box-shadow: 0 0 20px rgba(245, 158, 11, 0.3); } 50% { box-shadow: 0 0 30px rgba(245, 158, 11, 0.6); } }
+        .research-node-header { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+        .research-node-icon { font-size: 2rem; }
+        .research-node-title { font-weight: 800; font-size: 1rem; margin: 0; flex: 1; }
+        .research-node-status { font-size: 0.7rem; padding: 3px 8px; border-radius: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+        .research-node-desc { font-size: 0.85rem; color: var(--muted); margin: 8px 0; line-height: 1.4; }
+        .research-node-stats { display: flex; gap: 8px; margin: 8px 0; flex-wrap: wrap; }
+        .research-node-unlocks { margin-top: 10px; padding-top: 10px; border-top: 1px solid #243042; }
+        .research-node-unlocks-title { font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
+        .research-unlock-list { display: flex; flex-wrap: wrap; gap: 4px; }
+        .research-tier::before { content: ''; position: absolute; left: -20px; top: 50px; bottom: 20px; width: 2px; background: linear-gradient(to bottom, transparent, #243042 20%, #243042 80%, transparent); }
+        .research-tier:first-child::before { display: none; }
+        .research-tier-arrow { position: absolute; left: -30px; top: 20px; color: var(--muted); font-size: 1.5rem; z-index: 2; }
+        .research-tier:first-child .research-tier-arrow { display: none; }
+        .research-progress-bar { width: 100%; height: 6px; background: #0b1220; border-radius: 3px; overflow: hidden; margin-top: 8px; }
+        .research-progress-fill { height: 100%; background: linear-gradient(90deg, var(--warn), var(--accent)); transition: width 0.3s; }
+        .tutorial-overlay { position: fixed; bottom: 20px; right: 20px; max-width: 360px; background: linear-gradient(135deg, #1e293b, #0f172a); border: 2px solid var(--accent); border-radius: var(--radius); padding: 20px; box-shadow: 0 10px 30px rgba(34, 197, 94, 0.3), 0 0 0 4px rgba(34, 197, 94, 0.1); z-index: 999; animation: tutorialSlideIn 0.4s ease; }
+        @keyframes tutorialSlideIn { from { transform: translateY(30px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        .tutorial-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+        .tutorial-step-badge { background: var(--accent); color: #000; padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 800; text-transform: uppercase; }
+        .tutorial-close { background: transparent; border: none; color: var(--muted); font-size: 1.2rem; cursor: pointer; padding: 0; width: 24px; height: 24px; line-height: 1; }
+        .tutorial-close:hover { color: var(--text); transform: none; }
+        .tutorial-title { font-size: 1.1rem; font-weight: 800; margin: 0 0 8px 0; color: var(--text); }
+        .tutorial-message { font-size: 0.9rem; color: var(--muted); line-height: 1.5; margin: 0 0 15px 0; }
+        .tutorial-action { background: rgba(34, 197, 94, 0.1); border: 1px solid var(--accent); color: var(--accent); padding: 8px 12px; border-radius: 8px; font-size: 0.85rem; font-weight: 600; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+        .tutorial-progress { display: flex; gap: 4px; margin-bottom: 12px; }
+        .tutorial-dot { flex: 1; height: 4px; background: #243042; border-radius: 2px; transition: background 0.3s; }
+        .tutorial-dot.active { background: var(--accent); }
+        .tutorial-dot.done { background: var(--accent); opacity: 0.5; }
+        .tutorial-buttons { display: flex; gap: 8px; }
+        .tutorial-skip { flex: 1; background: transparent; border: 1px solid #243042; color: var(--muted); padding: 8px; border-radius: 8px; font-size: 0.85rem; cursor: pointer; transition: all 0.2s; }
+        .tutorial-skip:hover { border-color: var(--muted); color: var(--text); transform: none; }
+        .tutorial-next { flex: 1; background: var(--accent); color: #000; padding: 8px; border-radius: 8px; font-size: 0.85rem; font-weight: 700; cursor: pointer; border: none; transition: all 0.2s; }
+        .tutorial-next:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3); }
+        .tutorial-highlight { animation: tutorialPulse 2s ease-in-out infinite; position: relative; z-index: 10; }
+        @keyframes tutorialPulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); } 50% { box-shadow: 0 0 0 8px rgba(34, 197, 94, 0); } }
+        /* Zoo Name Display */
+        .zoo-name-display {
+        font-size: 1.2rem; font-weight: 800; color: var(--gold); cursor: pointer;
+        margin-bottom: 8px; display: inline-block; padding: 4px 12px;
+        background: rgba(251, 191, 36, 0.1); border: 1px solid var(--gold); border-radius: 20px;
+        transition: all 0.2s;
+}
+.zoo-name-display:hover { background: rgba(251, 191, 36, 0.2); transform: scale(1.05); }
+        /* Mobile Overrides */
+        @media (max-width: 768px) {
+            * { touch-action: manipulation; }
+            body { padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom); padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); }
+            header { padding: 8px; position: sticky; top: 0; z-index: 50; }
+            #ticker { font-size: 13px; padding: 6px 10px; max-width: 100%; white-space: normal; height: auto; margin-bottom: 8px; text-align: center; }
+            .stats-bar { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; font-size: 12px; padding: 4px; }
+            .stats-bar span { background: rgba(255,255,255,0.05); padding: 4px 8px; border-radius: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+            .nav { overflow-x: auto; overflow-y: hidden; -webkit-overflow-scrolling: touch; scrollbar-width: none; padding: 8px; gap: 6px; position: sticky; top: 0; background: var(--panel); z-index: 40; }
+            .nav::-webkit-scrollbar { display: none; }
+            .nav button { flex: 0 0 auto; min-width: 90px; padding: 10px 12px; font-size: 13px; white-space: nowrap; }
+            div[style*="padding: 10px"] { flex-wrap: wrap !important; gap: 6px !important; padding: 10px !important; }
+            div[style*="padding: 10px"] button { flex: 1 1 calc(50% - 6px); min-width: 120px; font-size: 13px; padding: 12px 8px; min-height: 44px; }
+            .section { padding: 8px; }
+            .grid-layout { grid-template-columns: 1fr !important; gap: 12px; }
+            #exhibits.active { min-height: auto; padding: 12px; grid-template-columns: 1fr !important; }
+            .shop-card-img { height: 160px; object-fit: cover; }
+            .card-body { padding: 12px; gap: 8px; }
+            .card-header { padding: 12px; }
+            .card-header h3 { font-size: 1.1rem; }
+            .card-price { font-size: 1.3rem; }
+            .exhibitCard { width: 100%; }
+            .exhibit-header { padding: 12px; }
+            .exhibit-header h3 { font-size: 1rem; }
+            .exhibit-body { padding: 10px; }
+            .animalTag { font-size: 13px; padding: 8px 12px; min-height: 36px; display: inline-flex; align-items: center; }
+            .modal-content { width: 95%; max-width: none; padding: 16px; max-height: 90vh; overflow-y: auto; }
+            .modal-content h3 { font-size: 1.1rem; }
+            button { padding: 12px; font-size: 14px; min-height: 44px; }
+            .primary-btn, .secondary-btn, .danger-btn { padding: 12px 8px; font-size: 13px; min-height: 44px; }
+            .stat-badge { font-size: 0.7rem; padding: 4px 8px; }
+            #toast-container { top: auto; bottom: 10px; right: 10px; left: 10px; }
+            .toast { min-width: auto; width: 100%; font-size: 13px; padding: 12px 15px; }
+            .floating-money { font-size: 1rem; }
+            .visitor-overview { grid-template-columns: repeat(2, 1fr) !important; gap: 8px; }
+            .visitor-stat-card { padding: 12px; }
+            .visitor-stat-card h4 { font-size: 0.75rem; }
+            .visitor-stat-card .stat-value { font-size: 1.8rem; }
+            .spending-breakdown { grid-template-columns: 1fr !important; }
+            .report-body { grid-template-columns: 1fr !important; }
+            .achievement-card { padding: 15px; }
+            .achievement-icon { font-size: 2.5rem; }
+            .complaints-list { max-height: 250px; }
+            .complaint-item { padding: 10px; font-size: 0.85rem; }
+            .leaderboard-row { grid-template-columns: 50px 1fr 100px; padding: 12px; }
+            .rank-badge { font-size: 1.2rem; }
+            .player-score { font-size: 1rem; }
+            .role-badge { font-size: 0.65rem; padding: 4px 8px; }
+            .salary-highlight { font-size: 1.1rem; }
+            .tutorial-overlay { bottom: 10px; right: 10px; left: 10px; max-width: none; }
+            .research-tree { gap: 20px; padding: 10px; }
+            .research-tier { min-width: 240px; }
+        }
+        @media (max-width: 400px) {
+            .visitor-overview { grid-template-columns: 1fr !important; }
+            .nav button { min-width: 80px; font-size: 12px; padding: 8px 10px; }
+            .stats-bar { font-size: 11px; gap: 4px; }
+            .card-price { font-size: 1.2rem; }
+            .visitor-stat-card .stat-value { font-size: 1.5rem; }
+            .animalTag { font-size: 12px; padding: 6px 10px; }
+        }
+        @media (max-width: 900px) and (orientation: landscape) {
+            .grid-layout { grid-template-columns: repeat(2, 1fr) !important; }
+            #exhibits.active { grid-template-columns: repeat(2, 1fr) !important; }
+        }
+        
+        /* Leaderboard */
+        .leaderboard-tabs { display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; }
+        .leaderboard-tab { padding: 10px 20px; background: var(--card); border: 1px solid #243042; border-radius: 10px; cursor: pointer; font-weight: 600; color: var(--text); transition: all 0.2s; }
+        .leaderboard-tab:hover { border-color: var(--accent); }
+        .leaderboard-tab.active { background: var(--accent); color: #000; border-color: var(--accent); }
+        .leaderboard-table { background: var(--card); border-radius: var(--radius); border: 1px solid #243042; overflow: hidden; }
+        .leaderboard-row { display: grid; grid-template-columns: 60px 1fr 150px; padding: 15px 20px; border-bottom: 1px solid #243042; align-items: center; transition: background 0.2s; }
+        .leaderboard-row:hover { background: var(--card-hover); }
+        .leaderboard-row.header { background: linear-gradient(135deg, #1e293b, #0f172a); font-weight: 800; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); }
+        .leaderboard-row.you { background: rgba(34, 197, 94, 0.1); border-left: 4px solid var(--accent); }
+        .leaderboard-row.top1 { background: linear-gradient(90deg, rgba(251, 191, 36, 0.15), transparent); }
+        .leaderboard-row.top2 { background: linear-gradient(90deg, rgba(192, 192, 192, 0.1), transparent); }
+        .leaderboard-row.top3 { background: linear-gradient(90deg, rgba(205, 127, 50, 0.1), transparent); }
+        .rank-badge { font-size: 1.5rem; font-weight: 900; text-align: center; }
+        .rank-1 { color: var(--gold); } .rank-2 { color: #c0c0c0; } .rank-3 { color: #cd7f32; }
+        .player-info { display: flex; flex-direction: column; gap: 2px; }
+        .player-name { font-weight: 700; font-size: 1rem; }
+        .player-zoo { font-size: 0.8rem; color: var(--muted); }
+        .player-score { text-align: right; font-weight: 800; font-size: 1.2rem; color: var(--accent); }
+        .your-rank-card { background: linear-gradient(135deg, rgba(34, 197, 94, 0.1), rgba(59, 130, 246, 0.1)); border: 2px solid var(--accent); border-radius: var(--radius); padding: 20px; margin-bottom: 20px; text-align: center; }
+        .your-rank-card h3 { margin: 0 0 10px 0; color: var(--accent); }
+        .your-rank-number { font-size: 3rem; font-weight: 900; color: var(--gold); }
+        .leaderboard-loading { text-align: center; padding: 40px; color: var(--muted); }
+        .name-prompt { background: var(--card); border: 2px solid var(--accent); border-radius: var(--radius); padding: 30px; text-align: center; margin-bottom: 20px; }
+        .name-prompt input { width: 100%; max-width: 300px; padding: 12px; font-size: 1rem; background: #0b1220; color: var(--text); border: 1px solid #243042; border-radius: 8px; margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <header>
+        <div id="ticker">Welcome to your zoo...</div>
+        <div class="zoo-name-display" onclick="openManageZoosModal()" title="Click to manage zoos">🏞️ <span id="zooNameDisplay">My Zoo</span> ✏️</div>
+        <div class="stats-bar">
+            <span>💰 $<span id="money">10,000</span></span>
+            <span>📅 Day <span id="day">1</span></span>
+            <span>🗓 Month <span id="month">1</span></span>
+            <span>📆 Year <span id="year">1</span></span>
+            <span>📈 $<span id="income">0</span>/day</span>
+            <span>🎟 $<span id="ticketPrice">20</span></span>
+            <span>✨ Novelty: <span id="novelty">100%</span></span>
+            <span id="staffingStatus">🧑‍🌾 <span id="staffSlots">0/0</span></span>
+            <span class="rating-badge" id="ratingBadge" onclick="showRatingBreakdown()" title="Click for details">⭐ <span id="zooRating">0</span>% <span id="zooRatingTier">(Struggling)</span></span>
+        </div>
+    </header>
+
+    <div class="nav">
+        <button onclick="showSection('leaderboard', event)">🏆 Leaderboard</button>
+        <button class="active" onclick="showSection('shop', event)">🛒 Shop</button>
+        <button onclick="showSection('exhibits', event)">🏞 Exhibits</button>
+        <button onclick="showSection('research', event)">🔬 Research</button>
+        <button onclick="showSection('visitors', event)">👥 Visitors</button>
+        <button onclick="showSection('supplies', event)">🍽 Supplies</button>
+        <button onclick="showSection('achievements', event)">🏆 Achievements</button>
+        <button onclick="showSection('reports', event)">📊 Reports</button>
+        <button onclick="showSection('amenities', event)">🏪 Amenities</button>
+        <button onclick="showSection('facilities', event)">🏗 Facilities</button>
+        <button onclick="showSection('staff', event)">👷 Staff</button>
+    </div>
+
+    <div style="padding: 10px; display: flex; gap: 10px;">
+        <button id="manageZoosBtn" class="moveBtn" onclick="openManageZoosModal()">💾 Manage Zoos</button>
+        <button id="resetGameBtn" class="removeBtn">🧨 Reset Zoo</button>
+        <button id="buildExhibitBtn" class="buildBtn">🏗 Build Exhibit</button>
+        <button id="endDayBtn" class="moveBtn">⏭ End Day</button>
+    </div>
+
+    <div id="facilities" class="section"></div>
+    <div id="shop" class="section active"></div>
+    <div id="exhibits" class="section"></div>
+    <div id="research" class="section"></div>
+    <div id="visitors" class="section"></div>
+    <div id="supplies" class="section"></div>
+    <div id="amenities" class="section"></div>
+    <div id="achievements" class="section"></div>
+    <div id="reports" class="section"></div>
+    <div id="staff" class="section"></div>
+    <div id="leaderboard" class="section"></div>
+
+    <!-- Modals -->
+    <div id="buyModal" class="modal">
+        <div class="modal-content">
+            <h3>Select Exhibit</h3>
+            <select id="exhibitSelect"></select>
+            <select id="genderSelect"><option value="male">Male</option><option value="female">Female</option></select>
+            <button id="confirmBuyBtn">Confirm</button>
+            <button onclick="closeBuyModal()" class="removeBtn">Cancel</button>
+        </div>
+    </div>
+    <div id="animalInfoModal" class="modal">
+        <div class="modal-content">
+            <div id="animalInfoContent"></div>
+            <button onclick="closeAnimalInfo()" class="removeBtn">Close</button>
+        </div>
+    </div>
+    <div id="buildModal" class="modal">
+        <div class="modal-content">
+            <h3>🏗 Build New Exhibit</h3>
+            <p style="color: var(--muted); margin-bottom: 15px;">Choose the size of your new exhibit.</p>
+            <div id="buildSizeOptions" style="display: flex; flex-direction: column; gap: 10px;"></div>
+            <button onclick="closeBuildModal()" class="removeBtn" style="margin-top: 10px;">Cancel</button>
+        </div>
+    </div>
+    <div id="eventModal" class="modal">
+        <div class="modal-content" id="eventModalContent" style="max-width: 500px; border: 2px solid var(--warn);">
+            <div style="text-align: center; margin-bottom: 15px;">
+                <span id="eventIcon" style="font-size: 4rem; display: block; margin-bottom: 10px;">📢</span>
+                <h2 id="eventName" style="color: var(--warn); margin: 0;">Event Name</h2>
+            </div>
+            <p id="eventDesc" style="color: var(--muted); text-align: center; margin-bottom: 20px; font-size: 1.1rem;">Description goes here.</p>
+            <div id="eventChoices" style="display: flex; flex-direction: column; gap: 10px;"></div>
+        </div>
+    </div>
+    <div id="upgradeModal" class="modal">
+        <div class="modal-content">
+            <h3>🏗 Select Upgrade</h3>
+            <div id="upgradeOptions"></div>
+            <button onclick="closeUpgradeModal()" class="removeBtn">Close</button>
+        </div>
+    </div>
+      
+    <div id="ratingModal" class="modal">
+        <div class="modal-content" style="max-width: 550px;">
+            <div id="ratingModalContent"></div>
+            <button onclick="closeRatingModal()" class="removeBtn">Close</button>
+        </div>
+    </div>
+
+    <div id="manageZoosModal" class="modal">
+    <div class="modal-content" style="max-width: 600px; max-height: 80vh; overflow-y: auto;">
+        <h2 style="margin-top:0;">🏞️ Manage Your Zoos</h2>
+        <p style="color: var(--muted); font-size: 0.9rem;">Switch between different zoos, rename them, or start a fresh new game.</p>
+        <div id="zoosList" style="display: flex; flex-direction: column; gap: 10px; margin: 20px 0;"></div>
+        <div style="display: flex; gap: 10px;">
+            <button class="primary-btn" style="flex:1;" onclick="createNewZoo()">➕ Create New Zoo</button>
+            <button class="secondary-btn" style="flex:1;" onclick="closeManageZoosModal()">Close</button>
+        </div>
+    </div>
+</div>
+      
+    <div id="tutorialOverlay"></div>
+    <div id="toast-container"></div>
+
+    <script>
+        /* ==========================================================================
+           🦁 ZOOSMITH V0.2.55 - MAIN GAME SCRIPT
+           Organized, Indented, and Commented for Readability
+           ========================================================================== */
+
+        /* --------------------------------------------------------------------------
+           📦 1. CONSTANTS & CONFIGURATION
+           -------------------------------------------------------------------------- */
+        const ANIMAL_UPKEEP_BASE = 2;
+        const ANIMAL_UPKEEP_RATE = 0.15;
+
+        const EXHIBIT_SIZES = {
+            small:  { cost: 1000,  buildDays: 3,  label: "Small",  emoji: "🟢" },
+            medium: { cost: 2500,  buildDays: 6,  label: "Medium", emoji: "🟡" },
+            large:  { cost: 5000,  buildDays: 10, label: "Large",  emoji: "🔴" }
+        };
+        const SIZE_RANK = { small: 1, medium: 2, large: 3 };
+        function exhibitSizeOk(exhibitSize, requiredSize) { return SIZE_RANK[exhibitSize] >= SIZE_RANK[requiredSize]; }
+
+        const FOOD_TYPES = {
+            hay:     { name: "Hay",     icon: "🌾", costPerUnit: 2, diet: "Herbivore", storageCap: 200, color: "#fbbf24" },
+            meat:    { name: "Meat",    icon: "🥩", costPerUnit: 5, diet: "Carnivore", storageCap: 100, color: "#ef4444" },
+            produce: { name: "Produce", icon: "🥬", costPerUnit: 3, diet: "Omnivore",  storageCap: 150, color: "#22c55e" }
+        };
+        function getDietFoodType(diet) {
+            if (diet === "Herbivore") return "hay";
+            if (diet === "Carnivore") return "meat";
+            if (diet === "Omnivore") return "produce";
+            return "hay";
+        }
+
+        const TIER_INFO = {
+            basic:     { label: "Basic",     color: "#22c55e", emoji: "🟢" },
+            advanced:  { label: "Advanced",  color: "#3b82f6", emoji: "🔵" },
+            exotic:    { label: "Exotic",    color: "#a855f7", emoji: "🟣" },
+            legendary: { label: "Legendary", color: "#fbbf24", emoji: "🌟" }
+        };
+
+        const ZOO_RATING_TIERS = {
+            1: { min: 0,  max: 19,  label: "Struggling",   emoji: "⭐",       color: "#dc2626" },
+            2: { min: 20, max: 39,  label: "Developing",   emoji: "⭐⭐",     color: "#f59e0b" },
+            3: { min: 40, max: 59,  label: "Good",         emoji: "⭐⭐⭐",   color: "#3b82f6" },
+            4: { min: 60, max: 79,  label: "Excellent",    emoji: "⭐⭐⭐⭐", color: "#a855f7" },
+            5: { min: 80, max: 100, label: "World-Class",  emoji: "⭐⭐⭐⭐⭐", color: "#fbbf24" }
+        };
+
+        /* --------------------------------------------------------------------------
+           🌍 2. GLOBAL STATE & DATA OBJECTS
+           -------------------------------------------------------------------------- */
+        let data = { 
+            animals: [], upgrades: {}, facilities: {}, staff: [], 
+            amenities: {}, achievements: [], researchProjects: {}, exhibitTypes: {} 
+        };
+        let currentCategory = 'all';
+        let currentSearch = '';
+        let state = {
+            money: 10000, food: { hay: 30, meat: 20, produce: 15 },
+            day: 1, month: 1, year: 1, ticketPrice: 20,
+            exhibits: {}, builtEnclosures: {}, zooFacilities: [], hiredStaff: [],
+            achievements: {}, animalCounters: {}, monthlyReports: [],
+            moveState: { active: false, fromExhibit: null, animalIndex: null },
+            uiMode: "normal", pendingAnimal: null, activeUpgradeExhibit: null,
+            bredAnimals: 0, animalsSold: 0, daysSinceNewAnimal: 0,
+            dailyVisitors: 0, visitorSpending: { food: 0, gifts: 0, total: 0 },
+            visitorComplaints: [], amenities: {}, visitorSatisfaction: 0,
+            maintenance: { dailyMaintenanceCost: 0 }, completedResearch: [], activeResearch: null,
+            maintenanceWorkers: 0, maintenanceLevel: 0, tutorialStep: 0, tutorialSkipped: false,
+            recentDeathPenalty: 0, zooRating: 0, unnaturalDeaths: 0, naturalDeaths: 0, totalDeaths: 0
+        };
+
+        /* --------------------------------------------------------------------------
+           📥 3. DATA LOADING (Fetch JSON files)
+           -------------------------------------------------------------------------- */
+        function toArray(value) { if (!value) return []; if (Array.isArray(value)) return value; return [value]; }
+
+        async function loadShop() {
+            try { const res = await fetch("animals.json?nocache=" + Date.now()); data.animals = await res.json(); renderShop(); } 
+            catch (e) { console.error("Failed to load animals", e); }
+        }
+        async function loadResearch() {
+            try { const res = await fetch("research.json?nocache=" + Date.now()); const arr = await res.json(); data.researchProjects = {}; arr.forEach(item => data.researchProjects[item.id] = item); renderResearch(); renderShop(); } 
+            catch (e) { console.error("Failed to load research", e); }
+        }
+        async function loadUpgrades() {
+            try { const res = await fetch("upgrades.json?nocache=" + Date.now()); const arr = await res.json(); data.upgrades = {}; arr.forEach(item => data.upgrades[item.id] = item); } 
+            catch (e) { console.error("Failed to load upgrades", e); }
+        }
+        async function loadFacilities() {
+            try { const res = await fetch("facilities.json"); const arr = await res.json(); data.facilities = {}; arr.forEach(item => data.facilities[item.id] = item); renderFacilities(); } 
+            catch (e) { console.error("Failed to load facilities", e); }
+        }
+        async function loadStaff() {
+            try { const res = await fetch("staff.json?nocache=" + Date.now()); data.staff = await res.json(); renderStaff(); } 
+            catch (e) { console.error("Failed to load staff", e); }
+        }
+        async function loadAmenities() {
+            try { const res = await fetch("amenities.json?nocache=" + Date.now()); const arr = await res.json(); data.amenities = {}; arr.forEach(item => data.amenities[item.id] = item); renderAmenities(); } 
+            catch (e) { console.error("Failed to load amenities", e); }
+        }
+        async function loadAchievements() {
+            try { const res = await fetch("achievements.json?nocache=" + Date.now()); data.achievements = await res.json(); renderAchievements(); } 
+            catch (e) { console.error("Failed to load achievements", e); data.achievements = []; }
+        }
+        async function loadExhibitTypes() {
+            try { const res = await fetch("exhibit_types.json?nocache=" + Date.now()); const arr = await res.json(); data.exhibitTypes = {}; arr.forEach(item => data.exhibitTypes[item.id] = item); } 
+            catch (e) { console.error("Failed to load exhibit types", e); }
+        }
+
+        /* --------------------------------------------------------------------------
+           🛠️ 4. UTILITY & HELPER FUNCTIONS
+           -------------------------------------------------------------------------- */
+        function getAllAnimals() { return Object.values(state.exhibits).flatMap(ex => ex.animals || []); }
+        function countAnimals(id) { return getAllAnimals().filter(a => a.id === id).length; }
+        function getNextAnimalName(speciesName) {
+            if (!state.animalCounters[speciesName]) state.animalCounters[speciesName] = 1;
+            const name = `${speciesName} ${state.animalCounters[speciesName]}`;
+            state.animalCounters[speciesName]++; return name;
+        }
+        function pickVariation(animal) {
+            if (!animal.variations || animal.variations.length === 0) return null;
+            const roll = Math.random() * 100; let total = 0;
+            for (const v of animal.variations) { total += v.chance; if (roll < total) return v; }
+            return animal.variations[0];
+        }
+        function addTicker(message) { document.getElementById("ticker").textContent = message; console.log("[Zoo Event]", message); }
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`; toast.textContent = message;
+            container.appendChild(toast); setTimeout(() => toast.remove(), 3000);
+        }
+        function showFloatingMoney(amount) {
+            if (amount === 0) return;
+            const header = document.querySelector('.stats-bar'); if (!header) return;
+            const el = document.createElement('span');
+            el.className = `floating-money ${amount >= 0 ? 'positive' : 'negative'}`;
+            el.textContent = (amount >= 0 ? '+' : '') + '$' + Math.abs(amount).toLocaleString();
+            header.style.position = 'relative'; header.appendChild(el);
+            el.style.left = (Math.random() * 100) + 'px'; el.style.top = '0px';
+            setTimeout(() => el.remove(), 1500);
+        }
+
+        /* --------------------------------------------------------------------------
+           🧑‍🌾 5. STAFF & ANIMAL HELPERS
+           -------------------------------------------------------------------------- */
+        function getKeeperSlots() {
+            let total = 0;
+            for (const staffId of state.hiredStaff) {
+                const staff = data.staff.find(s => s.id === staffId);
+                if (staff && staff.keeperSlots) total += staff.keeperSlots;
+            } return total;
+        }
+        function getLifeStage(animal) {
+            const age = animal.ageDays || 0;
+            if (age < 30) return { stage: 'baby', emoji: '🍼', label: 'Baby', incomeMultiplier: 0.5, canBreed: false };
+            if (age < 90) return { stage: 'juvenile', emoji: '🐾', label: 'Juvenile', incomeMultiplier: 0.75, canBreed: false };
+            if (age < 365) return { stage: 'adult', emoji: '🦁', label: 'Adult', incomeMultiplier: 1.0, canBreed: true };
+            return { stage: 'senior', emoji: '👴', label: 'Senior', incomeMultiplier: 0.8, canBreed: true };
+        }
+        function getAnimalAgeDisplay(animal) {
+            const age = animal.ageDays || 0;
+            const years = Math.floor(age / 360); const months = Math.floor((age % 360) / 30); const days = age % 30;
+            if (years > 0) return `${years}y ${months}m`; if (months > 0) return `${months}m ${days}d`; return `${days}d`;
+        }
+        function calculateAnimalIncome(animal) { return Math.floor((animal.dailyIncome || 0) * getLifeStage(animal).incomeMultiplier); }
+        function shouldDieOfOldAge(animal) {
+            const age = animal.ageDays || 0; if (age < 600) return false;
+            return Math.random() < ((age - 600) / 400) * 0.01;
+        }
+        function getAnimalSlotCost(animal) {
+            const size = animal.requiredExhibitSize || "small";
+            if (size === "large") return 3; if (size === "medium") return 2; return 1;
+        }
+        function getUsedSlots() {
+            let used = 0;
+            for (const id in state.exhibits) for (const animal of state.exhibits[id].animals) used += getAnimalSlotCost(animal);
+            return used;
+        }
+        function getAvailableSlots() { return getKeeperSlots() - getUsedSlots(); }
+        function isUnderstaffed() { return getUsedSlots() > getKeeperSlots(); }
+        function getStaffEffects() {
+            const effects = { visitorHappiness: 0, animalHappiness: 0, breedingBonus: 0, cleanPark: 0, cleanExhibits: 0 };
+            for (const staffId of state.hiredStaff) {
+                const staff = data.staff.find(s => s.id === staffId);
+                if (staff && staff.effects) for (const effect in staff.effects) if (effect !== 'maxStaff' && effects[effect] !== undefined) effects[effect] += staff.effects[effect];
+            } return effects;
+        }
+        function countStaff(staffId) { return state.hiredStaff.filter(id => id === staffId).length; }
+        function getGameStats() {
+            const allAnimals = getAllAnimals(); const species = new Set(allAnimals.map(a => a.id));
+            const totalUpgrades = Object.values(state.exhibits).reduce((sum, ex) => sum + (ex.upgrades?.length || 0), 0);
+            const maxHappiness = Math.max(0, ...Object.values(state.exhibits).map(ex => getExhibitHappiness(ex)));
+            const totalAmenities = Object.values(state.amenities).reduce((sum, count) => sum + count, 0);
+            return {
+                totalAnimals: allAnimals.length, speciesCount: species.size, money: state.money,
+                exhibitsCount: Object.keys(state.exhibits).length, totalUpgrades: totalUpgrades, maxHappiness: maxHappiness,
+                totalDays: (state.year - 1) * 360 + (state.month - 1) * 30 + state.day,
+                bredAnimals: state.bredAnimals, animalsSold: state.animalsSold,
+                hasRareVariant: allAnimals.some(a => a.variation?.rare), totalAmenities: totalAmenities, visitorSatisfaction: state.visitorSatisfaction
+            };
+        }
+
+        /* --------------------------------------------------------------------------
+           🔬 6. RESEARCH & ACHIEVEMENTS
+           -------------------------------------------------------------------------- */
+        function isResearchComplete(projectId) { return state.completedResearch.includes(projectId); }
+        function canStartResearch(projectId) {
+            const project = data.researchProjects[projectId]; if (!project) return false;
+            if (isResearchComplete(projectId) || state.activeResearch) return false;
+            if (project.requires && !isResearchComplete(project.requires)) return false;
+            return state.money >= project.cost;
+        }
+        function startResearch(projectId) {
+            const project = data.researchProjects[projectId]; if (!project) return;
+            if (!canStartResearch(projectId)) {
+                if (state.activeResearch) return showToast("Lab is busy with another project!", "warn");
+                if (state.money < project.cost) return showToast(`Need $${project.cost.toLocaleString()}!`, "error");
+                if (project.requires && !isResearchComplete(project.requires)) return showToast("Prerequisite research not complete!", "error");
+                return;
+            }
+            state.money -= project.cost; showFloatingMoney(-project.cost);
+            state.activeResearch = { projectId: project.id, daysRemaining: project.days };
+            addTicker(`🔬 Started research: ${project.name}`); showToast(`Research begun: ${project.name} (${project.days} days)`, "info");
+            updateUI(); renderResearch(); saveGame();
+        }
+        function evaluateCheck(check, stats) {
+            if (!check) return false;
+            if (check.type === 'hasRareVariant') return stats.hasRareVariant === true;
+            if (check.type === 'speciesCollection') {
+                const totalSpecies = data.animals.length; if (totalSpecies === 0) return false;
+                return (stats.speciesCount / totalSpecies) * 100 >= check.value;
+            }
+            const value = stats[check.type];
+            if (typeof value === 'number' && typeof check.value === 'number') return value >= check.value;
+            return false;
+        }
+        function checkAchievements() {
+            const stats = getGameStats(); let changed = false;
+            for (const a of data.achievements) {
+                if (!a.check) continue;
+                if (!state.achievements[a.id] && evaluateCheck(a.check, stats)) {
+                    state.achievements[a.id] = true; addTicker(`🏆 Achievement unlocked: ${a.name}`); changed = true;
+                }
+            }
+            if (changed) { renderAchievements(); renderShop(); }
+        }
+
+        /* --------------------------------------------------------------------------
+           ⭐ 7. ZOO RATING CALCULATION
+           -------------------------------------------------------------------------- */
+        function getZooRatingTier(rating) {
+            for (const tierNum in ZOO_RATING_TIERS) {
+                const tier = ZOO_RATING_TIERS[tierNum];
+                if (rating >= tier.min && rating <= tier.max) return { tierNum: parseInt(tierNum), ...tier };
+            } return { tierNum: 1, ...ZOO_RATING_TIERS[1] };
+        }
+        function calculateZooRating() {
+            const allAnimals = getAllAnimals(); const totalSpecies = data.animals.length || 1;
+            const speciesCount = new Set(allAnimals.map(a => a.id)).size;
+            const varietyScore = Math.min(100, (speciesCount / Math.max(5, totalSpecies * 0.3)) * 100);
+            let avgHealth = 0; 
+            if (allAnimals.length > 0) avgHealth = allAnimals.reduce((sum, a) => sum + (a.health ?? 100), 0) / allAnimals.length;
+            const satisfactionScore = state.visitorSatisfaction;
+            const staffEffects = getStaffEffects();
+            const cleanlinessScore = Math.min(100, staffEffects.cleanPark + staffEffects.cleanExhibits);
+            const deathPenalty = Math.min(100, (state.unnaturalDeaths || 0) * 10);
+            const deathScore = allAnimals.length > 0 ? (100 - deathPenalty) : 0; 
+            
+            // FIX: Cleaned up duplicate variable declaration
+            const amenityTypes = ['restroom', 'bin', 'bench', 'food_stand', 'gift_shop'];
+            const amenitiesOwned = amenityTypes.filter(id => (state.amenities[id] || 0) > 0).length;
+            const amenitiesScore = (amenitiesOwned / amenityTypes.length) * 100;
+            
+            const rating = Math.round((varietyScore * 0.20) + (avgHealth * 0.20) + (satisfactionScore * 0.15) + (cleanlinessScore * 0.10) + (deathScore * 0.25) + (amenitiesScore * 0.10));
+            return Math.max(0, Math.min(100, rating));
+        }
+
+        /* --------------------------------------------------------------------------
+           👥 8. VISITOR LOGIC & AMENITIES
+           -------------------------------------------------------------------------- */
+        function calculateAttraction() {
+            let score = 0;
+            for (const id in state.exhibits) {
+                const ex = state.exhibits[id];
+                ex.animals.forEach(animal => score += animal.attractionValue || 10);
+                score += getExhibitHappiness(ex) * 0.5;
+            } return score;
+        }
+        function generateVisitors() {
+            const attraction = calculateAttraction(); if (attraction <= 0) return 0;
+            const hasRestroom = (state.amenities.restroom || 0) > 0;
+            const hasFood = (state.amenities.food_stand || 0) > 0 || (state.amenities.cafe || 0) > 0 || (state.amenities.restaurant || 0) > 0;
+            let baseVisitors = (hasRestroom && hasFood) ? 5 : (hasRestroom || hasFood) ? 2 : 0;
+            let visitors = baseVisitors + Math.floor(2 * Math.sqrt(attraction));
+            const decayFactor = Math.min(1, state.daysSinceNewAnimal / 20);
+            visitors = Math.floor(visitors * (1 - (decayFactor * 0.4)));
+            return Math.max(0, Math.floor(visitors * (state.visitorSatisfaction / 100)));
+        }
+        function processVisitorBehavior(visitors) {
+            state.visitorComplaints = []; state.visitorSpending = { food: 0, gifts: 0, total: 0 };
+            const staffEffects = getStaffEffects(); const cleanlinessFactor = Math.min(0.8, staffEffects.cleanPark / 100);
+            if (visitors >= 5) {
+                if (!(state.amenities.restroom > 0)) { state.visitorComplaints.push({ icon: '🚻', text: 'Visitors are asking where the restrooms are!', type: 'warning', time: new Date().toLocaleTimeString() }); state.visitorSatisfaction -= 5; }
+                if (!(state.amenities.bench > 0)) { state.visitorComplaints.push({ icon: '🪑', text: 'Tired visitors have nowhere to sit.', type: 'info', time: new Date().toLocaleTimeString() }); state.visitorSatisfaction -= 3; }
+                if (!(state.amenities.bin > 0)) { state.visitorComplaints.push({ icon: '🗑️', text: 'No bins! Trash is starting to pile up.', type: 'info', time: new Date().toLocaleTimeString() }); state.visitorSatisfaction -= 3; }
+                const hasFood = (state.amenities.food_stand || 0) > 0 || (state.amenities.cafe || 0) > 0 || (state.amenities.restaurant || 0) > 0;
+                if (!hasFood) { state.visitorComplaints.push({ icon: '🍔', text: 'Hungry visitors can\'t find anywhere to eat!', type: 'warning', time: new Date().toLocaleTimeString() }); state.visitorSatisfaction -= 5; }
+            }
+            for (const id in data.amenities) {
+                const amenity = data.amenities[id]; const count = state.amenities[id] || 0;
+                if (amenity.capacity > 0 && count > 0) {
+                    const totalCapacity = count * amenity.capacity;
+                    if (id === 'restroom') {
+                        if (totalCapacity * 15 < Math.ceil(visitors * 0.8)) { state.visitorComplaints.push({ icon: amenity.icon, text: `Long ${amenity.name.toLowerCase()} lines!`, type: "warning", time: new Date().toLocaleTimeString() }); state.visitorSatisfaction -= 2 * (1 - cleanlinessFactor); }
+                    } else if (id === 'bin') {
+                        if (count < Math.ceil(visitors / amenity.capacity) && visitors > 8) { state.visitorComplaints.push({ icon: amenity.icon, text: `Trash overflowing!`, type: "warning", time: new Date().toLocaleTimeString() }); state.visitorSatisfaction -= 3 * (1 - cleanlinessFactor); }
+                    } else {
+                        if (totalCapacity < Math.ceil(visitors * 0.20) * 0.5) { state.visitorComplaints.push({ icon: amenity.icon, text: `Some tired visitors couldn't find a seat.`, type: "warning", time: new Date().toLocaleTimeString() }); state.visitorSatisfaction -= 3 * (1 - cleanlinessFactor); }
+                    }
+                }
+            }
+            for (const id in data.amenities) {
+                const amenity = data.amenities[id]; const count = state.amenities[id] || 0;
+                if (amenity.revenue > 0 && count > 0) {
+                    let buyerPercentage = 0.3;
+                    if (id.includes('food') || id.includes('restaurant') || id.includes('cafe')) buyerPercentage = 0.50;
+                    else if (id.includes('gift') || id.includes('shop') || id.includes('store')) buyerPercentage = 0.20;
+                    const actualBuyers = Math.min(Math.floor(visitors * buyerPercentage), count * (amenity.maxCustomers || 50));
+                    const revenue = actualBuyers * amenity.revenue;
+                    if (revenue > 0) {
+                        if (id.includes('food') || id.includes('restaurant') || id.includes('cafe')) state.visitorSpending.food += revenue;
+                        else state.visitorSpending.gifts += revenue;
+                        state.money += revenue; showFloatingMoney(revenue);
+                    }
+                }
+            }
+            state.visitorSpending.total = state.visitorSpending.food + state.visitorSpending.gifts;
+            let baseSatisfaction = 0;
+            if ((state.amenities.restroom || 0) > 0) baseSatisfaction += 20;
+            if ((state.amenities.bin || 0) > 0) baseSatisfaction += 15;
+            if ((state.amenities.bench || 0) > 0) baseSatisfaction += 15;
+            if ((state.amenities.food_stand || 0) > 0) baseSatisfaction += 20;
+            if ((state.amenities.gift_shop || 0) > 0) baseSatisfaction += 10;
+            baseSatisfaction += Math.min(20, Object.values(state.amenities).reduce((sum, count) => sum + count, 0) * 2);
+            const penalty = state.visitorComplaints.reduce((sum, c) => sum + (c.type === 'warning' ? 5 : c.type === 'info' ? 2 : 3), 0);
+            state.visitorSatisfaction = Math.max(0, Math.min(100, baseSatisfaction - penalty));
+        }
+        function calculateGuestHappiness() {
+            let happiness = 50;
+            if (state.zooFacilities.length >= 1) happiness += 10;
+            if (calculateAttraction() > 50) happiness += 10;
+            const avgAnimalHappiness = Object.keys(state.exhibits).length ? Object.values(state.exhibits).reduce((sum, ex) => sum + getExhibitHappiness(ex), 0) / Object.keys(state.exhibits).length : 0;
+            if (avgAnimalHappiness > 80) happiness += 15;
+            const staffEffects = getStaffEffects();
+            happiness += staffEffects.visitorHappiness + staffEffects.cleanPark * 0.3;
+            return Math.max(0, Math.min(100, Math.round(happiness)));
+        }
+
+        /* --------------------------------------------------------------------------
+           📅 9. DAY CYCLE, INCOME & UPKEEP
+           -------------------------------------------------------------------------- */
+        function processDayIncome() {
+            const visitors = generateVisitors(); state.dailyVisitors = visitors;
+            state.money += visitors * state.ticketPrice;
+            let totalCost = 0;
+            for (const id of state.hiredStaff) { const staff = data.staff.find(s => s.id === id); if (staff) totalCost += staff.salary; }
+            state.money -= totalCost; processVisitorBehavior(visitors);
+        }
+        function processAnimalIncome() {
+            let totalIncome = 0;
+            for (const id in state.exhibits) for (const animal of state.exhibits[id].animals) totalIncome += calculateAnimalIncome(animal);
+            if (totalIncome > 0) state.money += totalIncome;
+        }
+        function processUpkeep() {
+            let totalCost = 0; for (const id in state.exhibits) totalCost += 5;
+            state.money -= totalCost; if (totalCost > 0) addTicker(`🧾 Facility upkeep: -$${totalCost}`);
+        }
+
+        /* --------------------------------------------------------------------------
+           🍖 10. ANIMAL CARE (Food, Breeding, Health, Fences)
+           -------------------------------------------------------------------------- */
+        function consumeDailyFood() {
+            const hungryAnimals = [];
+            if (isUnderstaffed()) {
+                for (const id in state.exhibits) for (const animal of state.exhibits[id].animals) { animal.wasHungry = true; hungryAnimals.push(animal.name); }
+                if (hungryAnimals.length > 0) { addTicker(`⚠️ No keepers! ${hungryAnimals.length} animals went unfed.`); showToast("No keepers to feed the animals! Hire staff!", "error"); }
+                return { hay: 0, meat: 0, produce: 0 };
+            }
+            const consumption = { hay: 0, meat: 0, produce: 0 };
+            for (const id in state.exhibits) for (const animal of state.exhibits[id].animals) consumption[getDietFoodType(animal.diet)] += animal.isPregnant ? 2 : 1;
+            for (const foodType in consumption) {
+                const needed = consumption[foodType]; const available = state.food[foodType] || 0;
+                if (available >= needed) { state.food[foodType] -= needed; } 
+                else {
+                    state.food[foodType] = 0; let hungryCount = 0;
+                    for (const id in state.exhibits) for (const animal of state.exhibits[id].animals) if (getDietFoodType(animal.diet) === foodType) { hungryCount++; animal.wasHungry = true; }
+                    if (hungryCount > 0) hungryAnimals.push(`${FOOD_TYPES[foodType].icon} ${hungryCount} animals hungry!`);
+                }
+            }
+            if (hungryAnimals.length > 0) { addTicker(`⚠️ ${hungryAnimals.join(', ')}`); showToast("Animals are hungry! Buy more food!", "error"); }
+            return consumption;
+        }
+        function tryBreeding(exhibit) {
+            const animals = exhibit.animals; if (!animals || animals.length < 2) return;
+            const groups = {}; animals.forEach(a => { if (!groups[a.id]) groups[a.id] = []; groups[a.id].push(a); });
+            for (const species in groups) {
+                const group = groups[species];
+                const females = group.filter(a => { const stage = getLifeStage(a); return a.gender === "female" && !a.isPregnant && stage.canBreed; });
+                const matureMales = group.filter(a => getLifeStage(a).canBreed && a.gender === "male");
+                if (matureMales.length === 0 || females.length === 0 || getExhibitHappiness(exhibit) < 100) continue;
+                const chance = (group[0].breedChance ?? 0.1) * (1 + getStaffEffects().breedingBonus);
+                if (Math.random() < chance) {
+                    const mother = females[Math.floor(Math.random() * females.length)];
+                    const father = matureMales[Math.floor(Math.random() * matureMales.length)];
+                    const gestationDays = data.animals.find(a => a.id === species)?.gestationDays || 10;
+                    mother.isPregnant = true; mother.daysUntilBirth = gestationDays; mother.babySpecies = species; mother.babyFather = father.name;
+                    state.daysSinceNewAnimal = 0; addTicker(`🤰 ${mother.name} is pregnant! Baby due in ${gestationDays} days.`); showToast(`${mother.name} is expecting! 🍼`, "info");
+                }
+            }
+        }
+        function getExhibitHappiness(exhibit) {
+            if (!exhibit || !exhibit.animals?.length) return 0; let total = 0;
+            exhibit.animals.forEach(animal => {
+                let happiness = 100; const count = exhibit.animals.filter(a => a.id === animal.id).length;
+                if (count < animal.minInExhibit) happiness = (count / animal.minInExhibit) * 100;
+                if (count > animal.maxInExhibit) happiness = Math.max(0, 100 - ((count - animal.maxInExhibit) * 20));
+                const upgrades = exhibit.upgrades || [];
+                toArray(animal.preferredShelter).forEach(pref => { if (upgrades.includes(pref)) happiness += 10; });
+                toArray(animal.preferredDecorations).forEach(pref => { if (upgrades.includes(pref)) happiness += 5; });
+                toArray(animal.preferredFacilities).forEach(pref => { if (upgrades.includes(pref)) happiness += 5; });
+                toArray(animal.dislikedShelter).forEach(pref => { if (upgrades.includes(pref)) happiness -= 15; });
+                toArray(animal.dislikedDecorations).forEach(pref => { if (upgrades.includes(pref)) happiness -= 10; });
+                toArray(animal.dislikedFacilities).forEach(pref => { if (upgrades.includes(pref)) happiness -= 10; });
+                if (animal.wasHungry) { happiness -= 30; delete animal.wasHungry; }
+                if (isUnderstaffed()) happiness -= 20; total += happiness;
+            });
+            let avgHappiness = Math.round(total / exhibit.animals.length);
+            const staffEffects = getStaffEffects();
+            return Math.min(100, avgHappiness + staffEffects.animalHappiness + staffEffects.cleanExhibits * 0.5);
+        }
+        function processDailyMaintenance() {
+            for (const id in state.exhibits) {
+                const ex = state.exhibits[id];
+                if (ex.buildDaysRemaining > 0) { ex.buildDaysRemaining--; if (ex.buildDaysRemaining === 0) { state.builtEnclosures[id] = true; addTicker(`✅ ${ex.name} is now complete!`); showToast(`${ex.name} finished building! 🎉`, "info"); } }
+            }
+            let maintenanceCost = 0;
+            for (const id in data.amenities) { const count = state.amenities[id] || 0; const amenity = data.amenities[id]; if (count > 0 && amenity.maintenanceCost > 0) maintenanceCost += count * amenity.maintenanceCost; }
+            state.maintenance.dailyMaintenanceCost = maintenanceCost; state.money -= maintenanceCost;
+            if (maintenanceCost > 0) addTicker(`🧹 Daily maintenance: -$${maintenanceCost}`);
+        }
+        function processFenceDegradation() {
+            for (const id in state.exhibits) {
+                const exhibit = state.exhibits[id]; if (exhibit.buildDaysRemaining > 0) continue;
+                let degradation = 0.5 + exhibit.animals.length * 0.2;
+                exhibit.animals.forEach(animal => { const size = animal.requiredExhibitSize || "small"; if (size === "large") degradation += 0.3; else if (size === "medium") degradation += 0.15; });
+                degradation *= (1 - state.maintenanceLevel * 0.2);
+                if (state.maintenanceLevel >= 2) exhibit.fenceCondition = Math.min(100, exhibit.fenceCondition + state.maintenanceLevel * 5);
+                exhibit.fenceCondition = Math.max(0, exhibit.fenceCondition - degradation);
+                if (exhibit.fenceCondition < 10 && exhibit.animals.length > 0) triggerEscape(id);
+                else if (exhibit.fenceCondition < 30 && Math.random() < 0.3 && exhibit.animals.length > 0) triggerEscape(id);
+                else if (exhibit.fenceCondition < 50 && Math.random() < 0.1 && exhibit.animals.length > 0) triggerEscape(id);
+            }
+        }
+        function processAnimalHealth() {
+            state.recentDeathPenalty = Math.min(50, state.recentDeathPenalty + 15);
+            const understaffed = isUnderstaffed(); const deaths = [];
+            for (const id in state.exhibits) {
+                const exhibit = state.exhibits[id];
+                for (const animal of exhibit.animals) {
+                    if (animal.health === undefined) animal.health = 100;
+                    let healthChange = understaffed ? -5 : 2;
+                    if (animal.wasHungry) { healthChange -= 10; delete animal.wasHungry; }
+                    if (animal.sick) healthChange -= 3;
+                    animal.health = Math.max(0, Math.min(100, animal.health + healthChange));
+                    if (animal.health < 40 && !animal.sick && !animal.wasSickNotified) { animal.sick = true; animal.wasSickNotified = true; addTicker(`🤒 ${animal.name} has fallen ill!`); showToast(`${animal.name} is sick!`, "warn"); }
+                    if (animal.health >= 70 && animal.sick) { animal.sick = false; delete animal.wasSickNotified; addTicker(`💚 ${animal.name} has recovered!`); }
+                    if (animal.health <= 0) deaths.push({ animal, exhibitId: id, cause: 'neglect' });
+                }
+            }
+            for (const death of deaths) {
+                const exhibit = state.exhibits[death.exhibitId]; if (!exhibit) continue;
+                exhibit.animals = exhibit.animals.filter(a => a !== death.animal);
+                addTicker(`⚰️ ${death.animal.name} died from neglect.`); showToast(`💔 ${death.animal.name} has died. Zoo rating dropped!`, 'error');
+                state.visitorSatisfaction = Math.max(0, state.visitorSatisfaction - 10);
+                state.unnaturalDeaths = (state.unnaturalDeaths || 0) + 1; state.totalDeaths = (state.totalDeaths || 0) + 1;
+            }
+        }
+        function triggerEscape(exhibitId) {
+            const exhibit = state.exhibits[exhibitId]; if (!exhibit || exhibit.animals.length === 0) return;
+            const escapedAnimal = exhibit.animals[Math.floor(Math.random() * exhibit.animals.length)];
+            exhibit.animals = exhibit.animals.filter(a => a !== escapedAnimal);
+            addTicker(`🚨 ${escapedAnimal.name} escaped from ${exhibit.name}!`); showToast(`🚨 ${escapedAnimal.name} escaped!`, "error");
+            state.visitorSatisfaction = Math.max(0, state.visitorSatisfaction - 15);
+            if (Math.random() < 0.5) {
+                const recoveryCost = Math.floor(escapedAnimal.dailyIncome * 20);
+                if (state.money >= recoveryCost) { state.money -= recoveryCost; showFloatingMoney(-recoveryCost); exhibit.animals.push(escapedAnimal); showToast(`✅ Recovered ${escapedAnimal.name} for $${recoveryCost}`, "info"); } 
+                else { showToast(`💸 ${escapedAnimal.name} is gone forever...`, "error"); state.unnaturalDeaths++; state.totalDeaths++; }
+            } else { showToast(`💸 ${escapedAnimal.name} is gone forever...`, "error"); state.unnaturalDeaths++; state.totalDeaths++; }
+        }
+
+        /* --------------------------------------------------------------------------
+           🎨 11. UI RENDERING: SUPPLIES & EXHIBITS
+           -------------------------------------------------------------------------- */
+        function renderSupplies() {
+            const box = document.getElementById("supplies");
+            const consumption = { hay: 0, meat: 0, produce: 0 }; const animalCounts = { hay: 0, meat: 0, produce: 0 };
+            for (const id in state.exhibits) for (const animal of state.exhibits[id].animals) { consumption[getDietFoodType(animal.diet)] += animal.isPregnant ? 2 : 1; animalCounts[getDietFoodType(animal.diet)]++; }
+            let cardsHTML = '';
+            for (const foodType in FOOD_TYPES) {
+                const food = FOOD_TYPES[foodType]; const current = state.food[foodType] || 0; const cap = food.storageCap;
+                const percent = Math.min(100, (current / cap) * 100); const dailyUse = consumption[foodType];
+                const daysLeft = dailyUse > 0 ? Math.floor(current / dailyUse) : '∞';
+                const isLow = current < dailyUse * 3; const isEmpty = current === 0 && dailyUse > 0;
+                cardsHTML += `<div class="premium-card" style="${isEmpty ? 'border-color: var(--danger); box-shadow: 0 0 20px rgba(239, 68, 68, 0.3);' : isLow ? 'border-color: var(--warn);' : ''}">
+                    <div class="card-header" style="background: linear-gradient(135deg, ${food.color}22, #0f172a);"><span style="font-size: 2.5rem;">${food.icon}</span><h3>${food.name}</h3><div class="subtitle">For ${food.diet}s • $${food.costPerUnit}/unit</div></div>
+                    <div class="card-body">
+                        <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px;">
+                            <div><div style="font-size: 2rem; font-weight: 900; color: ${isEmpty ? 'var(--danger)' : isLow ? 'var(--warn)' : 'var(--accent)'};">${current}</div><div style="font-size: 0.8rem; color: var(--muted);">/ ${cap} units</div></div>
+                            <div style="text-align: right;"><div style="font-size: 0.85rem; color: var(--muted);">Days left:</div><div style="font-size: 1.3rem; font-weight: 800; color: ${daysLeft < 3 && daysLeft !== '∞' ? 'var(--warn)' : 'var(--text)'};">${daysLeft}${daysLeft !== '∞' ? ' days' : ''}</div></div>
+                        </div>
+                        <div class="happiness-bar" style="height: 10px;"><div style="height: 100%; width: ${percent}%; background: linear-gradient(90deg, ${food.color}, ${food.color}cc); transition: width 0.3s;"></div></div>
+                        <div style="display: flex; justify-content: space-between; font-size: 0.85rem; color: var(--muted); margin-top: 8px;"><span>📊 ${dailyUse}/day</span><span>🐾 ${animalCounts[foodType]} animals</span></div>
+                        ${isEmpty ? `<div style="padding: 8px; background: rgba(239, 68, 68, 0.15); border-radius: 8px; text-align: center; color: var(--danger); font-weight: 700; margin: 8px 0;">⚠️ OUT OF STOCK</div>` : isLow ? `<div style="padding: 8px; background: rgba(245, 158, 11, 0.15); border-radius: 8px; text-align: center; color: var(--warn); font-weight: 700; margin: 8px 0;">⚠️ LOW STOCK</div>` : ''}
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 8px;">
+                            <button class="secondary-btn" style="padding: 8px; font-size: 0.85rem;" onclick="buyFood('${foodType}', 10)">+10<br><small>$${food.costPerUnit * 10}</small></button>
+                            <button class="secondary-btn" style="padding: 8px; font-size: 0.85rem;" onclick="buyFood('${foodType}', 25)">+25<br><small>$${food.costPerUnit * 25}</small></button>
+                            <button class="secondary-btn" style="padding: 8px; font-size: 0.85rem;" onclick="buyFood('${foodType}', 50)">+50<br><small>$${Math.floor(food.costPerUnit * 50 * 0.9)}</small></button>
+                            <button class="primary-btn" style="padding: 8px; font-size: 0.85rem;" onclick="buyFood('${foodType}', 100)">+100<br><small>$${Math.floor(food.costPerUnit * 100 * 0.8)} (20% off)</small></button>
+                        </div>
+                    </div></div>`;
+            }
+            box.innerHTML = `<div class="premium-card" style="grid-column: 1 / -1; margin-bottom: 10px;"><div class="card-header"><h3>🍽 Food Supply Management</h3><div class="subtitle">Buy food to keep your animals fed. Pregnant animals eat double!</div></div></div><div class="grid-layout">${cardsHTML}</div>`;
+        }
+        function buyFood(foodType, amount) {
+            try {
+                const food = FOOD_TYPES[foodType]; if (!food) return showToast("Unknown food type!", "error");
+                if (!state.food) state.food = { hay: 0, meat: 0, produce: 0 }; if (state.food[foodType] === undefined) state.food[foodType] = 0;
+                const current = state.food[foodType]; const spaceAvailable = food.storageCap - current;
+                if (spaceAvailable <= 0) return showToast(`${food.name} storage is full!`, "error");
+                const actualAmount = Math.min(amount, spaceAvailable);
+                let unitCost = food.costPerUnit; if (actualAmount >= 100) unitCost *= 0.8; else if (actualAmount >= 50) unitCost *= 0.9;
+                const totalCost = Math.floor(unitCost * actualAmount);
+                if (state.money < totalCost) return showToast(`Not enough money! Need $${totalCost}`, "error");
+                state.money -= totalCost; state.food[foodType] = current + actualAmount; showFloatingMoney(-totalCost);
+                showToast(`Bought ${actualAmount} ${food.name}${actualAmount !== amount ? ` (capped at ${actualAmount})` : ''}`, "info");
+                updateUI(); renderSupplies();
+            } catch (e) { console.error("buyFood error:", e); showToast("Error buying food.", "error"); }
+        }
+        function renderExhibits() {
+            if (state.uiMode === "move") return;
+            const box = document.getElementById("exhibits"); box.innerHTML = "";
+            const ids = Object.keys(state.exhibits);
+            if (ids.length === 0) { box.innerHTML = '<div style="text-align:center; padding:40px; color:var(--muted); grid-column: 1 / -1;"><h2>🏞 No Exhibits Yet</h2><p>Click "Build Exhibit" to get started!</p></div>'; return; }
+            ids.forEach((id) => {
+                const group = state.exhibits[id]; const isBuilt = !!state.builtEnclosures[id]; const isBuilding = group.buildDaysRemaining > 0;
+                const happiness = getExhibitHappiness(group); const upgradeCount = group.upgrades?.length || 0;
+                const sizeInfo = EXHIBIT_SIZES[group.size] || EXHIBIT_SIZES.small;
+                const dailyFoodCost = group.animals.reduce((sum, a) => sum + (a.foodCost || 2), 0); const dailyExhibitCost = 5 + dailyFoodCost;
+                const fenceCondition = group.fenceCondition ?? 100;
+                const fenceColor = fenceCondition >= 70 ? 'var(--accent)' : fenceCondition >= 50 ? 'var(--warn)' : fenceCondition >= 30 ? 'var(--danger)' : '#dc2626';
+                const fenceEmoji = fenceCondition >= 70 ? '✅' : fenceCondition >= 50 ? '⚠️' : fenceCondition >= 30 ? '🔶' : '🔴';
+                const div = document.createElement("div"); div.className = "exhibitCard";
+                let statusBadge = "";
+                if (isBuilding) { const progress = ((sizeInfo.buildDays - group.buildDaysRemaining) / sizeInfo.buildDays) * 100; statusBadge = `<div style="font-size:0.8rem; margin-top:4px; color: var(--warn);">🏗 Building... ${group.buildDaysRemaining} day${group.buildDaysRemaining !== 1 ? 's' : ''} left</div><div class="happiness-bar" style="margin-top:6px;"><div class="happiness-fill" style="width:${progress}%; background: linear-gradient(90deg, var(--warn), var(--accent));"></div></div>`; } 
+                else if (isBuilt) statusBadge = `<div style="font-size:0.8rem; opacity:0.8; margin-top:4px;">✅ Built (${sizeInfo.label})</div>`;
+                else statusBadge = `<div style="font-size:0.8rem; opacity:0.8; margin-top:4px;">⚠️ Not Built</div>`;
+                
+                const pregnantCount = group.animals.filter(a => a.isPregnant).length;
+                const sickAnimals = group.animals.filter(a => (a.health ?? 100) < 40);
+                const criticalAnimals = group.animals.filter(a => (a.health ?? 100) < 20);
+                let healthWarningHTML = '';
+                if (criticalAnimals.length > 0) healthWarningHTML = `<div style="padding: 8px; background: rgba(220, 38, 38, 0.2); border: 1px solid var(--danger); border-radius: 8px; color: var(--danger); font-weight: 700; text-align: center; margin: 6px 0;">💀 ${criticalAnimals.length} animal${criticalAnimals.length > 1 ? 's' : ''} in CRITICAL condition!</div>`;
+                else if (sickAnimals.length > 0) healthWarningHTML = `<div style="padding: 8px; background: rgba(245, 158, 11, 0.15); border: 1px solid var(--warn); border-radius: 8px; color: var(--warn); font-weight: 700; text-align: center; margin: 6px 0;">🤒 ${sickAnimals.length} animal${sickAnimals.length > 1 ? 's' : ''} sick - hire keepers!</div>`;
+                else if (isUnderstaffed() && group.animals.length > 0) healthWarningHTML = `<div style="padding: 6px; background: rgba(245, 158, 11, 0.1); border-radius: 8px; color: var(--warn); font-size: 0.8rem; text-align: center; margin: 6px 0;">⚠️ Health declining - no keepers</div>`;
+                
+                const animalList = group.animals.length > 0 ? group.animals.map((a, i) => {
+                    const stage = getLifeStage(a); const pregnantTag = a.isPregnant ? '🤰 ' : ''; const sickTag = a.sick ? '🤒 ' : '';
+                    const health = a.health ?? 100; const healthEmoji = health >= 80 ? '' : health >= 50 ? ' 💛' : health >= 20 ? ' 🧡' : ' ❤️‍🩹';
+                    return `<span class="animalTag" data-exhibit="${id}" data-index="${i}" title="Age: ${getAnimalAgeDisplay(a)} | Health: ${Math.round(health)}%">${sickTag}${pregnantTag}${stage.emoji} ${a.name}${healthEmoji}</span>`;
+                }).join("") : "<em style='color:var(--muted)'>No animals yet</em>";
+
+                // FIX: Cleaned up broken template literal syntax
+                const exhibitType = data.exhibitTypes[group.type] || data.exhibitTypes.terrestrial || { emoji: '🏞️', name: 'Standard Exhibit' };
+                div.innerHTML = `
+                    <div class="exhibit-header">
+                        <h3 class="exhibit-name" onclick="renameExhibit('${id}')" title="Click to rename">${exhibitType.emoji} ${group.name} <span style="font-size: 0.7rem; opacity: 0.6; margin-left: 6px;">️</span></h3>
+                        <div style="font-size:0.75rem; opacity:0.7; margin-top:2px;">${sizeInfo.emoji} ${sizeInfo.label} • ${exhibitType.name}</div>
+                        ${statusBadge}
+                    </div>
+                    <div class="exhibit-body">
+                        <div class="exhibit-stat"><span>🐾 Animals</span><strong>${group.animals.length}</strong></div>
+                        <div class="exhibit-stat"><span>😊 Happiness</span><strong style="color:${happiness >= 80 ? 'var(--accent)' : happiness >= 50 ? 'var(--warn)' : 'var(--danger)'}">${happiness}%</strong></div>
+                        <div class="exhibit-stat"><span>${fenceEmoji} Fence Condition</span><strong style="color: ${fenceColor};">${Math.round(fenceCondition)}%</strong></div>
+                        <div class="happiness-bar" style="margin-bottom: 8px;"><div style="height: 100%; width: ${fenceCondition}%; background: ${fenceColor}; transition: width 0.3s;"></div></div>
+                        ${pregnantCount > 0 ? `<div class="exhibit-stat"><span>🤰 Pregnant</span><strong style="color: var(--purple);">${pregnantCount}</strong></div>` : ''}
+                        <div class="happiness-bar"><div class="happiness-fill" style="width:${happiness}%"></div></div>
+                        <div class="exhibit-stat"><span>🍖 Daily Food</span><strong style="color: var(--warn);">$${dailyFoodCost}</strong></div>
+                        <div class="exhibit-stat"><span>🧾 Total Upkeep</span><strong style="color: var(--danger);">$${dailyExhibitCost}/day</strong></div>
+                        <div class="exhibit-stat"><span>🏗 Upgrades</span><strong>${upgradeCount}</strong></div>
+                        ${healthWarningHTML}
+                        <div class="animalList">${animalList}</div>
+                        ${!isBuilding ? `<div style="display:flex; gap:6px; margin-top:8px;">
+                            <button class="secondary-btn" style="flex:1; padding:8px; font-size:0.85rem;">🏗 Upgrades</button>
+                            <button class="secondary-btn" style="flex:1; padding:8px; font-size:0.85rem; background: linear-gradient(135deg, #f59e0b, #d97706); color: white;" onclick="repairFence('${id}')">🔧 Repair</button>
+                            <button class="danger-btn" style="flex:1; padding:8px; font-size:0.85rem;">🗑 Remove</button>
+                        </div>` : `<div style="margin-top:8px; padding:10px; background: rgba(245, 158, 11, 0.1); border-radius: 8px; text-align:center; color: var(--warn); font-size:0.85rem;">⏳ Cannot modify while under construction</div>`}
+                    </div>`;
+                if (!isBuilding) {
+                    div.querySelectorAll(".danger-btn")[0].onclick = () => {
+                        if (group.animals.length > 0) return showToast("Cannot remove exhibit with animals inside!", "error");
+                        const refund = Math.floor(sizeInfo.cost * 0.5); state.money += refund; showFloatingMoney(refund);
+                        delete state.exhibits[id]; delete state.builtEnclosures[id];
+                        addTicker(`💰 Demolished ${group.name} (refunded $${refund})`); updateUI(); renderExhibits();
+                    };
+                    div.querySelectorAll(".secondary-btn")[0].onclick = () => openUpgradeMenu(id);
+                }
+                box.appendChild(div);
+            });
+        }
+        function renameExhibit(exhibitId) {
+            const exhibit = state.exhibits[exhibitId]; if (!exhibit) return;
+            const newName = prompt(`Rename "${exhibit.name}" to:`, exhibit.name); if (newName === null) return;
+            const trimmed = newName.trim();
+            if (trimmed.length === 0) return showToast("Name cannot be empty!", "error");
+            if (trimmed.length > 30) return showToast("Name must be 30 characters or less!", "error");
+            if (trimmed === exhibit.name) return;
+            exhibit.name = trimmed; addTicker(`✏️ Renamed exhibit to "${trimmed}"`); showToast(`Exhibit renamed to "${trimmed}"`, "info");
+            updateUI(); renderExhibits(); saveGame();
+        }
+        function repairFence(exhibitId) {
+            const exhibit = state.exhibits[exhibitId]; if (!exhibit) return;
+            if (state.maintenanceWorkers === 0) return showToast("You need to hire maintenance staff first! Go to the Staff tab.", "error");
+            const damage = 100 - exhibit.fenceCondition;
+            const sizeMultiplier = exhibit.size === "large" ? 3 : exhibit.size === "medium" ? 2 : 1;
+            const repairCost = Math.floor(damage * 10 * sizeMultiplier);
+            if (state.money < repairCost) return showToast(`Need $${repairCost} to repair fence!`, "error");
+            state.money -= repairCost; showFloatingMoney(-repairCost); exhibit.fenceCondition = 100;
+            addTicker(`🔧 Repaired ${exhibit.name} fence (-$${repairCost})`); showToast(`✅ Fence repaired!`, "info");
+            updateUI(); renderExhibits();
+        }
+
+        /* --------------------------------------------------------------------------
+           🎨 12. UI RENDERING: OTHER TABS
+           -------------------------------------------------------------------------- */
+        function renderShop() {
+            const shop = document.getElementById("shop");
+            const categories = [...new Set(data.animals.map(a => a.category || 'Other'))].sort();
+            shop.innerHTML = `<div style="margin-bottom: 20px;">
+                <div style="margin-bottom: 15px;"><input type="text" id="animalSearch" placeholder="🔍 Search animals..." value="${currentSearch}" style="width: 100%; padding: 12px; font-size: 16px; background: var(--card); color: var(--text); border: 1px solid #243042; border-radius: 10px;"/></div>
+                <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px;">
+                    <button class="category-tab ${currentCategory === 'all' ? 'active' : ''}" onclick="filterByCategory('all')" style="padding: 8px 16px; background: ${currentCategory === 'all' ? 'var(--accent)' : 'var(--card)'}; color: ${currentCategory === 'all' ? '#000' : 'var(--text)'}; border: 1px solid #243042; border-radius: 8px; cursor: pointer; font-weight: 600;">🌍 All (${data.animals.length})</button>
+                    ${categories.map(cat => { const count = data.animals.filter(a => a.category === cat).length; const isActive = currentCategory === cat; return `<button class="category-tab ${isActive ? 'active' : ''}" onclick="filterByCategory('${cat}')" style="padding: 8px 16px; background: ${isActive ? 'var(--accent)' : 'var(--card)'}; color: ${isActive ? '#000' : 'var(--text)'}; border: 1px solid #243042; border-radius: 8px; cursor: pointer; font-weight: 600;">${cat} (${count})</button>`; }).join('')}
+                </div></div><div class="grid-layout" id="shopGrid"></div>`;
+            document.getElementById('animalSearch').addEventListener('input', (e) => { currentSearch = e.target.value.toLowerCase(); renderShopGrid(); });
+            renderShopGrid();
+        }
+        function filterByCategory(category) { currentCategory = category; renderShop(); }
+        function renderShopGrid() {
+            const grid = document.getElementById('shopGrid'); if (!grid) return;
+            const existingLocked = grid.parentElement.querySelector('[data-locked-section]'); if (existingLocked) existingLocked.remove();
+            const unlocked = []; const locked = [];
+            data.animals.forEach(animal => {
+                const achievementMet = !animal.unlock || state.achievements[animal.unlock];
+                const researchMet = !animal.researchRequired || isResearchComplete(animal.researchRequired);
+                if (achievementMet && researchMet) unlocked.push(animal); else locked.push(animal);
+            });
+            let filtered = unlocked;
+            if (currentCategory !== 'all') filtered = filtered.filter(a => a.category === currentCategory);
+            if (currentSearch) filtered = filtered.filter(a => a.name.toLowerCase().includes(currentSearch) || a.scienceName?.toLowerCase().includes(currentSearch) || a.habitat?.toLowerCase().includes(currentSearch));
+            if (filtered.length === 0 && locked.length === 0) { grid.innerHTML = '<div style="text-align:center; padding:40px; color:var(--muted); grid-column: 1/-1;"><h3>No animals found</h3></div>'; return; }
+            grid.innerHTML = '';
+            filtered.forEach(animal => {
+                const slotCost = getAnimalSlotCost(animal); const slotColor = slotCost >= 3 ? 'danger' : slotCost >= 2 ? 'warn' : 'blue';
+                const dietEmoji = animal.diet === 'Carnivore' ? '🥩' : animal.diet === 'Herbivore' ? '🌿' : '🍖';
+                const statusEmoji = animal.conservationStatus === 'Endangered' ? '🔴' : animal.conservationStatus === 'Vulnerable' ? '🟡' : animal.conservationStatus === 'Critically Endangered' ? '⚫' : '🟢';
+                const card = document.createElement("div"); card.className = "premium-card";
+                card.innerHTML = `<img src="${animal.image}" alt="${animal.name}" class="shop-card-img" /><div class="card-body">
+                    <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 8px;">
+                        <div><h3 style="margin:0; font-size:1.3rem; font-weight:800;">${animal.name}</h3><p style="margin:0 0 4px; font-size:0.85rem; color:var(--muted); font-style:italic;">${animal.scienceName || ''}</p></div>
+                        ${animal.category ? `<span class="stat-badge purple">${animal.category}</span>` : ''}
+                    </div>
+                    <div class="card-stats">
+                        <span class="stat-badge">${dietEmoji} ${animal.diet}</span><span class="stat-badge">🌍 ${animal.habitat}</span>
+                        <span class="stat-badge">${statusEmoji} ${animal.conservationStatus}</span><span class="stat-badge ${slotColor}">🧑‍🌾 ${slotCost} slot${slotCost > 1 ? 's' : ''}</span>
+                    </div>
+                    <p class="card-desc">${animal.info}</p>
+                    <div class="card-price">$${animal.cost.toLocaleString()}<small>📈 Earns $${animal.dailyIncome}/day</small></div>
+                    <div style="display:flex; gap:6px; flex-wrap:wrap; margin: 6px 0;"><span class="stat-badge warn">🍖 Food: $${animal.foodCost}/day</span><span class="stat-badge green">💰 Net: $${animal.dailyIncome - animal.foodCost}/day</span></div>
+                    <button class="primary-btn">Add to Zoo</button></div>`;
+                card.querySelector(".primary-btn").onclick = () => openBuyModal(animal); grid.appendChild(card);
+            });
+            if (locked.length > 0) {
+                const lockedSection = document.createElement("div"); lockedSection.style.gridColumn = "1 / -1"; lockedSection.style.marginTop = "30px";
+                lockedSection.innerHTML = `<div style="text-align: center; padding: 20px; background: var(--card); border-radius: var(--radius); border: 1px solid #243042; margin-bottom: 20px;"><h3 style="margin: 0 0 8px 0; color: var(--muted);">🔒 ${locked.length} Animal${locked.length !== 1 ? 's' : ''} Locked</h3><p style="margin: 0; color: var(--muted); font-size: 0.9rem;">Complete research or achievements to unlock these animals</p></div><div class="grid-layout" id="lockedGrid"></div>`;
+                lockedSection.dataset.lockedSection = "true"; grid.parentElement.appendChild(lockedSection);
+                const lockedGrid = lockedSection.querySelector('#lockedGrid');
+                locked.forEach(animal => {
+                    let lockReason = ''; let lockColor = 'var(--muted)';
+                    if (animal.researchRequired && !isResearchComplete(animal.researchRequired)) {
+                        const project = data.researchProjects[animal.researchRequired]; const tier = project ? TIER_INFO[project.tier] : TIER_INFO.basic;
+                        lockReason = `<div style="font-size: 0.8rem; color: var(--muted); margin-bottom: 4px;">Requires research:</div><div style="font-weight: 700; color: ${tier.color};">${project?.icon || '🔬'} ${project?.name || 'Unknown'}</div>${project ? `<div style="font-size: 0.8rem; color: var(--muted); margin-top: 4px;">💰 $${project.cost.toLocaleString()} • ⏱ ${project.days} days</div>` : ''}`;
+                        lockColor = tier.color;
+                    } else if (animal.unlock && !state.achievements[animal.unlock]) {
+                        const achievement = data.achievements.find(a => a.id === animal.unlock);
+                        lockReason = `<div style="font-size: 0.8rem; color: var(--muted); margin-bottom: 4px;">Requires achievement:</div><div style="font-weight: 700; color: var(--gold);">🏆 ${achievement?.name || animal.unlock}</div>${achievement ? `<div style="font-size: 0.8rem; color: var(--muted); margin-top: 4px;">${achievement.desc || ''}</div>` : ''}`;
+                        lockColor = 'var(--gold)';
+                    }
+                    const card = document.createElement("div"); card.className = "premium-card"; card.style.opacity = "0.5"; card.style.filter = "grayscale(0.5)"; card.style.position = "relative";
+                    card.innerHTML = `<div style="position: absolute; top: 10px; right: 10px; z-index: 10; background: rgba(0,0,0,0.8); padding: 6px 12px; border-radius: 20px; font-size: 0.85rem; font-weight: 700; color: ${lockColor};">🔒 Locked</div>
+                        <img src="${animal.image}" alt="${animal.name}" class="shop-card-img" style="filter: blur(2px);" /><div class="card-body">
+                        <h3 style="margin:0; font-size:1.3rem; font-weight:800;">${animal.name}</h3><p style="margin:4px 0; font-size:0.85rem; color:var(--muted); font-style:italic;">${animal.scienceName || ''}</p>
+                        <div style="padding: 10px; background: #0b1220; border-radius: 8px; margin: 8px 0;">${lockReason}</div>
+                        <button class="primary-btn" disabled style="opacity: 0.5;">🔒 Locked</button></div>`;
+                    lockedGrid.appendChild(card);
+                });
+            }
+        }
+        function renderVisitors() {
+            const box = document.getElementById("visitors");
+            const totalSpending = state.visitorSpending.total;
+            const foodPercent = totalSpending > 0 ? Math.round((state.visitorSpending.food / totalSpending) * 100) : 0;
+            const giftPercent = totalSpending > 0 ? Math.round((state.visitorSpending.gifts / totalSpending) * 100) : 0;
+            box.innerHTML = `<div class="visitor-overview">
+                <div class="visitor-stat-card"><h4>👥 Today's Visitors</h4><div class="stat-value blue">${state.dailyVisitors.toLocaleString()}</div></div>
+                <div class="visitor-stat-card"><h4>😊 Satisfaction</h4><div class="stat-value ${state.visitorSatisfaction >= 80 ? 'green' : state.visitorSatisfaction >= 50 ? 'warn' : 'danger'}">${state.visitorSatisfaction}%</div></div>
+                <div class="visitor-stat-card"><h4>💵 Total Spending</h4><div class="stat-value gold">$${totalSpending.toLocaleString()}</div></div>
+                <div class="visitor-stat-card"><h4>🎫 Ticket Price</h4><div class="stat-value">$${state.ticketPrice}</div></div>
+                </div>
+                <div class="grid-layout" style="grid-template-columns: 1fr 1fr;">
+                <div class="premium-card"><div class="card-header"><h3>💰 Spending Breakdown</h3></div><div class="card-body"><div class="spending-breakdown">
+                    <div class="spending-card"><h4>🌭 Food & Drinks</h4><div class="amount">$${state.visitorSpending.food.toLocaleString()}</div><div class="percentage">${foodPercent}% of total spending</div><div class="amenity-bar"><div class="amenity-fill" style="width: ${foodPercent}%"></div></div></div>
+                    <div class="spending-card"><h4>🎁 Gift Shop</h4><div class="amount">$${state.visitorSpending.gifts.toLocaleString()}</div><div class="percentage">${giftPercent}% of total spending</div><div class="amenity-bar"><div class="amenity-fill" style="width: ${giftPercent}%"></div></div></div>
+                </div></div></div>
+                <div class="premium-card"><div class="card-header"><h3>🏪 Amenities Overview</h3></div><div class="card-body">
+                    ${Object.keys(data.amenities).map(id => { const amenity = data.amenities[id]; const count = state.amenities[id] || 0; let detail = ''; if (amenity.capacity > 0) detail = `${count * amenity.capacity} capacity`; else if (amenity.maxCustomers > 0) detail = `Serves ${count * amenity.maxCustomers}/day`; else if (amenity.revenue > 0) detail = `$${amenity.revenue}/visitor`; return `<div class="exhibit-stat"><span>${amenity.icon} ${amenity.name}</span><strong>${count} ${detail ? `(${detail})` : ''}</strong></div>`; }).join('')}
+                    <div class="exhibit-stat" style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #243042;"><span>🧹 Daily Maintenance</span><strong style="color: var(--warn);">$${state.maintenance.dailyMaintenanceCost}/day</strong></div>
+                </div></div></div>
+                <div class="complaints-list"><h3 style="margin: 0 0 15px 0; font-size: 1.2rem;">📋 Visitor Feedback</h3>
+                ${state.visitorComplaints.length === 0 ? '<div style="text-align: center; padding: 20px; color: var(--muted);">😊 No complaints today! Visitors are happy.</div>' : state.visitorComplaints.map(c => `<div class="complaint-item ${c.type}"><span class="complaint-icon">${c.icon}</span><span class="complaint-text">${c.text}</span><span class="complaint-time">${c.time}</span></div>`).join('')}
+                </div>`;
+        }
+        function renderAmenities() {
+            const box = document.getElementById("amenities");
+            if (!data.amenities || Object.keys(data.amenities).length === 0) { box.innerHTML = '<div style="text-align:center; padding:40px; color:var(--muted);">Loading amenities...</div>'; return; }
+            box.innerHTML = '<div class="grid-layout"></div>'; const grid = box.querySelector('.grid-layout');
+            const summaryParts = Object.keys(data.amenities).map(id => { const count = state.amenities[id] || 0; return `${count} ${data.amenities[id].name.toLowerCase()}${count !== 1 ? 's' : ''}`; });
+            const summary = document.createElement("div"); summary.className = "premium-card"; summary.style.gridColumn = "1 / -1";
+            summary.innerHTML = `<div class="card-header"><h3>🏪 Zoo Amenities Overview</h3><div class="subtitle">Current: ${summaryParts.join(', ') || 'None'}</div></div>`; grid.appendChild(summary);
+            for (const id in data.amenities) {
+                const amenity = data.amenities[id]; const count = state.amenities[id] || 0; const card = document.createElement("div"); card.className = "premium-card";
+                let statsHTML = '';
+                if (amenity.revenue > 0) statsHTML += `<div class="stat-badge green">💰 Earns $${amenity.revenue}/visitor</div>`;
+                if (amenity.capacity > 0) statsHTML += `<div class="stat-badge blue">👥 Capacity: ${amenity.capacity}</div>`;
+                if (amenity.maxCustomers > 0) statsHTML += `<div class="stat-badge warn">📊 Max ${amenity.maxCustomers}/day</div>`;
+                if (amenity.maintenanceCost > 0) statsHTML += `<div class="stat-badge danger">🧹 $${amenity.maintenanceCost}/day upkeep</div>`;
+                card.innerHTML = `<div class="card-header"><span class="facility-icon">${amenity.icon}</span><h3>${amenity.name}</h3><div class="subtitle">${count} built</div></div><div class="card-body"><p class="card-desc">${amenity.description}</p><div style="display: flex; flex-wrap: wrap; gap: 6px;">${statsHTML}</div><div class="card-price">$${amenity.cost.toLocaleString()}</div><button class="primary-btn" onclick="buyAmenity('${id}')">Build ${amenity.name}</button></div>`;
+                grid.appendChild(card);
+            }
+        }
+        function renderAchievements() {
+            const box = document.getElementById("achievements"); box.innerHTML = '<div class="grid-layout"></div>'; const grid = box.querySelector('.grid-layout');
+            if (!data.achievements || data.achievements.length === 0) { box.innerHTML = '<div style="text-align:center; padding:40px; color:var(--muted);">Loading achievements...</div>'; return; }
+            data.achievements.forEach(a => {
+                const unlocked = state.achievements[a.id]; const card = document.createElement("div");
+                card.className = `achievement-card ${unlocked ? 'unlocked' : 'locked'}`;
+                card.innerHTML = `<span class="achievement-icon">${unlocked ? a.icon : '🔒'}</span><h3>${a.name}</h3><p>${a.desc}</p><div class="achievement-status ${unlocked ? 'done' : 'pending'}">${unlocked ? '✓ Completed' : 'Locked'}</div>`;
+                grid.appendChild(card);
+            });
+        }
+        let reportsChartInstance = null;
+        function renderReports() {
+            const box = document.getElementById("reports");
+            box.innerHTML = `<div class="premium-card" style="grid-column: 1 / -1; margin-bottom: 20px;"><div class="card-header"><h3>📈 Financial Overview</h3></div><div class="card-body" style="height: 300px; position: relative;"><canvas id="reportsChart"></canvas></div></div><div class="grid-layout" id="reportsGrid" style="grid-column: 1 / -1;"></div>`;
+            const grid = box.querySelector('#reportsGrid');
+            if (state.monthlyReports.length === 0) { grid.innerHTML = '<div style="text-align:center; padding:40px; color:var(--muted); grid-column: 1/-1;"><h2>📊 No Reports Yet</h2><p>Advance the day to generate your first monthly report!</p></div>'; return; }
+            if (reportsChartInstance) reportsChartInstance.destroy();
+            const ctx = document.getElementById('reportsChart').getContext('2d'); const sortedReports = [...state.monthlyReports].reverse();
+            reportsChartInstance = new Chart(ctx, {
+                type: 'line', data: { labels: sortedReports.map(r => `M${r.month} Y${r.year}`), datasets: [
+                    { label: 'Income ($)', data: sortedReports.map(r => r.income), borderColor: '#22c55e', backgroundColor: 'rgba(34, 197, 94, 0.1)', tension: 0.3, fill: true, yAxisID: 'y' },
+                    { label: 'Visitors', data: sortedReports.map(r => r.visitors), borderColor: '#3b82f6', backgroundColor: 'rgba(59, 130, 246, 0.1)', tension: 0.3, fill: true, yAxisID: 'y1' }
+                ]}, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: '#e5e7eb' } } }, scales: { x: { ticks: { color: '#9ca3af' }, grid: { color: '#243042' } }, y: { type: 'linear', display: true, position: 'left', ticks: { color: '#9ca3af', callback: v => '$' + v.toLocaleString() }, grid: { color: '#243042' } }, y1: { type: 'linear', display: true, position: 'right', ticks: { color: '#9ca3af' }, grid: { drawOnChartArea: false } } } }
+            });
+            state.monthlyReports.forEach(report => {
+                const card = document.createElement("div"); card.className = "report-card";
+                card.innerHTML = `<div class="report-header"><h3>📅 Month ${report.month}, Year ${report.year}</h3></div><div class="report-body">
+                    <div class="report-stat visitors"><div class="label">Attraction</div><div class="value">${report.attraction}</div></div>
+                    <div class="report-stat visitors"><div class="label">Avg Visitors/Day</div><div class="value">${report.visitors}</div></div>
+                    <div class="report-stat income"><div class="label">Monthly Income</div><div class="value">$${report.income.toLocaleString()}</div></div>
+                    <div class="report-stat happiness"><div class="label">Guest Happiness</div><div class="value">${report.guestHappiness}%</div></div></div>`;
+                grid.appendChild(card);
+            });
+        }
+        function renderFacilities() {
+            const box = document.getElementById("facilities"); box.innerHTML = '<div class="grid-layout"></div>'; const grid = box.querySelector('.grid-layout'); if (!data.facilities) return;
+            for (const id in data.facilities) {
+                const facility = data.facilities[id]; const owned = state.zooFacilities.includes(id); const card = document.createElement("div"); card.className = "premium-card";
+                card.innerHTML = `<div class="card-header"><span class="facility-icon">${facility.icon || '🏗'}</span><h3>${facility.name}</h3><div class="subtitle">${owned ? '✅ Built' : '❌ Not built'}</div></div><div class="card-body"><p class="card-desc">${facility.description || 'A useful facility for your zoo.'}</p><div class="card-price">$${facility.cost.toLocaleString()}</div><button class="primary-btn" ${owned ? 'disabled' : ''}>${owned ? 'Already Owned' : 'Build Facility'}</button></div>`;
+                card.querySelector("button").onclick = () => buyFacility(id); grid.appendChild(card);
+            }
+        }
+        function renderStaff() {
+            const box = document.getElementById("staff"); box.innerHTML = '<div class="grid-layout"></div>'; const grid = box.querySelector('.grid-layout');
+            const summary = document.createElement("div"); summary.className = "premium-card"; summary.style.gridColumn = "1 / -1";
+            const totalSalary = state.hiredStaff.reduce((sum, id) => { const staff = data.staff.find(s => s.id === id); return sum + (staff?.salary || 0); }, 0);
+            const totalSlots = getKeeperSlots(); const usedSlots = getUsedSlots(); const availableSlots = totalSlots - usedSlots;
+            summary.innerHTML = `<div class="card-header"><h3>👷 Staff Overview</h3><div class="subtitle">${state.hiredStaff.length} staff members hired • $${totalSalary}/day in salaries</div></div>
+                <div class="card-body" style="padding: 12px 16px;"><div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
+                <div style="padding: 10px; background: #0b1220; border-radius: 8px; text-align: center;"><div style="font-size: 0.75rem; color: var(--muted); text-transform: uppercase;">Keeper Slots</div><div style="font-size: 1.5rem; font-weight: 800; color: var(--accent);">${totalSlots}</div></div>
+                <div style="padding: 10px; background: #0b1220; border-radius: 8px; text-align: center;"><div style="font-size: 0.75rem; color: var(--muted); text-transform: uppercase;">Used</div><div style="font-size: 1.5rem; font-weight: 800; color: ${usedSlots > totalSlots ? 'var(--danger)' : 'var(--blue)'};">${usedSlots}</div></div>
+                <div style="padding: 10px; background: #0b1220; border-radius: 8px; text-align: center;"><div style="font-size: 0.75rem; color: var(--muted); text-transform: uppercase;">Available</div><div style="font-size: 1.5rem; font-weight: 800; color: ${availableSlots < 0 ? 'var(--danger)' : 'var(--accent)'};">${availableSlots}</div></div>
+                </div>${isUnderstaffed() ? `<div style="margin-top: 10px; padding: 10px; background: rgba(239, 68, 68, 0.15); border-radius: 8px; text-align: center; color: var(--danger); font-weight: 700;">⚠️ UNDERSTAFFED - Animal health is declining! Hire more keepers!</div>` : ''}</div>`;
+            grid.appendChild(summary);
+            data.staff.forEach(staff => {
+                const hiredCount = countStaff(staff.id); const maxStaff = staff.effects?.maxStaff || 99; const isMaxed = hiredCount >= maxStaff;
+                const card = document.createElement("div"); card.className = "premium-card"; let effectsHTML = '';
+                if (staff.effects) {
+                    const effectLabels = { visitorHappiness: { icon: '😊', label: 'Visitor Happiness', color: 'blue' }, animalHappiness: { icon: '🐾', label: 'Animal Happiness', color: 'green' }, breedingBonus: { icon: '🍼', label: 'Breeding Success', color: 'purple' }, cleanPark: { icon: '🏞', label: 'Park Cleanliness', color: 'warn' }, cleanExhibits: { icon: '✨', label: 'Exhibit Cleanliness', color: 'warn' } };
+                    for (const effect in staff.effects) {
+                        if (effect === 'maxStaff') continue; const info = effectLabels[effect];
+                        if (info) { let value = staff.effects[effect]; let displayValue = effect === 'breedingBonus' ? `+${(value * 100).toFixed(0)}%` : `+${value}`; effectsHTML += `<div class="stat-badge ${info.color}">${info.icon} ${displayValue} ${info.label}</div>`; }
+                    }
+                }
+                card.innerHTML = `<div class="card-header"><span class="staff-icon">${staff.icon}</span><h3>${staff.name}</h3><span class="role-badge">${staff.role}</span></div>
+                    <div class="card-body"><p class="card-desc">${staff.description}</p>
+                    ${effectsHTML ? `<div style="display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0;">${effectsHTML}</div>` : ''}
+                    <div class="salary-highlight">💰 $${staff.salary}/day</div><div class="card-price" style="font-size:1.2rem;">Hire Cost: $${staff.cost.toLocaleString()}</div>
+                    <div style="margin: 10px 0; padding: 8px; background: #0b1220; border-radius: 8px; text-align: center;"><div style="font-size: 0.85rem; color: var(--muted);">Hired: ${hiredCount} / ${maxStaff}</div></div>
+                    <button class="primary-btn" ${isMaxed ? 'disabled' : ''}>${isMaxed ? '✓ Max Hired' : hiredCount > 0 ? `Hire Another ($${staff.cost.toLocaleString()})` : 'Hire Staff'}</button>
+                    ${hiredCount > 0 ? `<button class="danger-btn" style="margin-top: 8px; width: 100%;" onclick="fireStaff('${staff.id}')">🔥 Fire ${staff.name} (${hiredCount} hired)</button><div style="margin-top: 6px; font-size: 0.75rem; color: var(--muted); text-align: center;">💰 Severance refund: $${Math.floor(staff.cost * 0.2).toLocaleString()}</div>` : ''}</div>`;
+                const btn = card.querySelector("button"); if (!isMaxed) btn.onclick = () => hireStaff(staff.id); grid.appendChild(card);
+            });
+        }
+        function renderResearch() {
+            const box = document.getElementById("research"); if (!box) return;
+            if (!data.researchProjects || Object.keys(data.researchProjects).length === 0) { box.innerHTML = '<div style="text-align:center; padding:40px; color:var(--muted);">🔬 Loading research data...</div>'; return; }
+            const animals = data.animals || []; const tiers = ['basic', 'advanced', 'exotic', 'legendary'];
+            const completedCount = (state.completedResearch || []).length; const totalCount = Object.keys(data.researchProjects).length;
+            const unlockedAnimals = animals.filter(a => !a.researchRequired || isResearchComplete(a.researchRequired)).length; const totalAnimals = animals.length;
+            let activeResearchHTML = '';
+            if (state.activeResearch) {
+                const project = data.researchProjects[state.activeResearch.projectId];
+                if (project) {
+                    const totalDays = project.days; const remaining = state.activeResearch.daysRemaining; const progress = ((totalDays - remaining) / totalDays) * 100; const tier = TIER_INFO[project.tier];
+                    activeResearchHTML = `<div class="premium-card" style="grid-column: 1 / -1; border-color: ${tier.color}; box-shadow: 0 0 20px ${tier.color}33;"><div class="card-header" style="background: linear-gradient(135deg, ${tier.color}22, #0f172a);"><div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;"><div><span style="font-size: 2rem; margin-right: 10px;">${project.icon}</span><h3 style="display: inline; margin: 0;">Currently Researching: ${project.name}</h3></div><span class="stat-badge" style="background: ${tier.color}; color: #000; border-color: ${tier.color};">${tier.emoji} ${tier.label}</span></div></div><div class="card-body"><div style="display: flex; justify-content: space-between; margin-bottom: 10px; flex-wrap: wrap; gap: 10px;"><div style="font-size: 1.1rem; font-weight: 700;">⏱ ${remaining} day${remaining !== 1 ? 's' : ''} remaining</div><div style="font-size: 1.1rem; font-weight: 700; color: var(--accent);">${Math.round(progress)}% complete</div></div><div class="research-progress-bar" style="height: 14px;"><div class="research-progress-fill" style="width: ${progress}%;"></div></div><div style="margin-top: 12px; padding: 10px; background: #0b1220; border-radius: 8px;"><div style="font-size: 0.85rem; color: var(--muted); margin-bottom: 6px;">🔓 Unlocks:</div><div class="research-unlock-list">${(project.unlocks || []).map(id => { const animal = animals.find(a => a.id === id); return animal ? `<span class="stat-badge green">${animal.name}</span>` : ''; }).join('')}</div></div></div></div>`;
+                }
+            } else { activeResearchHTML = `<div class="premium-card" style="grid-column: 1 / -1;"><div class="card-body" style="text-align: center; padding: 20px;"><div style="font-size: 2.5rem; margin-bottom: 8px;">🔬</div><h3 style="margin: 0 0 4px 0;">No Active Research</h3><p style="color: var(--muted); margin: 0; font-size: 0.9rem;">Select a project from the tree below to begin</p></div></div>`; }
+            let treeHTML = '';
+            tiers.forEach((tierKey) => {
+                const tier = TIER_INFO[tierKey]; const tierProjects = Object.values(data.researchProjects).filter(p => p.tier === tierKey); if (tierProjects.length === 0) return;
+                const sorted = [...tierProjects].sort((a, b) => { if (!a.requires && b.requires) return -1; if (a.requires && !b.requires) return 1; return 0; });
+                let nodesHTML = '';
+                sorted.forEach(project => {
+                    const completed = isResearchComplete(project.id); const isActive = state.activeResearch?.projectId === project.id;
+                    const prereqMet = !project.requires || isResearchComplete(project.requires); const canAfford = state.money >= project.cost; const canStart = canStartResearch(project.id);
+                    let statusClass = 'locked'; let statusText = '🔒 Locked'; let statusColor = 'var(--muted)'; let statusBg = '#243042';
+                    if (completed) { statusClass = 'completed'; statusText = '✅ Complete'; statusColor = 'var(--accent)'; statusBg = 'rgba(34, 197, 94, 0.15)'; }
+                    else if (isActive) { statusClass = 'active'; statusText = '🔄 In Progress'; statusColor = 'var(--warn)'; statusBg = 'rgba(245, 158, 11, 0.15)'; }
+                    else if (prereqMet && canAfford && !state.activeResearch) { statusClass = 'ready'; statusText = '✨ Ready'; statusColor = 'var(--blue)'; statusBg = 'rgba(59, 130, 246, 0.15)'; }
+                    else if (prereqMet) { statusClass = ''; statusText = !canAfford ? '💰 Need Funds' : '⏳ Lab Busy'; statusColor = 'var(--warn)'; statusBg = 'rgba(245, 158, 11, 0.1)'; }
+                    else { const prereqProject = data.researchProjects[project.requires]; statusText = `🔒 Requires: ${prereqProject?.name || '???'}`; }
+                    const onclickAttr = canStart ? `onclick="startResearch('${project.id}')"` : '';
+                    nodesHTML += `<div class="research-node ${statusClass}" ${onclickAttr} style="cursor: ${canStart ? 'pointer' : 'default'};"><div class="research-node-header"><span class="research-node-icon">${project.icon}</span><h4 class="research-node-title">${project.name}</h4></div><span class="research-node-status" style="background: ${statusBg}; color: ${statusColor};">${statusText}</span><p class="research-node-desc">${project.desc}</p><div class="research-node-stats"><span class="stat-badge warn">💰 $${project.cost.toLocaleString()}</span><span class="stat-badge blue">⏱ ${project.days} days</span>${project.requires ? `<span class="stat-badge purple">🔗 ${data.researchProjects[project.requires]?.name || '???'}</span>` : ''}</div>${(project.unlocks && project.unlocks.length > 0) ? `<div class="research-node-unlocks"><div class="research-node-unlocks-title">🔓 Unlocks ${project.unlocks.length} animal${project.unlocks.length !== 1 ? 's' : ''}</div><div class="research-unlock-list">${project.unlocks.map(id => { const animal = animals.find(a => a.id === id); if (!animal) return ''; const unlocked = !animal.researchRequired || isResearchComplete(animal.researchRequired); return `<span class="stat-badge ${unlocked ? 'green' : ''}">${unlocked ? '✅' : '🔒'} ${animal.name}</span>`; }).join('')}</div></div>` : ''}</div>`;
+                });
+                treeHTML += `<div class="research-tier"><span class="research-tier-arrow">→</span><div class="research-tier-header" style="color: ${tier.color}; border-color: ${tier.color};">${tier.emoji} ${tier.label}</div>${nodesHTML}</div>`;
+            });
+            box.innerHTML = `<div class="premium-card" style="grid-column: 1 / -1; margin-bottom: 10px;"><div class="card-header"><h3>🌳 Research Tree</h3><div class="subtitle">Unlock new animals by progressing through the research tree</div></div><div class="card-body" style="padding: 12px 16px;"><div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px;"><div style="padding: 10px; background: #0b1220; border-radius: 8px; text-align: center;"><div style="font-size: 0.75rem; color: var(--muted); text-transform: uppercase;">Research Done</div><div style="font-size: 1.5rem; font-weight: 800; color: var(--accent);">${completedCount}/${totalCount}</div></div><div style="padding: 10px; background: #0b1220; border-radius: 8px; text-align: center;"><div style="font-size: 0.75rem; color: var(--muted); text-transform: uppercase;">Animals Unlocked</div><div style="font-size: 1.5rem; font-weight: 800; color: var(--blue);">${unlockedAnimals}/${totalAnimals}</div></div><div style="padding: 10px; background: #0b1220; border-radius: 8px; text-align: center;"><div style="font-size: 0.75rem; color: var(--muted); text-transform: uppercase;">Total Invested</div><div style="font-size: 1.5rem; font-weight: 800; color: var(--warn);">$${(state.completedResearch || []).reduce((sum, id) => sum + (data.researchProjects[id]?.cost || 0), 0).toLocaleString()}</div></div></div></div></div>${activeResearchHTML}<div class="premium-card" style="grid-column: 1 / -1;"><div class="card-header"><h3>🗺️ Progression Path</h3><div class="subtitle">Scroll horizontally to see all tiers →</div></div><div class="card-body"><div class="research-tree">${treeHTML}</div></div></div>`;
+        }
+
+        /* --------------------------------------------------------------------------
+           🖱️ 13. MODALS & INTERACTIONS
+           -------------------------------------------------------------------------- */
+        function openBuyModal(animal) {
+            const modal = document.getElementById("buyModal"); const select = document.getElementById("exhibitSelect"); select.innerHTML = "";
+            const ids = Object.keys(state.exhibits); if (ids.length === 0) return showToast("You need to build an exhibit first!", "error");
+            let compatibleExhibits = 0; const requiredType = animal.requiredExhibitType || 'terrestrial';
+            for (const id of ids) {
+                const exhibit = state.exhibits[id]; if (exhibit.type !== requiredType) continue;
+                if (!exhibitSizeOk(exhibit.size, animal.requiredExhibitSize || "small")) continue;
+                const opt = document.createElement("option"); opt.value = id;
+                const exhibitType = data.exhibitTypes[exhibit.type] || data.exhibitTypes.terrestrial || { emoji: '🏞️', name: 'Exhibit' };
+                opt.textContent = `${exhibitType.emoji} ${exhibit.name}`; select.appendChild(opt); compatibleExhibits++;
+            }
+            if (compatibleExhibits === 0) { const typeName = data.exhibitTypes[requiredType]?.name || 'Standard'; return showToast(`No compatible ${typeName} exhibits! Build one first.`, "error"); }
+            state.pendingAnimal = animal; modal.classList.add("active");
+        }
+        function closeBuyModal() { document.getElementById("buyModal").classList.remove("active"); state.pendingAnimal = null; }
+        document.getElementById("confirmBuyBtn").onclick = () => {
+            const id = document.getElementById("exhibitSelect").value; const gender = document.getElementById("genderSelect").value; const animal = state.pendingAnimal;
+            if (!id || !animal) return; if (!state.builtEnclosures[id]) return showToast("Exhibit not built yet!", "error");
+            if (state.money < animal.cost) return showToast("Not enough money!", "error");
+            const exhibit = state.exhibits[id];
+            const incompatible = exhibit.animals.some(existing => existing.id !== animal.id && !animal.compatibleWith.includes(existing.id));
+            if (incompatible) return showToast("This animal cannot live with current exhibit animals!", "error");
+            const slotCost = getAnimalSlotCost(animal); const available = getAvailableSlots();
+            if (available < slotCost) showToast(`⚠️ No keepers available! ${animal.name} will be unhappy without staff.`, "warn");
+            state.money -= animal.cost; showFloatingMoney(-animal.cost);
+            exhibit.animals.push({ id: animal.id, name: getNextAnimalName(animal.name), gender, dailyIncome: animal.dailyIncome, variation: pickVariation(animal), foodCost: animal.foodCost, diet: animal.diet, compatibleWith: animal.compatibleWith, minInExhibit: animal.minInExhibit, maxInExhibit: animal.maxInExhibit, preferredShelter: animal.preferredShelter || [], preferredDecorations: animal.preferredDecorations || [], preferredFacilities: animal.preferredFacilities || [], dislikedShelter: animal.dislikedShelter || [], dislikedDecorations: animal.dislikedDecorations || [], dislikedFacilities: animal.dislikedFacilities || [], bornInZoo: false, health: 100 });
+            state.daysSinceNewAnimal = 0; addTicker(`✨ A new ${animal.name} arrived! Visitor excitement is high!`);
+            closeBuyModal(); updateUI(); renderExhibits();
+        };
+        function openAnimalInfo(animal, exhibitId, index) {
+            const content = document.getElementById("animalInfoContent"); let pregnancyInfo = "";
+            if (animal.isPregnant) pregnancyInfo = `<div style="margin-top: 15px; padding: 12px; background: rgba(168, 85, 247, 0.1); border: 1px solid var(--purple); border-radius: 8px;"><h4 style="margin: 0 0 8px 0; color: var(--purple);">🤰 Pregnant</h4><p style="margin: 0; font-size: 0.9rem;">Due in <strong>${animal.daysUntilBirth}</strong> day${animal.daysUntilBirth !== 1 ? 's' : ''}<br>Father: <strong>${animal.babyFather || 'Unknown'}</strong><br><span style="color: var(--warn); font-size: 0.8rem;">🍖 +50% food cost during pregnancy</span></p></div>`;
+            const stage = getLifeStage(animal); const actualIncome = calculateAnimalIncome(animal); const ageDisplay = getAnimalAgeDisplay(animal);
+            content.innerHTML = `<h2>${animal.name}</h2><p>${stage.emoji} Life Stage: <strong>${stage.label}</strong> • Age: <strong>${ageDisplay}</strong></p>
+                <p>💰 Income: $${actualIncome}/day ${stage.incomeMultiplier !== 1 ? `<small style="color:var(--muted);">(base $${animal.dailyIncome} × ${stage.incomeMultiplier})</small>` : ''}</p>
+                <p>🍖 Food: $${animal.foodCost || 2}/day ${animal.isPregnant ? '<small style="color:var(--warn);">(×2 pregnant)</small>' : ''}</p>
+                <p>👥 Needs: ${animal.minInExhibit} - ${animal.maxInExhibit}</p><p>🏞 Exhibit: ${state.exhibits[exhibitId]?.name ?? "Unknown"}</p>
+                ${animal.variation ? `<p>✨ Variant: ${animal.variation.name}</p>` : ""}<p>🍼 Born in zoo: ${animal.bornInZoo ? "Yes" : "No"}</p>
+                ${(() => { const h = animal.health ?? 100; const color = h >= 80 ? 'var(--accent)' : h >= 50 ? 'var(--warn)' : h >= 20 ? 'var(--danger)' : '#dc2626'; const emoji = h >= 80 ? '💚' : h >= 50 ? '💛' : h >= 20 ? '🧡' : '❤️‍🩹'; const status = h >= 80 ? 'Healthy' : h >= 50 ? 'Unwell' : h >= 20 ? 'Sick' : 'Critical'; return `<div style="margin: 10px 0; padding: 12px; background: #0b1220; border-radius: 8px; border: 1px solid ${color};"><div style="display: flex; justify-content: space-between; margin-bottom: 6px;"><span>${emoji} Health</span><strong style="color: ${color};">${Math.round(h)}% (${status})</strong></div><div class="happiness-bar" style="height: 10px;"><div style="height: 100%; width: ${h}%; background: ${color}; transition: width 0.3s;"></div></div>${isUnderstaffed() ? '<div style="margin-top: 8px; font-size: 0.8rem; color: var(--danger);">⚠️ Health declining - no keepers on staff!</div>' : ''}</div>`; })()}
+                ${animal.sick ? `<p style="color:var(--danger);">🤒 Currently sick - health declining faster</p>` : ''}
+                ${stage.canBreed ? '<p style="color:var(--accent);">✅ Can breed</p>' : '<p style="color:var(--muted);">🔒 Too young to breed</p>'}${pregnancyInfo}
+                <div style="margin-top: 15px; display: flex; gap: 10px;"><button id="sellAnimalBtn" class="buildBtn">💸 Sell Animal</button><button id="moveFromInfoBtn" class="moveBtn">🔄 Move Animal</button></div>`;
+            document.getElementById("sellAnimalBtn").onclick = () => sellAnimal(animal, exhibitId);
+            document.getElementById("moveFromInfoBtn").onclick = () => { closeAnimalInfo(); setTimeout(() => { state.uiMode = "move"; state.moveState.active = true; state.moveState.fromExhibit = exhibitId; state.moveState.animalIndex = index; renderMoveSelection(); }, 50); };
+            document.getElementById("animalInfoModal").classList.add("active");
+        }
+        function closeAnimalInfo() { document.getElementById("animalInfoModal").classList.remove("active"); }
+        function sellAnimal(animal, exhibitId) {
+            const exhibit = state.exhibits[exhibitId]; if (exhibit) exhibit.animals = exhibit.animals.filter(a => a !== animal);
+            const basePrice = animal.dailyIncome * 5; const stage = getLifeStage(animal);
+            let ageMultiplier = 1.0; if (stage.stage === 'baby') ageMultiplier = 0.3; else if (stage.stage === 'juvenile') ageMultiplier = 0.6; else if (stage.stage === 'senior') ageMultiplier = 0.7;
+            const health = animal.health ?? 100; let healthMultiplier = 1.0;
+            if (health < 20) healthMultiplier = 0.3; else if (health < 50) healthMultiplier = 0.5; else if (health < 80) healthMultiplier = 0.8;
+            if (animal.sick) healthMultiplier *= 0.5;
+            let pregnancyBonus = 0; if (animal.isPregnant) pregnancyBonus = Math.floor(basePrice * 0.3);
+            const salePrice = Math.floor(basePrice * ageMultiplier * healthMultiplier) + pregnancyBonus;
+            state.money += salePrice; showFloatingMoney(salePrice); state.animalsSold++;
+            const breakdown = []; if (ageMultiplier !== 1.0) breakdown.push(`age ${Math.round(ageMultiplier * 100)}%`); if (healthMultiplier !== 1.0) breakdown.push(`health ${Math.round(healthMultiplier * 100)}%`); if (pregnancyBonus > 0) breakdown.push(`+pregnancy bonus`);
+            addTicker(`💸 Sold ${animal.name} for $${salePrice}${breakdown.length > 0 ? ` (${breakdown.join(', ')})` : ''}`);
+            closeAnimalInfo(); updateUI(); renderExhibits();
+        }
+        function openUpgradeMenu(exhibitId) {
+            state.activeUpgradeExhibit = exhibitId; const exhibit = state.exhibits[exhibitId]; const box = document.getElementById("upgradeOptions"); box.innerHTML = "";
+            const allUpgrades = Object.keys(data.upgrades); if (allUpgrades.length === 0) return box.innerHTML = "<p>No upgrades available.</p>";
+            allUpgrades.forEach(id => {
+                const up = data.upgrades[id]; const isOwned = exhibit.upgrades.includes(id);
+                const btn = document.createElement("button"); btn.className = "card";
+                btn.innerHTML = `<strong>${up.name}</strong><br>💰 ${isOwned ? "Sell for $" + Math.floor(up.cost * 0.5) : "$" + up.cost}`;
+                btn.onclick = () => isOwned ? sellUpgradeFromModal(id) : buyUpgradeFromModal(id); box.appendChild(btn);
+            });
+            document.getElementById("upgradeModal").classList.add("active");
+        }
+        function closeUpgradeModal() { document.getElementById("upgradeModal").classList.remove("active"); state.activeUpgradeExhibit = null; }
+        function buyUpgradeFromModal(upgradeId) {
+            const exhibit = state.exhibits[state.activeUpgradeExhibit]; const upgrade = data.upgrades[upgradeId];
+            if (!exhibit || !upgrade) return; if (state.money < upgrade.cost) return showToast("Not enough money!", "error");
+            state.money -= upgrade.cost; showFloatingMoney(-upgrade.cost); exhibit.upgrades.push(upgradeId);
+            addTicker(`🏗 Built ${upgrade.name}`); updateUI(); renderExhibits(); openUpgradeMenu(state.activeUpgradeExhibit);
+        }
+        function sellUpgradeFromModal(upgradeId) {
+            const exhibit = state.exhibits[state.activeUpgradeExhibit]; const index = exhibit.upgrades.indexOf(upgradeId); if (index === -1) return;
+            const upgrade = data.upgrades[upgradeId]; exhibit.upgrades.splice(index, 1);
+            const refund = Math.floor(upgrade.cost * 0.5); state.money += refund; showFloatingMoney(refund);
+            addTicker(`💰 Sold ${upgrade.name} for $${refund}`); updateUI(); renderExhibits(); openUpgradeMenu(state.activeUpgradeExhibit);
+        }
+        function buyFacility(facilityId) {
+            const facility = data.facilities[facilityId]; if (!facility) return;
+            if (state.money < facility.cost) return showToast("Not enough money!", "error");
+            if (state.zooFacilities.includes(facilityId)) return showToast("You already own this facility!", "warn");
+            state.money -= facility.cost; showFloatingMoney(-facility.cost); state.zooFacilities.push(facilityId);
+            addTicker(`🏗 Built ${facility.name} (Global)`); updateUI(); renderFacilities();
+        }
+        function buyAmenity(amenityId) {
+            const amenity = data.amenities[amenityId]; if (!amenity) return;
+            if (state.money < amenity.cost) return showToast("Not enough money!", "error");
+            state.money -= amenity.cost; showFloatingMoney(-amenity.cost);
+            if (!state.amenities[amenityId]) state.amenities[amenityId] = 0; state.amenities[amenityId]++;
+            addTicker(`🏪 Built ${amenity.name}`); updateUI(); renderAmenities(); renderVisitors();
+        }
+        function hireStaff(staffId) {
+            const staff = data.staff.find(s => s.id === staffId); if (!staff) return;
+            const hiredCount = countStaff(staffId); const maxStaff = staff.effects?.maxStaff || 99;
+            if (hiredCount >= maxStaff) return showToast(`Maximum ${staff.name}s hired!`, "warn");
+            if (state.money < staff.cost) return showToast("Not enough money!", "error");
+            state.money -= staff.cost; showFloatingMoney(-staff.cost); state.hiredStaff.push(staffId);
+            if (staff.effects?.maintenanceLevel) { state.maintenanceLevel = Math.max(state.maintenanceLevel, staff.effects.maintenanceLevel); state.maintenanceWorkers++; }
+            addTicker(`👷 Hired ${staff.name}`); updateUI(); renderStaff();
+        }
+        function fireStaff(staffId) {
+            const staff = data.staff.find(s => s.id === staffId); if (!staff) return;
+            const hiredCount = countStaff(staffId); if (hiredCount === 0) return showToast(`No ${staff.name}s to fire!`, "error");
+            const refundAmount = Math.floor(staff.cost * 0.2);
+            if (!confirm(`Fire ${staff.name}?\nYou'll receive a small severance refund of $${refundAmount}.`)) return;
+            const index = state.hiredStaff.indexOf(staffId); if (index === -1) return;
+            state.hiredStaff.splice(index, 1); state.money += refundAmount; showFloatingMoney(refundAmount);
+            if (staff.effects?.maintenanceLevel) {
+                state.maintenanceWorkers = Math.max(0, state.maintenanceWorkers - 1); let highestLevel = 0;
+                for (const id of state.hiredStaff) { const s = data.staff.find(x => x.id === id); if (s?.effects?.maintenanceLevel) highestLevel = Math.max(highestLevel, s.effects.maintenanceLevel); }
+                state.maintenanceLevel = highestLevel;
+            }
+            addTicker(`👋 Fired ${staff.name} (severance: $${refundAmount})`); showToast(`${staff.name} has been let go.`, "warn");
+            updateUI(); renderStaff(); saveGame();
+        }
+        function renderMoveSelection() {
+            const box = document.getElementById("exhibits"); const fromGroup = state.exhibits[state.moveState.fromExhibit];
+            box.innerHTML = `<div class="exhibitCard" style="grid-column: 1 / -1;"><div class="exhibit-header"><h3>🔄 Move Animal Mode</h3></div><div class="exhibit-body"><p>Step 1: Click an animal to move</p><div class="animalList">${fromGroup.animals.map((a, i) => `<span class="animalTag" data-index="${i}">${a.name}</span>`).join("")}</div><button class="danger-btn" onclick="cancelMove()">Cancel</button></div></div>`;
+            document.querySelectorAll(".animalTag").forEach(tag => { tag.onclick = () => { state.moveState.animalIndex = parseInt(tag.dataset.index); renderDestinationSelection(); }; });
+        }
+        function renderDestinationSelection() {
+            const box = document.getElementById("exhibits"); const animal = state.exhibits[state.moveState.fromExhibit].animals[state.moveState.animalIndex];
+            box.innerHTML = `<div class="exhibitCard" style="grid-column: 1 / -1;"><div class="exhibit-header"><h3>📍 Move ${animal.name}</h3></div><div class="exhibit-body"><p>Step 2: Choose destination exhibit</p><button class="danger-btn" onclick="cancelMove()">Cancel</button></div></div>`;
+            Object.keys(state.exhibits).forEach(id => {
+                const div = document.createElement("div"); div.className = "exhibitCard";
+                div.innerHTML = `<div class="exhibit-header"><h3>🏞 ${state.exhibits[id].name}</h3></div><div class="exhibit-body"><p style="text-align:center; padding:10px;">Click to move here</p></div>`;
+                div.style.cursor = 'pointer'; div.onclick = () => moveAnimalTo(id); box.appendChild(div);
+            });
+        }
+        function moveAnimalTo(toId) {
+            const fromId = state.moveState.fromExhibit; const animal = state.exhibits[fromId].animals.splice(state.moveState.animalIndex, 1)[0];
+            if (!animal) return; state.exhibits[toId].animals.push(animal); cancelMove();
+        }
+        function cancelMove() { state.uiMode = "normal"; state.moveState = { active: false, fromExhibit: null, animalIndex: null }; renderExhibits(); }
+        let currentExhibitType = 'terrestrial';
+        document.getElementById("buildExhibitBtn").onclick = () => {
+            const modal = document.getElementById("buildModal"); const options = document.getElementById("buildSizeOptions"); options.innerHTML = "";
+            if (Object.keys(data.exhibitTypes).length === 0) return showToast("Loading exhibit types...", "info");
+            modal.querySelector('.modal-content').style.maxWidth = '600px';
+            const availableTypes = Object.values(data.exhibitTypes).filter(et => !et.unlockResearch || isResearchComplete(et.unlockResearch));
+            const lockedTypes = Object.values(data.exhibitTypes).filter(et => et.unlockResearch && !isResearchComplete(et.unlockResearch));
+            let typeSelectionHTML = '<div style="margin-bottom: 20px;"><h4 style="margin: 0 0 10px 0; color: var(--accent);">🏞 Select Exhibit Type</h4><div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px;">';
+            availableTypes.forEach(et => { typeSelectionHTML += `<button class="category-tab ${currentExhibitType === et.id ? 'active' : ''}" onclick="selectExhibitType('${et.id}')" style="padding: 12px; text-align: left; border: 2px solid ${currentExhibitType === et.id ? 'var(--accent)' : '#243042'}; background: var(--card); color: var(--text); border-radius: 8px; cursor: pointer;"><div style="font-size: 1.5rem; margin-bottom: 4px;">${et.emoji}</div><div style="font-weight: 700; font-size: 0.9rem;">${et.name}</div><div style="font-size: 0.75rem; color: var(--muted); margin-top: 4px;">${et.description}</div></button>`; });
+            typeSelectionHTML += '</div></div>';
+            if (lockedTypes.length > 0) {
+                typeSelectionHTML += '<div style="margin-top: 15px;"><h4 style="margin: 0 0 10px 0; color: var(--muted);"> Locked Types</h4><div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px;">';
+                lockedTypes.forEach(et => { const project = data.researchProjects[et.unlockResearch]; typeSelectionHTML += `<div style="padding: 12px; background: #0b1220; border: 1px solid #243042; border-radius: 8px; opacity: 0.5;"><div style="font-size: 1.5rem; margin-bottom: 4px;">${et.emoji}</div><div style="font-weight: 700; font-size: 0.9rem;">${et.name}</div><div style="font-size: 0.75rem; color: var(--warn); margin-top: 4px;">Requires: ${project?.name || 'Research'}</div></div>`; });
+                typeSelectionHTML += '</div></div>';
+            }
+            options.innerHTML = typeSelectionHTML + `<div style="margin-top: 20px;"><h4 style="margin: 0 0 10px 0; color: var(--accent);">📏 Select Size</h4></div><div id="sizeOptions"></div>`;
+            const sizeDiv = document.getElementById("sizeOptions");
+            for (const size in EXHIBIT_SIZES) {
+                const info = EXHIBIT_SIZES[size]; const canAfford = state.money >= info.cost;
+                const btn = document.createElement("button"); btn.className = "primary-btn"; btn.style.width = "100%"; btn.style.marginBottom = "8px";
+                btn.style.opacity = canAfford ? "1" : "0.5"; btn.style.cursor = canAfford ? "pointer" : "not-allowed";
+                btn.innerHTML = `<div style="display: flex; justify-content: space-between; align-items: center;"><div style="text-align: left;"><div style="font-weight: 800;">${info.emoji} ${info.label} Exhibit</div><div style="font-size: 0.8rem; opacity: 0.8;">⏱ ${info.buildDays} days to build</div></div><div style="font-weight: 800;">$${info.cost.toLocaleString()}</div></div>`;
+                if (canAfford) btn.onclick = () => { buildExhibit(size, currentExhibitType); closeBuildModal(); };
+                sizeDiv.appendChild(btn);
+            }
+            modal.classList.add("active");
+        };
+        function selectExhibitType(typeId) { currentExhibitType = typeId; document.getElementById("buildExhibitBtn").onclick(); }
+        function closeBuildModal() { document.getElementById("buildModal").classList.remove("active"); document.getElementById("buildModal").querySelector('.modal-content').style.maxWidth = '400px'; }
+        function buildExhibit(size, type = 'terrestrial') {
+            const info = EXHIBIT_SIZES[size]; const exhibitType = data.exhibitTypes[type];
+            if (!exhibitType) return showToast("Invalid exhibit type!", "error");
+            if (exhibitType.unlockResearch && !isResearchComplete(exhibitType.unlockResearch)) return showToast(`🔒 ${exhibitType.name} requires research!`, "error");
+            if (state.money < info.cost) return showToast("Not enough money!", "error");
+            state.money -= info.cost; showFloatingMoney(-info.cost);
+            const next = Object.keys(state.exhibits).length + 1; const id = "exhibit" + next;
+            state.exhibits[id] = { name: `${exhibitType.name} ${next}`, size: size, type: type, animals: [], upgrades: [], buildDaysRemaining: info.buildDays, fenceCondition: 100 };
+            addTicker(`🏗 Started building ${exhibitType.emoji} ${info.label} ${exhibitType.name} (ready in ${info.buildDays} days)`);
+            updateUI(); renderExhibits();
+        }
+
+        /* --------------------------------------------------------------------------
+           🎲 14. EVENTS & LEADERBOARD
+           -------------------------------------------------------------------------- */
+        const RANDOM_EVENTS = [
+            { id: 'donation', name: 'Generous Donation', desc: 'A philanthropist is impressed by your zoo and sends a check!', icon: '💰', choices: [{ text: 'Accept ($1000)', effect: () => { state.money += 1000; showFloatingMoney(1000); showToast("Received donation!", "info"); }, cost: 0 }] },
+            { id: 'escape', name: 'Animal Escape!', desc: 'A mischievous animal has breached the fence! Visitors are panicking.', icon: '🐒', condition: () => getAllAnimals().length > 0, choices: [{ text: 'Security Team ($500)', effect: () => { state.money -= 500; showFloatingMoney(-500); showToast("Animal safely recaptured.", "info"); }, cost: 500 }, { text: 'Ignore It', effect: () => { state.visitorSatisfaction = Math.max(0, state.visitorSatisfaction - 20); showToast("Chaos! Visitor satisfaction dropped.", "error"); }, cost: 0 }] },
+            { id: 'inspection', name: 'Health Inspection', desc: 'A strict inspector is visiting today. Your facilities look a bit messy.', icon: '📋', condition: () => state.money > 200, choices: [{ text: 'Emergency Cleanup ($200)', effect: () => { state.money -= 200; showFloatingMoney(-200); showToast("Inspector passed the zoo with flying colors.", "info"); state.visitorSatisfaction += 5; }, cost: 200 }, { text: 'Risk It', effect: () => { if (Math.random() > 0.5) { showToast("Fine! The inspector found no issues.", "info"); state.visitorSatisfaction += 5; } else { state.visitorSatisfaction -= 15; showToast("Failed inspection! Visitors are worried.", "error"); } }, cost: 0 }] },
+            { id: 'viral', name: 'Viral Video!', desc: 'A visitor\'s TikTok of your zoo went viral! People are rushing in.', icon: '📱', choices: [{ text: 'Capitalize (+50 visitors today)', effect: () => { state.dailyVisitors += 50; updateUI(); showToast("Traffic surged! Check the Reports tab.", "info"); }, cost: 0 }] },
+            { id: 'sickness', name: 'Flu Outbreak', desc: 'A mild flu is spreading among the animals. You need medicine.', icon: '💊', condition: () => getAllAnimals().length > 2, choices: [{ text: 'Treat All ($300)', effect: () => { state.money -= 300; showFloatingMoney(-300); let cured = 0; for (const id in state.exhibits) for (const animal of state.exhibits[id].animals) if (animal.sick) { delete animal.sick; delete animal.sickDays; cured++; } showToast(`✅ Cured ${cured} animals!`, "info"); }, cost: 300 }, { text: 'Do Nothing', effect: () => { let affected = 0; for (const id in state.exhibits) for (const animal of state.exhibits[id].animals) if (Math.random() > 0.7) { animal.sick = true; animal.sickDays = 0; affected++; } showToast(`${affected} animals caught the flu! They may die without treatment.`, "error"); }, cost: 0 }] }
+        ];
+        let currentEvent = null;
+        function triggerRandomEvent() {
+            return;  // ← Random events currently disabled. Remove this line to re-enable.
+            if (Math.random() > 0.30) return;
+            const available = RANDOM_EVENTS.filter(e => !e.condition || e.condition()); if (available.length === 0) return;
+            const event = available[Math.floor(Math.random() * available.length)]; state.activeEvent = event; showEventModal(event);
+        }
+        function showEventModal(event) {
+            currentEvent = event; const modal = document.getElementById('eventModal');
+            document.getElementById('eventIcon').textContent = event.icon; document.getElementById('eventName').textContent = event.name; document.getElementById('eventDesc').textContent = event.desc;
+            const choicesDiv = document.getElementById('eventChoices'); choicesDiv.innerHTML = '';
+            event.choices.forEach(choice => {
+                const btn = document.createElement('button'); btn.className = choice.cost > state.money ? 'secondary-btn' : 'primary-btn';
+                btn.style.opacity = choice.cost > state.money ? '0.5' : '1'; btn.style.cursor = choice.cost > state.money ? 'not-allowed' : 'pointer'; btn.textContent = choice.text;
+                btn.onclick = () => {
+                    if (choice.cost > state.money) { showToast("Not enough money for this option!", "error"); return; }
+                    choice.effect(); updateUI(); renderExhibits(); modal.classList.remove('active'); state.activeEvent = null; currentEvent = null; saveGame();
+                };
+                choicesDiv.appendChild(btn);
+            });
+            modal.classList.add('active');
+        }
+        function closeEventModal() { document.getElementById('eventModal').classList.remove('active'); state.activeEvent = null; currentEvent = null; }
+        function showRatingBreakdown() {
+            const modal = document.getElementById('ratingModal'); const content = document.getElementById('ratingModalContent');
+            const allAnimals = getAllAnimals(); const totalSpecies = data.animals.length || 1;
+            const speciesCount = new Set(allAnimals.map(a => a.id)).size;
+            const varietyScore = Math.min(100, (speciesCount / Math.max(5, totalSpecies * 0.3)) * 100);
+            let avgHealth = 0; if (allAnimals.length > 0) avgHealth = allAnimals.reduce((sum, a) => sum + (a.health ?? 100), 0) / allAnimals.length;
+            const satisfactionScore = state.visitorSatisfaction; const staffEffects = getStaffEffects();
+            const cleanlinessScore = Math.min(100, staffEffects.cleanPark + staffEffects.cleanExhibits);
+            const deathPenalty = Math.min(100, (state.unnaturalDeaths || 0) * 10); 
+            const deathScore = allAnimals.length > 0 ? (100 - deathPenalty) : 0; 
+            
+            // FIX: Cleaned up glued comment syntax error
+            const amenityTypes = ['restroom', 'bin', 'bench', 'food_stand', 'gift_shop'];
+            const amenitiesOwned = amenityTypes.filter(id => (state.amenities[id] || 0) > 0).length;
+            const amenitiesScore = (amenitiesOwned / amenityTypes.length) * 100;
+            const tier = getZooRatingTier(state.zooRating || 0);
+            content.innerHTML = `<h2 style="color: ${tier.color}; margin-top: 0;">${tier.emoji} ${tier.label} Zoo</h2>
+                <p style="color: var(--muted); margin: 0 0 15px 0;">Current Rating: <strong style="color: ${tier.color}; font-size: 1.5rem;">${state.zooRating || 0}%</strong></p>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                <div style="padding: 10px; background: #0b1220; border-radius: 8px;"><div style="font-size: 0.75rem; color: var(--muted);">🦁 Animal Variety (20%)</div><div style="font-size: 1.2rem; font-weight: 800; color: var(--accent);">${Math.round(varietyScore)}%</div><div style="font-size: 0.7rem; color: var(--muted);">${speciesCount} species</div></div>
+                <div style="padding: 10px; background: #0b1220; border-radius: 8px;"><div style="font-size: 0.75rem; color: var(--muted);">💚 Animal Health (25%)</div><div style="font-size: 1.2rem; font-weight: 800; color: ${avgHealth >= 80 ? 'var(--accent)' : avgHealth >= 50 ? 'var(--warn)' : 'var(--danger)'};">${Math.round(avgHealth)}%</div></div>
+                <div style="padding: 10px; background: #0b1220; border-radius: 8px;"><div style="font-size: 0.75rem; color: var(--muted);">😊 Visitor Satisfaction (20%)</div><div style="font-size: 1.2rem; font-weight: 800; color: var(--blue);">${satisfactionScore}%</div></div>
+                <div style="padding: 10px; background: #0b1220; border-radius: 8px;"><div style="font-size: 0.75rem; color: var(--muted);">✨ Cleanliness (15%)</div><div style="font-size: 1.2rem; font-weight: 800; color: var(--warn);">${Math.round(cleanlinessScore)}%</div></div>
+                <div style="padding: 10px; background: #0b1220; border-radius: 8px;"><div style="font-size: 0.75rem; color: var(--muted);">⚰️ Death Penalty (10%)</div><div style="font-size: 1.2rem; font-weight: 800; color: ${deathScore >= 80 ? 'var(--accent)' : 'var(--danger)'};">${Math.round(deathScore)}%</div><div style="font-size: 0.7rem; color: var(--muted);">${state.unnaturalDeaths || 0} unnatural deaths</div></div>
+                <div style="padding: 10px; background: #0b1220; border-radius: 8px;"><div style="font-size: 0.75rem; color: var(--muted);">🏪 Amenities (10%)</div><div style="font-size: 1.2rem; font-weight: 800; color: var(--purple);">${Math.round(amenitiesScore)}%</div><div style="font-size: 0.7rem; color: var(--muted);">${amenitiesOwned}/5 types</div></div>
+                </div>${state.zooRating < 80 ? `<div style="margin-top: 12px; padding: 10px; background: rgba(251, 191, 36, 0.1); border-radius: 8px; text-align: center; color: var(--gold); font-size: 0.85rem;">🌟 Reach 80% rating to unlock Legendary animals!</div>` : ''}`;
+            modal.classList.add('active');
+        }
+        function closeRatingModal() { document.getElementById('ratingModal').classList.remove('active'); }
+        document.addEventListener("click", (e) => {
+            const tag = e.target.closest(".animalTag"); if (!tag) return;
+            const exhibitId = tag.dataset.exhibit; const index = parseInt(tag.dataset.index);
+            if (state.uiMode === "move") { state.moveState.animalIndex = index; renderDestinationSelection(); return; }
+            const animal = state.exhibits[exhibitId]?.animals?.[index]; if (animal) openAnimalInfo(animal, exhibitId, index);
+        });
+        let leaderboardPlayerId = null; let leaderboardCategory = 'money';
+        function getPlayerId() { let id = localStorage.getItem('zooPlayerId'); if (!id) { id = 'player_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9); localStorage.setItem('zooPlayerId', id); } return id; }
+        function getPlayerName() { return localStorage.getItem('zooPlayerName') || 'Anonymous Zookeeper'; }
+        function setPlayerName(name) { localStorage.setItem('zooPlayerName', name); }
+        async function submitToLeaderboard() {
+            if (!window.firebaseDB) return;
+            try {
+                const playerId = getPlayerId(); leaderboardPlayerId = playerId;
+                const { doc, setDoc, getDoc } = window.firebaseModules;
+                const ref = doc(window.firebaseDB, 'leaderboard', playerId); const snap = await getDoc(ref);
+                const stats = { name: getPlayerName(), money: state.money, animals: getAllAnimals().length, achievements: Object.keys(state.achievements).length, daysPlayed: (state.year - 1) * 360 + (state.month - 1) * 30 + state.day, visitors: state.dailyVisitors, lastUpdated: new Date().toISOString() };
+                if (snap.exists()) { const existing = snap.data(); stats.money = Math.max(stats.money, existing.money || 0); stats.animals = Math.max(stats.animals, existing.animals || 0); stats.achievements = Math.max(stats.achievements, existing.achievements || 0); stats.daysPlayed = Math.max(stats.daysPlayed, existing.daysPlayed || 0); await setDoc(ref, stats, { merge: true }); } 
+                else { await setDoc(ref, stats); }
+            } catch (e) { console.error("Leaderboard submit error:", e); }
+        }
+        async function fetchLeaderboard(category = 'money', limitCount = 20) {
+            if (!window.firebaseDB) return [];
+            try { const { collection, query, orderBy, limit, getDocs } = window.firebaseModules; const q = query(collection(window.firebaseDB, 'leaderboard'), orderBy(category, 'desc'), limit(limitCount)); const snapshot = await getDocs(q); return snapshot.docs.map((doc, index) => ({ rank: index + 1, id: doc.id, ...doc.data() })); } 
+            catch (e) { console.error("Leaderboard fetch error:", e); return []; }
+        }
+        async function getPlayerRank(category = 'money') {
+            if (!window.firebaseDB || !leaderboardPlayerId) return null;
+            try { const { collection, query, orderBy, getDocs } = window.firebaseModules; const q = query(collection(window.firebaseDB, 'leaderboard'), orderBy(category, 'desc')); const snapshot = await getDocs(q); const docs = snapshot.docs; const myIndex = docs.findIndex(d => d.id === leaderboardPlayerId); if (myIndex === -1) return null; return { rank: myIndex + 1, total: docs.length, data: docs[myIndex].data() }; } 
+            catch (e) { console.error("Rank fetch error:", e); return null; }
+        }
+        async function renderLeaderboard() {
+            const box = document.getElementById('leaderboard'); box.innerHTML = '<div class="leaderboard-loading">🔄 Loading leaderboard...</div>';
+            const hasName = localStorage.getItem('zooPlayerName'); let namePromptHTML = '';
+            if (!hasName) namePromptHTML = `<div class="name-prompt"><h3>👋 Welcome to the Leaderboard!</h3><p style="color: var(--muted); margin-bottom: 10px;">Choose a name to compete with players worldwide</p><input type="text" id="playerNameInput" placeholder="Your zookeeper name..." maxlength="20"><br><button class="primary-btn" onclick="savePlayerName()" style="max-width: 200px; margin: 0 auto;">Save Name</button></div>`;
+            const categories = [{ id: 'money', label: '💰 Richest', icon: '💰' }, { id: 'animals', label: '🦁 Most Animals', icon: '🦁' }, { id: 'achievements', label: '🏆 Achievements', icon: '🏆' }, { id: 'daysPlayed', label: '📅 Longest', icon: '📅' }];
+            box.innerHTML = namePromptHTML + `<div class="leaderboard-tabs">${categories.map(cat => `<button class="leaderboard-tab ${leaderboardCategory === cat.id ? 'active' : ''}" onclick="changeLeaderboardCategory('${cat.id}')">${cat.label}</button>`).join('')}</div><div id="leaderboardContent"><div class="leaderboard-loading">🔄 Loading...</div></div>`;
+            await updateLeaderboardContent();
+        }
+        async function updateLeaderboardContent() {
+            const content = document.getElementById('leaderboardContent'); if (!content) return;
+            const players = await fetchLeaderboard(leaderboardCategory, 20); const myRank = await getPlayerRank(leaderboardCategory);
+            const categoryLabels = { money: { label: 'Net Worth', format: v => '$' + v.toLocaleString() }, animals: { label: 'Animals', format: v => v.toLocaleString() }, achievements: { label: 'Achievements', format: v => v.toLocaleString() }, daysPlayed: { label: 'Days', format: v => v.toLocaleString() } };
+            const cat = categoryLabels[leaderboardCategory]; let yourRankHTML = '';
+            if (myRank) yourRankHTML = `<div class="your-rank-card"><h3>🎯 Your Rank</h3><div class="your-rank-number">#${myRank.rank}</div><div style="color: var(--muted);">out of ${myRank.total} zookeepers worldwide</div></div>`;
+            let rowsHTML = '';
+            if (players.length === 0) rowsHTML = `<div style="text-align: center; padding: 40px; color: var(--muted);"><h3>🏁 Be the First!</h3><p>No players yet. Play the game and submit your score to claim the top spot!</p></div>`;
+            else {
+                rowsHTML = `<div class="leaderboard-row header"><div>Rank</div><div>Player</div><div style="text-align: right;">${cat.label}</div></div>`;
+                players.forEach(player => {
+                    const isYou = player.id === leaderboardPlayerId; const rankClass = player.rank === 1 ? 'top1' : player.rank === 2 ? 'top2' : player.rank === 3 ? 'top3' : '';
+                    const rankEmoji = player.rank === 1 ? '🥇' : player.rank === 2 ? '🥈' : player.rank === 3 ? '🥉' : `#${player.rank}`;
+                    rowsHTML += `<div class="leaderboard-row ${rankClass} ${isYou ? 'you' : ''}"><div class="rank-badge ${player.rank <= 3 ? 'rank-' + player.rank : ''}">${rankEmoji}</div><div class="player-info"><div class="player-name">${escapeHtml(player.name || 'Anonymous')}</div><div class="player-zoo">Day ${player.daysPlayed || 0} • ${player.animals || 0} animals</div></div><div class="player-score">${cat.format(player[leaderboardCategory] || 0)}</div></div>`;
+                });
+            }
+            content.innerHTML = yourRankHTML + `<div class="leaderboard-table">${rowsHTML}</div><div style="text-align: center; margin-top: 20px; color: var(--muted); font-size: 0.85rem;">🔄 Leaderboard updates automatically as you play</div>`;
+        }
+        function changeLeaderboardCategory(category) { leaderboardCategory = category; renderLeaderboard(); }
+        function savePlayerName() {
+            const input = document.getElementById('playerNameInput'); const name = input.value.trim();
+            if (name.length < 2) { showToast("Name must be at least 2 characters", "error"); return; }
+            setPlayerName(name); showToast(`Welcome, ${name}! 🎉`, "info"); renderLeaderboard(); submitToLeaderboard();
+        }
+        function escapeHtml(text) { const div = document.createElement('div'); div.textContent = text; return div.innerHTML; }
+
+        /* --------------------------------------------------------------------------
+           💾 15. SAVE/LOAD, TUTORIAL & CORE LOOP
+           -------------------------------------------------------------------------- */
+        function showMonthlyReport() {
+            const attraction = calculateAttraction(); const visitors = generateVisitors();
+            state.monthlyReports.unshift({ month: state.month, year: state.year, attraction, visitors, guestHappiness: calculateGuestHappiness(), income: visitors * state.ticketPrice * 30 });
+            renderReports();
+        }
+        function advanceDay() {
+            if (state.activeEvent) { showToast("Resolve the current event before ending the day!", "warn"); return; }
+            const startMoney = state.money;
+            consumeDailyFood(); processAnimalHealth(); processDayIncome(); processAnimalIncome(); processUpkeep(); processDailyMaintenance(); processFenceDegradation();
+            if (state.recentDeathPenalty > 0) state.recentDeathPenalty = Math.max(0, state.recentDeathPenalty - 5);
+            for (const id in state.exhibits) {
+                const exhibit = state.exhibits[id]; if (exhibit.buildDaysRemaining > 0) continue;
+                const condition = exhibit.fenceCondition || 100;
+                if (condition < 30 && condition >= 10) addTicker(`🔴 ${exhibit.name} fence is critical! Repair immediately!`);
+                else if (condition < 50 && condition >= 30) addTicker(`🔶 ${exhibit.name} fence needs urgent repair!`);
+                else if (condition < 70 && condition >= 50) addTicker(`⚠️ ${exhibit.name} fence is wearing down.`);
+            }
+            renderExhibits(); const delta = state.money - startMoney; if (delta !== 0) showFloatingMoney(delta);
+            state.daysSinceNewAnimal++;
+            const deaths = [];
+            for (const id in state.exhibits) {
+                const exhibit = state.exhibits[id];
+                for (const animal of exhibit.animals) {
+                    animal.ageDays = (animal.ageDays || 0) + 1;
+                    if (animal.ageDays === 30) addTicker(`🎂 ${animal.name} is now a juvenile!`);
+                    else if (animal.ageDays === 90) addTicker(`🎉 ${animal.name} has reached adulthood!`);
+                    else if (animal.ageDays === 365) addTicker(`👴 ${animal.name} is now a senior.`);
+                    if (shouldDieOfOldAge(animal)) deaths.push({ animal, exhibitId: id, cause: 'old age' });
+                    if (animal.sick && Math.random() < 0.05) deaths.push({ animal, exhibitId: id, cause: 'sickness' });
+                }
+            }
+            for (const death of deaths) {
+                const exhibit = state.exhibits[death.exhibitId]; if (!exhibit) continue;
+                exhibit.animals = exhibit.animals.filter(a => a !== death.animal);
+                const causeEmoji = death.cause === 'old age' ? '⚰️' : '💀';
+                addTicker(`${causeEmoji} ${death.animal.name} passed away from ${death.cause}.`); showToast(`${causeEmoji} ${death.animal.name} has died.`, 'error');
+                state.naturalDeaths = (state.naturalDeaths || 0) + 1; state.totalDeaths = (state.totalDeaths || 0) + 1;
+                state.money -= 100; showFloatingMoney(-100);
+            }
+            for (const id in state.exhibits) tryBreeding(state.exhibits[id]);
+            for (const id in state.exhibits) {
+                const exhibit = state.exhibits[id];
+                for (const animal of exhibit.animals) {
+                    if (animal.isPregnant) {
+                        animal.daysUntilBirth--;
+                        if (animal.daysUntilBirth <= 0) {
+                            const species = animal.babySpecies || animal.id; const speciesData = data.animals.find(a => a.id === species);
+                            const baby = { id: species, name: getNextAnimalName(speciesData?.name || species), gender: Math.random() < 0.5 ? "male" : "female", ageDays: 0, dailyIncome: animal.dailyIncome, foodCost: animal.foodCost, diet: animal.diet, variation: null, compatibleWith: animal.compatibleWith, minInExhibit: animal.minInExhibit, maxInExhibit: animal.maxInExhibit, breedChance: animal.breedChance, bornInZoo: true, health: 100 };
+                            exhibit.animals.push(baby); animal.isPregnant = false; delete animal.daysUntilBirth; delete animal.babySpecies; delete animal.babyFather;
+                            state.bredAnimals++; addTicker(`🍼 ${baby.name} was born to ${animal.name}!`); showToast(`🎉 ${baby.name} has been born!`, "info");
+                        }
+                    }
+                }
+            }
+            if (state.activeResearch) {
+                state.activeResearch.daysRemaining--;
+                if (state.activeResearch.daysRemaining <= 0) {
+                    const project = data.researchProjects[state.activeResearch.projectId];
+                    state.completedResearch.push(state.activeResearch.projectId); state.activeResearch = null;
+                    if (project) { addTicker(`🎉 Research complete: ${project.name}!`); showToast(`🔬 ${project.name} complete! ${project.unlocks.length} new animals unlocked!`, "info"); }
+                    renderShop();
+                }
+            }
+            state.day++; if (state.day > 30) { state.day = 1; state.month++; showMonthlyReport(); }
+            if (state.month > 12) { state.month = 1; state.year++; }
+            checkAchievements(); updateUI(); renderExhibits(); renderAchievements(); renderVisitors(); submitToLeaderboard(); renderSupplies();
+            const oldRating = state.zooRating || 0; state.zooRating = calculateZooRating();
+            const newTier = getZooRatingTier(state.zooRating); const oldTier = getZooRatingTier(oldRating);
+            if (newTier.tierNum > oldTier.tierNum) { addTicker(`🎉 Zoo upgraded to ${newTier.emoji} ${newTier.label}!`); showToast(`Zoo Rating: ${newTier.emoji} ${newTier.label}!`, "info"); const tierBonus = newTier.tierNum * 500; state.money += tierBonus; showFloatingMoney(tierBonus); } 
+            else if (newTier.tierNum < oldTier.tierNum) { addTicker(`📉 Zoo rating dropped to ${newTier.emoji} ${newTier.label}`); showToast(`Zoo rating dropped!`, "warn"); }
+            saveGame(); triggerRandomEvent();
+        }
+        function updateUI() {
+            document.getElementById("money").textContent = state.money.toLocaleString(undefined, { maximumFractionDigits: 2 });
+            document.getElementById("day").textContent = state.day; document.getElementById("month").textContent = state.month; document.getElementById("year").textContent = state.year; document.getElementById("ticketPrice").textContent = state.ticketPrice;
+            const allAnimals = getAllAnimals();
+            if (allAnimals.length === 0) document.getElementById("novelty").textContent = "0%";
+            else { const decayFactor = Math.min(1, state.daysSinceNewAnimal / 10); document.getElementById("novelty").textContent = Math.round((1 - decayFactor) * 100) + "%"; }
+            const usedSlots = getUsedSlots(); const totalSlots = getKeeperSlots();
+            const staffingEl = document.getElementById("staffSlots"); const statusEl = document.getElementById("staffingStatus");
+            if (staffingEl && statusEl) {
+                staffingEl.textContent = `${usedSlots}/${totalSlots}`;
+                if (totalSlots === 0 && usedSlots > 0) { statusEl.style.color = "var(--danger)"; statusEl.title = "No keepers hired! Animals are unhappy!"; }
+                else if (usedSlots > totalSlots) { statusEl.style.color = "var(--danger)"; statusEl.title = "Understaffed! Hire more keepers!"; }
+                else if (usedSlots > totalSlots * 0.8) { statusEl.style.color = "var(--warn)"; statusEl.title = "Getting close to capacity"; }
+                else { statusEl.style.color = "var(--accent)"; statusEl.title = "Staffing is good"; }
+            }
+            const ratingEl = document.getElementById("zooRating"); const tierEl = document.getElementById("zooRatingTier"); const badgeEl = document.getElementById("ratingBadge");
+            if (ratingEl && tierEl && badgeEl) {
+                const tier = getZooRatingTier(state.zooRating || 0);
+                ratingEl.textContent = state.zooRating || 0; tierEl.textContent = `(${tier.label})`;
+                tierEl.style.color = tier.color; ratingEl.style.color = tier.color; badgeEl.style.color = tier.color; badgeEl.style.borderColor = tier.color;
+            }
+        }
+        function showSection(section, event) {
+            document.querySelectorAll(".section").forEach(s => s.classList.remove("active"));
+            document.querySelectorAll(".nav button").forEach(b => b.classList.remove("active"));
+            document.getElementById(section).classList.add("active"); if (event) event.target.classList.add("active");
+            if (section === "shop") renderShop(); if (section === "staff") renderStaff(); if (section === "reports") renderReports();
+            if (section === "visitors") renderVisitors(); if (section === "amenities") renderAmenities(); if (section === "leaderboard") renderLeaderboard();
+            if (section === "supplies") renderSupplies(); if (section === "research") renderResearch();
+        }
+        const TUTORIAL_STEPS = [
+            { title: "👋 Welcome to ZooSmith!", message: "You're about to build the world's greatest zoo. Let's start with the basics.", action: "👉 Click 'Build Exhibit' to create your first enclosure", highlight: "buildExhibitBtn", autoAdvance: () => Object.keys(state.exhibits).length > 0 },
+            { title: "🧑‍🌾 Hire a Keeper", message: "Animals need caretakers! Without keepers, they'll go hungry and unhappy.", action: "👉 Go to the Staff tab and hire a Junior Keeper", highlight: null, switchTab: "staff", autoAdvance: () => state.hiredStaff.length > 0 },
+            { title: "🦁 Buy Your First Animal", message: "Time to bring in some wildlife! Pick an animal that fits your exhibit.", action: "👉 Go to the Shop tab and buy an animal", highlight: null, switchTab: "shop", autoAdvance: () => getAllAnimals().length > 0 },
+            { title: "🍽 Stock Up on Food", message: "Your animals will get hungry! Make sure you have food in storage.", action: "👉 Check the Supplies tab and buy some food", highlight: null, switchTab: "supplies", autoAdvance: () => state.tutorialStep >= 4 },
+            { title: "⏭ End the Day", message: "Advance time to earn income, feed animals, and see what happens!", action: "👉 Click 'End Day' to progress", highlight: "endDayBtn", autoAdvance: () => state.day > 1 || state.month > 1 },
+            { title: "🎉 You're Ready!", message: "You've learned the basics! Now go build your dream zoo. Good luck, Zookeeper!", action: "💡 Tip: Watch for random events, breed animals, and unlock new species through research.", highlight: null, autoAdvance: () => false }
+        ];
+        function renderTutorial() {
+            const container = document.getElementById("tutorialOverlay"); if (!container) return;
+            if (state.tutorialSkipped || state.tutorialStep >= TUTORIAL_STEPS.length) { container.innerHTML = ""; return; }
+            if (state.tutorialStep === 0) state.tutorialStep = 1;
+            const step = TUTORIAL_STEPS[state.tutorialStep - 1]; if (!step) return;
+            if (step.autoAdvance && step.autoAdvance()) { setTimeout(() => advanceTutorial(), 500); return; }
+            if (step.switchTab) { const currentActive = document.querySelector(".section.active"); if (!currentActive || currentActive.id !== step.switchTab) if (!document.querySelector(".modal.active")) showSection(step.switchTab); }
+            document.querySelectorAll(".tutorial-highlight").forEach(el => el.classList.remove("tutorial-highlight"));
+            if (step.highlight) { const target = document.getElementById(step.highlight); if (target) target.classList.add("tutorial-highlight"); }
+            const progressDots = TUTORIAL_STEPS.map((_, i) => `<div class="tutorial-dot ${i < state.tutorialStep - 1 ? "done" : i === state.tutorialStep - 1 ? "active" : ""}"></div>`).join("");
+            const isLastStep = state.tutorialStep === TUTORIAL_STEPS.length;
+            container.innerHTML = `<div class="tutorial-overlay"><div class="tutorial-header"><span class="tutorial-step-badge">Step ${state.tutorialStep} of ${TUTORIAL_STEPS.length}</span><button class="tutorial-close" onclick="skipTutorial()" title="Skip tutorial">✕</button></div><h3 class="tutorial-title">${step.title}</h3><p class="tutorial-message">${step.message}</p>${step.action ? `<div class="tutorial-action">🎯 ${step.action}</div>` : ''}<div class="tutorial-progress">${progressDots}</div><div class="tutorial-buttons"><button class="tutorial-skip" onclick="skipTutorial()">Skip Tutorial</button>${isLastStep ? `<button class="tutorial-next" onclick="completeTutorial()">Let's Go! 🚀</button>` : `<button class="tutorial-next" onclick="advanceTutorial()">Got it ✓</button>`}</div></div>`;
+        }
+        function advanceTutorial() { if (state.tutorialStep < TUTORIAL_STEPS.length) { state.tutorialStep++; saveGame(); renderTutorial(); } }
+        function skipTutorial() {
+            if (!confirm("Are you sure you want to skip the tutorial? You can always learn by exploring!")) return;
+            state.tutorialSkipped = true; state.tutorialStep = TUTORIAL_STEPS.length;
+            document.querySelectorAll(".tutorial-highlight").forEach(el => el.classList.remove("tutorial-highlight"));
+            saveGame(); renderTutorial(); showToast("Tutorial skipped. Good luck! 🍀", "info");
+        }
+        function completeTutorial() {
+            state.tutorialStep = TUTORIAL_STEPS.length;
+            document.querySelectorAll(".tutorial-highlight").forEach(el => el.classList.remove("tutorial-highlight"));
+            saveGame(); renderTutorial(); showToast("🎉 Tutorial complete! You're ready to build your zoo!", "info");
+        }
+        function saveGame() {
+            const saveData = { ...state }; delete saveData.moveState; delete saveData.pendingAnimal; delete saveData.activeUpgradeExhibit;
+            localStorage.setItem("zooSave", JSON.stringify(saveData));
+        }
+        function loadGame() {
+            const raw = localStorage.getItem("zooSave"); if (!raw) return;
+            try {
+                const save = JSON.parse(raw); Object.assign(state, save);
+                state.moveState = { active: false, fromExhibit: null, animalIndex: null }; state.uiMode = "normal"; state.pendingAnimal = null; state.activeUpgradeExhibit = null;
+                state.daysSinceNewAnimal ??= 0; state.dailyVisitors ??= 0; state.visitorSpending ??= { food: 0, gifts: 0, total: 0 }; state.visitorComplaints ??= []; state.amenities ??= {}; state.visitorSatisfaction ??= 100;
+                state.completedResearch ??= []; state.activeResearch ??= null; state.maintenance ??= { dailyMaintenanceCost: 0 }; state.maintenanceWorkers ??= 0; state.maintenanceLevel ??= 0;
+                state.tutorialStep ??= 0; state.tutorialSkipped ??= false; state.zooRating ??= 0; state.unnaturalDeaths ??= 0; state.naturalDeaths ??= 0; state.totalDeaths ??= 0;
+                if (getAllAnimals().length > 0 || Object.keys(state.exhibits).length > 0) { state.tutorialSkipped = true; state.tutorialStep = TUTORIAL_STEPS.length; }
+                for (const id in state.exhibits) { state.exhibits[id].animals ??= []; state.exhibits[id].upgrades ??= []; state.exhibits[id].size ??= "small"; state.exhibits[id].type ??= "terrestrial"; }
+                console.log("Game loaded successfully");
+            } catch (e) { console.error("Failed to load save:", e); }
+        }
+
+        /* --------------------------------------------------------------------------
+           🚀 16. INITIALIZATION & EVENT LISTENERS
+           -------------------------------------------------------------------------- */
+        document.getElementById("endDayBtn").onclick = advanceDay;
+        document.getElementById("resetGameBtn").onclick = () => {
+            if (!confirm("Are you sure you want to reset your zoo? This cannot be undone.")) return;
+            localStorage.removeItem("zooSave");
+            state = { money: 10000, day: 1, month: 1, year: 1, ticketPrice: 20, exhibits: {}, builtEnclosures: {}, zooFacilities: [], hiredStaff: [], achievements: {}, animalCounters: {}, monthlyReports: [], moveState: { active: false, fromExhibit: null, animalIndex: null }, uiMode: "normal", pendingAnimal: null, activeUpgradeExhibit: null, bredAnimals: 0, animalsSold: 0, daysSinceNewAnimal: 0, dailyVisitors: 0, visitorSpending: { food: 0, gifts: 0, total: 0 }, visitorComplaints: [], amenities: {}, visitorSatisfaction: 0, food: { hay: 30, meat: 20, produce: 15 }, completedResearch: [], activeResearch: null, maintenance: { dailyMaintenanceCost: 0 }, maintenanceWorkers: 0, maintenanceLevel: 0, tutorialStep: 0, tutorialSkipped: false, zooRating: 0, unnaturalDeaths: 0, naturalDeaths: 0, totalDeaths: 0 };
+            ["reports", "exhibits", "shop", "achievements", "staff", "facilities", "visitors", "amenities"].forEach(id => document.getElementById(id).innerHTML = "");
+            updateUI(); renderExhibits(); renderAchievements(); renderReports(); renderShop(); renderFacilities(); renderStaff(); renderSupplies(); renderResearch();
+            showToast("Zoo has been reset! Tutorial will start fresh. 🔄", "info"); setTimeout(renderTutorial, 100);
+        };
+
+        // Boot up the game
+        loadGame();
+        state.food ??= { hay: 30, meat: 20, produce: 15 };
+        loadShop(); loadUpgrades(); loadFacilities(); loadStaff(); loadAmenities(); loadExhibitTypes(); loadAchievements();
+        updateUI(); renderExhibits(); checkAchievements(); renderAchievements(); loadResearch(); renderReports(); renderFacilities(); renderStaff();
+        leaderboardPlayerId = getPlayerId();
+        setInterval(saveGame, 10000);
+        window.addEventListener("beforeunload", saveGame);
+        setTimeout(renderTutorial, 1000);
+        
+        const originalAdvanceDay = advanceDay;
+        window.advanceDay = function() { originalAdvanceDay(); setTimeout(renderTutorial, 100); };
+
+        // Mobile touch optimizations
+        let lastTouchEnd = 0;
+        document.addEventListener('touchend', (e) => { const now = Date.now(); if (now - lastTouchEnd <= 300) e.preventDefault(); lastTouchEnd = now; }, { passive: false });
+        window.addEventListener('load', () => { setTimeout(() => window.scrollTo(0, 1), 100); });
+        document.querySelectorAll('.nav, .complaints-list').forEach(el => { el.style.webkitOverflowScrolling = 'touch'; });
+    </script>
+</body>
+</html>
