@@ -6,7 +6,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>ZooSmith V0.3.0</title>
+    <title>ZooSmith V0.3.2</title>
     
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script type="module">
@@ -454,7 +454,8 @@
             animals: [], upgrades: {}, facilities: {}, staff: [], 
             amenities: {}, achievements: [], researchProjects: {}, exhibitTypes: {} 
         };
-
+        let currentCategory = 'all';
+        let currentSearch = '';
         let state = {
             money: 10000, food: { hay: 30, meat: 20, produce: 15 },
             day: 1, month: 1, year: 1, ticketPrice: 20,
