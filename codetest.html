@@ -61,8 +61,17 @@
         .animalTag:hover { border-color: var(--accent); color: var(--accent); }
         .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); justify-content: center; align-items: center; z-index: 100; }
         .modal.active { display: flex; }
-        .modal-content { background: var(--card); padding: 20px; width: 90%; max-width: 400px; border-radius: var(--radius); border: 1px solid #243042; color: var(--text); }
-        .modal-content h3 { margin-top: 0; }
+        .modal-content {
+    background: var(--card);
+    padding: 20px;
+    width: 90%;
+    max-width: 400px;
+    max-height: 90vh;
+    overflow-y: auto;
+    border-radius: var(--radius);
+    border: 1px solid #243042;
+    color: var(--text);
+}        .modal-content h3 { margin-top: 0; }
         .modal-content select { width: 100%; padding: 10px; font-size: 16px; margin-bottom: 10px; background: #0b1220; color: var(--text); border: 1px solid #243042; border-radius: 8px;}
         .modal-content button { width: 100%; margin-bottom: 10px; }
         .grid-layout { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; padding: 10px 0; }
