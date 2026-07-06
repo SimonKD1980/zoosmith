@@ -6,7 +6,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>ZooSmith V0.3.3</title>
+    <title>ZooSmith V0.3.4</title>
     
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script type="module">
@@ -374,14 +374,19 @@
             <button onclick="closeAnimalInfo()" class="removeBtn">Close</button>
         </div>
     </div>
-    <div id="buildModal" class="modal">
-        <div class="modal-content">
-            <h3>🏗 Build New Exhibit</h3>
-            <p style="color: var(--muted); margin-bottom: 15px;">Choose the size of your new exhibit.</p>
-            <div id="buildSizeOptions" style="display: flex; flex-direction: column; gap: 10px;"></div>
-            <button onclick="closeBuildModal()" class="removeBtn" style="margin-top: 10px;">Cancel</button>
-        </div>
+<div id="buildModal" class="modal" onclick="if(event.target === this) closeBuildModal()">
+    <div class="modal-content" style="position: relative;">
+        <!-- New X Button -->
+        <button onclick="closeBuildModal()" style="position: absolute; top: 10px; right: 10px; background: transparent; color: var(--muted); font-size: 1.5rem; border: none; width: auto; padding: 5px 10px; min-height: auto; box-shadow: none; cursor: pointer;">✕</button>
+        
+        <h3>🏗 Build New Exhibit</h3>
+        <p style="color: var(--muted); margin-bottom: 15px;">Choose the type and size of your new exhibit.</p>
+        <div id="buildSizeOptions" style="display: flex; flex-direction: column; gap: 10px;"></div>
+        
+        <!-- Original Cancel Button -->
+        <button onclick="closeBuildModal()" class="removeBtn" style="margin-top: 10px;">Cancel</button>
     </div>
+</div>
     <div id="eventModal" class="modal">
         <div class="modal-content" id="eventModalContent" style="max-width: 500px; border: 2px solid var(--warn);">
             <div style="text-align: center; margin-bottom: 15px;">
