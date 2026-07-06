@@ -1681,6 +1681,7 @@
             saveGame(); triggerRandomEvent();
         }
         function updateUI() {
+            document.getElementById("zooNameDisplay").textContent = state.zooName || "My Zoo";
             document.getElementById("money").textContent = state.money.toLocaleString(undefined, { maximumFractionDigits: 2 });
             document.getElementById("day").textContent = state.day; document.getElementById("month").textContent = state.month; document.getElementById("year").textContent = state.year; document.getElementById("ticketPrice").textContent = state.ticketPrice;
             const allAnimals = getAllAnimals();
@@ -1743,36 +1744,237 @@
             document.querySelectorAll(".tutorial-highlight").forEach(el => el.classList.remove("tutorial-highlight"));
             saveGame(); renderTutorial(); showToast("🎉 Tutorial complete! You're ready to build your zoo!", "info");
         }
-        function saveGame() {
-            const saveData = { ...state }; delete saveData.moveState; delete saveData.pendingAnimal; delete saveData.activeUpgradeExhibit;
-            localStorage.setItem("zooSave", JSON.stringify(saveData));
-        }
-        function loadGame() {
-            const raw = localStorage.getItem("zooSave"); if (!raw) return;
-            try {
-                const save = JSON.parse(raw); Object.assign(state, save);
-                state.moveState = { active: false, fromExhibit: null, animalIndex: null }; state.uiMode = "normal"; state.pendingAnimal = null; state.activeUpgradeExhibit = null;
-                state.daysSinceNewAnimal ??= 0; state.dailyVisitors ??= 0; state.visitorSpending ??= { food: 0, gifts: 0, total: 0 }; state.visitorComplaints ??= []; state.amenities ??= {}; state.visitorSatisfaction ??= 100;
-                state.completedResearch ??= []; state.activeResearch ??= null; state.maintenance ??= { dailyMaintenanceCost: 0 }; state.maintenanceWorkers ??= 0; state.maintenanceLevel ??= 0;
-                state.tutorialStep ??= 0; state.tutorialSkipped ??= false; state.zooRating ??= 0; state.unnaturalDeaths ??= 0; state.naturalDeaths ??= 0; state.totalDeaths ??= 0;
-                if (getAllAnimals().length > 0 || Object.keys(state.exhibits).length > 0) { state.tutorialSkipped = true; state.tutorialStep = TUTORIAL_STEPS.length; }
-                for (const id in state.exhibits) { state.exhibits[id].animals ??= []; state.exhibits[id].upgrades ??= []; state.exhibits[id].size ??= "small"; state.exhibits[id].type ??= "terrestrial"; }
-                console.log("Game loaded successfully");
-            } catch (e) { console.error("Failed to load save:", e); }
-        }
+/* --------------------------------------------------------------------------
+   💾 MULTI-SAVE SYSTEM
+   -------------------------------------------------------------------------- */
+function getProfiles() {
+    try { return JSON.parse(localStorage.getItem("zooProfiles")) || {}; } 
+    catch (e) { return {}; }
+}
+function saveProfiles(profiles) { localStorage.setItem("zooProfiles", JSON.stringify(profiles)); }
+function getActiveProfileId() { return localStorage.getItem("activeZooProfileId"); }
+function setActiveProfileId(id) { localStorage.setItem("activeZooProfileId", id); }
 
+function saveGame() {
+    const profiles = getProfiles();
+    let activeId = getActiveProfileId();
+    if (!activeId || !profiles[activeId]) {
+        activeId = 'zoo_' + Date.now();
+        setActiveProfileId(activeId);
+    }
+    const saveData = { ...state };
+    delete saveData.moveState; delete saveData.pendingAnimal; delete saveData.activeUpgradeExhibit;
+
+    profiles[activeId] = {
+        id: activeId,
+        zooName: state.zooName || "Unnamed Zoo",
+        timestamp: Date.now(),
+        money: state.money,
+        animals: getAllAnimals().length,
+        state: saveData
+    };
+    saveProfiles(profiles);
+}
+
+function loadGame() {
+    const profiles = getProfiles();
+    let activeId = getActiveProfileId();
+
+    // If no active profile exists, create a brand new one
+    if (!activeId || !profiles[activeId]) {
+        activeId = 'zoo_' + Date.now();
+        setActiveProfileId(activeId);
+        state.zooName = "My New Zoo";
+        saveGame(); 
+        return;
+    }
+
+    const profile = profiles[activeId];
+    const save = profile.state;
+    if (!save) return;
+
+    try {
+        Object.assign(state, save);
+        state.moveState = { active: false, fromExhibit: null, animalIndex: null };
+        state.uiMode = "normal"; state.pendingAnimal = null; state.activeUpgradeExhibit = null;
+        state.daysSinceNewAnimal ??= 0; state.dailyVisitors ??= 0; 
+        state.visitorSpending ??= { food: 0, gifts: 0, total: 0 }; state.visitorComplaints ??= [];
+        state.amenities ??= {}; state.visitorSatisfaction ??= 100;
+        state.completedResearch ??= []; state.activeResearch ??= null; 
+        state.maintenance ??= { dailyMaintenanceCost: 0 }; state.maintenanceWorkers ??= 0; state.maintenanceLevel ??= 0;
+        state.tutorialStep ??= 0; state.tutorialSkipped ??= false; state.zooRating ??= 0;
+        state.unnaturalDeaths ??= 0; state.naturalDeaths ??= 0; state.totalDeaths ??= 0;
+        state.zooName = profile.zooName || "Unnamed Zoo";
+
+        if (getAllAnimals().length > 0 || Object.keys(state.exhibits).length > 0) {
+            state.tutorialSkipped = true; state.tutorialStep = TUTORIAL_STEPS.length;
+        }
+        for (const id in state.exhibits) {
+            state.exhibits[id].animals ??= []; state.exhibits[id].upgrades ??= [];
+            state.exhibits[id].size ??= "small"; state.exhibits[id].type ??= "terrestrial";
+        }
+        console.log("Game loaded successfully");
+    } catch (e) { console.error("Failed to load save:", e); }
+}
+/* --------------------------------------------------------------------------
+   🏞️ ZOO MANAGEMENT UI
+   -------------------------------------------------------------------------- */
+function openManageZoosModal() {
+    renderManageZoosModal();
+    document.getElementById('manageZoosModal').classList.add('active');
+}
+function closeManageZoosModal() {
+    document.getElementById('manageZoosModal').classList.remove('active');
+}
+
+function renderManageZoosModal() {
+    const profiles = getProfiles();
+    const activeId = getActiveProfileId();
+    const list = document.getElementById('zoosList');
+    list.innerHTML = '';
+
+    const sortedProfiles = Object.values(profiles).sort((a, b) => b.timestamp - a.timestamp);
+
+    if (sortedProfiles.length === 0) {
+        list.innerHTML = '<p style="text-align:center; color:var(--muted);">No zoos found. Create one to start!</p>';
+        return;
+    }
+
+    sortedProfiles.forEach(profile => {
+        const isActive = profile.id === activeId;
+        const date = new Date(profile.timestamp).toLocaleString();
+        const div = document.createElement('div');
+        div.className = 'premium-card';
+        if (isActive) div.style.borderColor = 'var(--accent)';
+        
+        div.innerHTML = `
+            <div class="card-header" style="padding: 12px;">
+                <h3 style="margin:0; font-size: 1.1rem;">${isActive ? '🟢 ' : ''}${profile.zooName}</h3>
+                <div class="subtitle">Last saved: ${date}</div>
+            </div>
+            <div class="card-body" style="padding: 12px;">
+                <div style="display: flex; gap: 15px; font-size: 0.9rem; color: var(--muted); margin-bottom: 10px;">
+                    <span>💰 $${(profile.money || 0).toLocaleString()}</span>
+                    <span>🐾 ${profile.animals || 0} animals</span>
+                </div>
+                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                    ${!isActive ? `<button class="primary-btn" style="flex:1; padding: 8px;" onclick="switchZoo('${profile.id}')">Load Zoo</button>` : `<button class="secondary-btn" style="flex:1; padding: 8px;" disabled>Currently Playing</button>`}
+                    <button class="secondary-btn" style="flex:1; padding: 8px;" onclick="renameZoo('${profile.id}')">Rename</button>
+                    <button class="danger-btn" style="flex:1; padding: 8px;" onclick="deleteZoo('${profile.id}')">Delete</button>
+                </div>
+            </div>
+        `;
+        list.appendChild(div);
+    });
+}
+
+function switchZoo(profileId) {
+    if (!confirm("Load this zoo? Any unsaved progress in your current zoo will be saved automatically.")) return;
+    saveGame(); // Save current before switching
+    setActiveProfileId(profileId);
+    resetStateToDefault(); 
+    loadGame(); 
+    refreshAllUI();
+    closeManageZoosModal();
+    showToast("Zoo loaded successfully!", "info");
+}
+
+function createNewZoo() {
+    if (!confirm("Create a brand new zoo? Your current zoo will be saved and kept in this menu.")) return;
+    saveGame(); 
+    const newId = 'zoo_' + Date.now();
+    setActiveProfileId(newId);
+    resetStateToDefault();
+    state.zooName = "My New Zoo";
+    state.tutorialStep = 1; // Restart tutorial for new zoo
+    state.tutorialSkipped = false;
+    saveGame();
+    refreshAllUI();
+    closeManageZoosModal();
+    showToast("New zoo created! Welcome to your fresh start.", "info");
+    setTimeout(renderTutorial, 500);
+}
+
+function renameZoo(profileId) {
+    const profiles = getProfiles();
+    const profile = profiles[profileId];
+    if (!profile) return;
+    const newName = prompt("Enter a new name for your zoo:", profile.zooName);
+    if (newName && newName.trim().length > 0) {
+        profile.zooName = newName.trim().substring(0, 30);
+        saveProfiles(profiles);
+        if (profileId === getActiveProfileId()) {
+            state.zooName = profile.zooName;
+            updateUI();
+        }
+        renderManageZoosModal();
+        showToast("Zoo renamed!", "info");
+    }
+}
+
+function deleteZoo(profileId) {
+    const profiles = getProfiles();
+    const profile = profiles[profileId];
+    if (!profile) return;
+    if (!confirm(`Are you sure you want to permanently delete "${profile.zooName}"? This cannot be undone!`)) return;
+
+    delete profiles[profileId];
+    saveProfiles(profiles);
+
+    if (profileId === getActiveProfileId()) {
+        const remaining = Object.keys(profiles);
+        if (remaining.length > 0) {
+            setActiveProfileId(remaining[0]);
+            resetStateToDefault();
+            loadGame();
+        } else {
+            localStorage.removeItem("activeZooProfileId");
+            resetStateToDefault();
+            loadGame(); 
+        }
+        refreshAllUI();
+    }
+    renderManageZoosModal();
+    showToast("Zoo deleted.", "warn");
+}
+
+function resetStateToDefault() {
+    state = {
+        money: 10000, food: { hay: 30, meat: 20, produce: 15 },
+        day: 1, month: 1, year: 1, ticketPrice: 20,
+        exhibits: {}, builtEnclosures: {}, zooFacilities: [], hiredStaff: [],
+        achievements: {}, animalCounters: {}, monthlyReports: [],
+        moveState: { active: false, fromExhibit: null, animalIndex: null },
+        uiMode: "normal", pendingAnimal: null, activeUpgradeExhibit: null,
+        bredAnimals: 0, animalsSold: 0, daysSinceNewAnimal: 0,
+        dailyVisitors: 0, visitorSpending: { food: 0, gifts: 0, total: 0 },
+        visitorComplaints: [], amenities: {}, visitorSatisfaction: 0,
+        maintenance: { dailyMaintenanceCost: 0 }, completedResearch: [], activeResearch: null,
+        maintenanceWorkers: 0, maintenanceLevel: 0, tutorialStep: 0, tutorialSkipped: false,
+        recentDeathPenalty: 0, zooRating: 0, unnaturalDeaths: 0, naturalDeaths: 0, totalDeaths: 0,
+        zooName: "Unnamed Zoo"
+    };
+}
+
+function refreshAllUI() {
+    updateUI();
+    renderExhibits(); renderShop(); renderStaff(); renderResearch();
+    renderVisitors(); renderSupplies(); renderAmenities(); renderFacilities();
+    renderAchievements(); renderReports();
+}
+        
         /* --------------------------------------------------------------------------
            🚀 16. INITIALIZATION & EVENT LISTENERS
            -------------------------------------------------------------------------- */
         document.getElementById("endDayBtn").onclick = advanceDay;
-        document.getElementById("resetGameBtn").onclick = () => {
-            if (!confirm("Are you sure you want to reset your zoo? This cannot be undone.")) return;
-            localStorage.removeItem("zooSave");
-            state = { money: 10000, day: 1, month: 1, year: 1, ticketPrice: 20, exhibits: {}, builtEnclosures: {}, zooFacilities: [], hiredStaff: [], achievements: {}, animalCounters: {}, monthlyReports: [], moveState: { active: false, fromExhibit: null, animalIndex: null }, uiMode: "normal", pendingAnimal: null, activeUpgradeExhibit: null, bredAnimals: 0, animalsSold: 0, daysSinceNewAnimal: 0, dailyVisitors: 0, visitorSpending: { food: 0, gifts: 0, total: 0 }, visitorComplaints: [], amenities: {}, visitorSatisfaction: 0, food: { hay: 30, meat: 20, produce: 15 }, completedResearch: [], activeResearch: null, maintenance: { dailyMaintenanceCost: 0 }, maintenanceWorkers: 0, maintenanceLevel: 0, tutorialStep: 0, tutorialSkipped: false, zooRating: 0, unnaturalDeaths: 0, naturalDeaths: 0, totalDeaths: 0 };
-            ["reports", "exhibits", "shop", "achievements", "staff", "facilities", "visitors", "amenities"].forEach(id => document.getElementById(id).innerHTML = "");
-            updateUI(); renderExhibits(); renderAchievements(); renderReports(); renderShop(); renderFacilities(); renderStaff(); renderSupplies(); renderResearch();
-            showToast("Zoo has been reset! Tutorial will start fresh. 🔄", "info"); setTimeout(renderTutorial, 100);
-        };
+document.getElementById("resetGameBtn").onclick = () => {
+    if (!confirm("Are you sure you want to reset your CURRENT zoo? This cannot be undone.")) return;
+    resetStateToDefault();
+    state.zooName = "Reset Zoo";
+    saveGame();
+    refreshAllUI();
+    showToast("Current zoo has been reset! 🔄", "info");
+};
 
         // Boot up the game
         loadGame();
