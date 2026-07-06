@@ -1,0 +1,44 @@
+[
+  {
+    "id": "terrestrial",
+    "name": "Terrestrial Exhibit",
+    "emoji": "🌍",
+    "description": "Standard land-based enclosure for most animals.",
+    "unlockResearch": null
+  },
+  {
+    "id": "aquatic",
+    "name": "Aquatic Tank",
+    "emoji": "",
+    "description": "Water tank for semi-aquatic and aquatic animals.",
+    "unlockResearch": "research_aquatic_habitats"
+  },
+  {
+    "id": "aviary",
+    "name": "Aviary",
+    "emoji": "🦅",
+    "description": "Large flight enclosure for birds.",
+    "unlockResearch": "research_aviary_design"
+  },
+  {
+    "id": "arctic",
+    "name": "Arctic Enclosure",
+    "emoji": "❄️",
+    "description": "Climate-controlled cold environment.",
+    "unlockResearch": "research_climate_control"
+  },
+  {
+    "id": "nocturnal",
+    "name": "Nocturnal House",
+    "emoji": "🌙",
+    "description": "Reversed light cycle for night-active animals.",
+    "unlockResearch": "research_nocturnal_exhibits"
+  },
+  {
+    "id": "reptile",
+    "name": "Reptile House",
+    "emoji": "🦎",
+    "description": "Heated enclosure for reptiles and amphibians.",
+    "unlockResearch": "research_reptile_care"
+  }
+]
