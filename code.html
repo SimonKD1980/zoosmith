@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>ZooSmith V0.2.52</title>
+<title>ZooSmith V0.2.53</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
@@ -661,7 +661,7 @@ if (diet === "Carnivore") return "meat";
 if (diet === "Omnivore") return "produce";
 return "hay";
 }
-let data = { animals: [], upgrades: {}, facilities: {}, staff: [], amenities: {}, achievements: [], researchProjects: {} };
+let data = { animals: [], upgrades: {}, facilities: {}, staff: [], amenities: {}, achievements: [], researchProjects: {}, exhibitTypes: {} };
 const TIER_INFO = {
 basic:     { label: "Basic",     color: "#22c55e", emoji: "🟢" },
 advanced:  { label: "Advanced",  color: "#3b82f6", emoji: "🔵" },
@@ -824,11 +824,19 @@ renderAmenities();
 } catch (e) { console.error("Failed to load amenities", e); }
 }
 async function loadAchievements() {
-try {
-const res = await fetch("achievements.json?nocache=" + Date.now());
-data.achievements = await res.json();
-renderAchievements();
-} catch (e) { console.error("Failed to load achievements", e); data.achievements = []; }
+    try {
+        const res = await fetch("achievements.json?nocache=" + Date.now());
+        data.achievements = await res.json();
+        renderAchievements();
+    } catch (e) { console.error("Failed to load achievements", e); data.achievements = []; }
+}
+async function loadExhibitTypes() {
+    try {
+        const res = await fetch("exhibit_types.json?nocache=" + Date.now());
+        const arr = await res.json();
+        data.exhibitTypes = {};
+        arr.forEach(item => data.exhibitTypes[item.id] = item);
+    } catch (e) { console.error("Failed to load exhibit types", e); }
 }
 function getAllAnimals() { return Object.values(state.exhibits).flatMap(ex => ex.animals || []); }
 function countAnimals(id) { return getAllAnimals().filter(a => a.id === id).length; }
@@ -1864,10 +1872,12 @@ return `<span class="animalTag" data-exhibit="${id}" data-index="${i}" title="Ag
 }).join("")
 : "<em style='color:var(--muted)'>No animals yet</em>";
 div.innerHTML = `
+    const exhibitType = data.exhibitTypes[group.type] || data.exhibitTypes.terrestrial;
+    div.innerHTML = `
 <div class="exhibit-header">
-<h3 class="exhibit-name" onclick="renameExhibit('${id}')" title="Click to rename">🏞 ${group.name} <span style="font-size: 0.7rem; opacity: 0.6; margin-left: 6px;">✏️</span></h3>
-<div style="font-size:0.75rem; opacity:0.7; margin-top:2px;">${sizeInfo.emoji} ${sizeInfo.label} Exhibit</div>
-${statusBadge}
+    <h3 class="exhibit-name" onclick="renameExhibit('${id}')" title="Click to rename">${exhibitType.emoji} ${group.name} <span style="font-size: 0.7rem; opacity: 0.6; margin-left: 6px;">️</span></h3>
+    <div style="font-size:0.75rem; opacity:0.7; margin-top:2px;">${sizeInfo.emoji} ${sizeInfo.label} • ${exhibitType.name}</div>
+    ${statusBadge}
 </div>
 <div class="exhibit-body">
 <div class="exhibit-stat"><span>🐾 Animals</span><strong>${group.animals.length}</strong></div>
@@ -2125,19 +2135,35 @@ grid.appendChild(card);
 });
 }
 function openBuyModal(animal) {
-const modal = document.getElementById("buyModal");
-const select = document.getElementById("exhibitSelect");
-select.innerHTML = "";
-const ids = Object.keys(state.exhibits);
-if (ids.length === 0) return showToast("You need to build an exhibit first!", "error");
-for (const id of ids) {
-const opt = document.createElement("option");
-opt.value = id;
-opt.textContent = state.exhibits[id].name;
-select.appendChild(opt);
-}
-state.pendingAnimal = animal;
-modal.classList.add("active");
+    const modal = document.getElementById("buyModal");
+    const select = document.getElementById("exhibitSelect");
+    select.innerHTML = "";
+    const ids = Object.keys(state.exhibits);
+    if (ids.length === 0) return showToast("You need to build an exhibit first!", "error");
+
+    let compatibleExhibits = 0;
+    const requiredType = animal.requiredExhibitType || 'terrestrial';
+
+    for (const id of ids) {
+        const exhibit = state.exhibits[id];
+        if (exhibit.type !== requiredType) continue;
+        if (!exhibitSizeOk(exhibit.size, animal.requiredExhibitSize || "small")) continue;
+
+        const opt = document.createElement("option");
+        opt.value = id;
+        const exhibitType = data.exhibitTypes[exhibit.type] || data.exhibitTypes.terrestrial;
+        opt.textContent = `${exhibitType.emoji} ${exhibit.name}`;
+        select.appendChild(opt);
+        compatibleExhibits++;
+    }
+
+    if (compatibleExhibits === 0) {
+        const typeName = data.exhibitTypes[requiredType]?.name || 'Standard';
+        return showToast(`No compatible ${typeName} exhibits! Build one first.`, "error");
+    }
+
+    state.pendingAnimal = animal;
+    modal.classList.add("active");
 }
 function closeBuyModal() { document.getElementById("buyModal").classList.remove("active"); state.pendingAnimal = null; }
 document.getElementById("confirmBuyBtn").onclick = () => {
@@ -2487,38 +2513,97 @@ if (state.uiMode === "move") { state.moveState.animalIndex = index; renderDestin
 const animal = state.exhibits[exhibitId]?.animals?.[index];
 if (animal) openAnimalInfo(animal, exhibitId, index);
 });
+let currentExhibitType = 'terrestrial';
+
 document.getElementById("buildExhibitBtn").onclick = () => {
-const modal = document.getElementById("buildModal");
-const options = document.getElementById("buildSizeOptions");
-options.innerHTML = "";
-for (const size in EXHIBIT_SIZES) {
-const info = EXHIBIT_SIZES[size];
-const canAfford = state.money >= info.cost;
-const btn = document.createElement("button");
-btn.className = "primary-btn";
-btn.style.width = "100%";
-btn.style.marginBottom = "8px";
-btn.style.opacity = canAfford ? "1" : "0.5";
-btn.style.cursor = canAfford ? "pointer" : "not-allowed";
-btn.innerHTML = `<div style="display: flex; justify-content: space-between; align-items: center;"><div style="text-align: left;"><div style="font-weight: 800;">${info.emoji} ${info.label} Exhibit</div><div style="font-size: 0.8rem; opacity: 0.8;">⏱ ${info.buildDays} days to build</div></div><div style="font-weight: 800;">$${info.cost.toLocaleString()}</div></div>`;
-if (canAfford) btn.onclick = () => { buildExhibit(size); closeBuildModal(); };
-options.appendChild(btn);
-}
-modal.classList.add("active");
+    const modal = document.getElementById("buildModal");
+    const options = document.getElementById("buildSizeOptions");
+    options.innerHTML = "";
+    
+    if (Object.keys(data.exhibitTypes).length === 0) return showToast("Loading exhibit types...", "info");
+    
+    // Make modal wider for the grid
+    modal.querySelector('.modal-content').style.maxWidth = '600px';
+
+    const availableTypes = Object.values(data.exhibitTypes).filter(et => !et.unlockResearch || isResearchComplete(et.unlockResearch));
+    const lockedTypes = Object.values(data.exhibitTypes).filter(et => et.unlockResearch && !isResearchComplete(et.unlockResearch));
+
+    let typeSelectionHTML = '<div style="margin-bottom: 20px;"><h4 style="margin: 0 0 10px 0; color: var(--accent);">🏞 Select Exhibit Type</h4><div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px;">';
+
+    availableTypes.forEach(et => {
+        typeSelectionHTML += `<button class="category-tab ${currentExhibitType === et.id ? 'active' : ''}" onclick="selectExhibitType('${et.id}')" style="padding: 12px; text-align: left; border: 2px solid ${currentExhibitType === et.id ? 'var(--accent)' : '#243042'}; background: var(--card); color: var(--text); border-radius: 8px; cursor: pointer;"><div style="font-size: 1.5rem; margin-bottom: 4px;">${et.emoji}</div><div style="font-weight: 700; font-size: 0.9rem;">${et.name}</div><div style="font-size: 0.75rem; color: var(--muted); margin-top: 4px;">${et.description}</div></button>`;
+    });
+    typeSelectionHTML += '</div></div>';
+
+    if (lockedTypes.length > 0) {
+        typeSelectionHTML += '<div style="margin-top: 15px;"><h4 style="margin: 0 0 10px 0; color: var(--muted);"> Locked Types</h4><div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px;">';
+        lockedTypes.forEach(et => {
+            const project = data.researchProjects[et.unlockResearch];
+            typeSelectionHTML += `<div style="padding: 12px; background: #0b1220; border: 1px solid #243042; border-radius: 8px; opacity: 0.5;"><div style="font-size: 1.5rem; margin-bottom: 4px;">${et.emoji}</div><div style="font-weight: 700; font-size: 0.9rem;">${et.name}</div><div style="font-size: 0.75rem; color: var(--warn); margin-top: 4px;">Requires: ${project?.name || 'Research'}</div></div>`;
+        });
+        typeSelectionHTML += '</div></div>';
+    }
+
+    options.innerHTML = typeSelectionHTML + `<div style="margin-top: 20px;"><h4 style="margin: 0 0 10px 0; color: var(--accent);">📏 Select Size</h4></div><div id="sizeOptions"></div>`;
+
+    const sizeDiv = document.getElementById("sizeOptions");
+    for (const size in EXHIBIT_SIZES) {
+        const info = EXHIBIT_SIZES[size];
+        const canAfford = state.money >= info.cost;
+        const btn = document.createElement("button");
+        btn.className = "primary-btn";
+        btn.style.width = "100%";
+        btn.style.marginBottom = "8px";
+        btn.style.opacity = canAfford ? "1" : "0.5";
+        btn.style.cursor = canAfford ? "pointer" : "not-allowed";
+        btn.innerHTML = `<div style="display: flex; justify-content: space-between; align-items: center;"><div style="text-align: left;"><div style="font-weight: 800;">${info.emoji} ${info.label} Exhibit</div><div style="font-size: 0.8rem; opacity: 0.8;">⏱ ${info.buildDays} days to build</div></div><div style="font-weight: 800;">$${info.cost.toLocaleString()}</div></div>`;
+        if (canAfford) btn.onclick = () => { buildExhibit(size, currentExhibitType); closeBuildModal(); };
+        sizeDiv.appendChild(btn);
+    }
+    modal.classList.add("active");
 };
-function closeBuildModal() { document.getElementById("buildModal").classList.remove("active"); }
-function buildExhibit(size) {
-const info = EXHIBIT_SIZES[size];
-if (state.money < info.cost) return showToast("Not enough money!", "error");
-state.money -= info.cost;
-showFloatingMoney(-info.cost);
-const next = Object.keys(state.exhibits).length + 1;
-const id = "exhibit" + next;
-state.exhibits[id] = { name: `Exhibit ${next}`, size: size, animals: [], upgrades: [], buildDaysRemaining: info.buildDays, fenceCondition: 100 };
-addTicker(`🏗 Started building ${info.label} Exhibit (ready in ${info.buildDays} days)`);
-updateUI(); renderExhibits();
+
+function selectExhibitType(typeId) {
+    currentExhibitType = typeId;
+    document.getElementById("buildExhibitBtn").onclick();
 }
-document.getElementById("endDayBtn").onclick = advanceDay;
+
+function closeBuildModal() { 
+    document.getElementById("buildModal").classList.remove("active"); 
+    document.getElementById("buildModal").querySelector('.modal-content').style.maxWidth = '400px'; // Reset width
+}
+
+function buildExhibit(size, type = 'terrestrial') {
+    const info = EXHIBIT_SIZES[size];
+    const exhibitType = data.exhibitTypes[type];
+
+    if (!exhibitType) return showToast("Invalid exhibit type!", "error");
+    if (exhibitType.unlockResearch && !isResearchComplete(exhibitType.unlockResearch)) {
+        return showToast(`🔒 ${exhibitType.name} requires research!`, "error");
+    }
+    if (state.money < info.cost) return showToast("Not enough money!", "error");
+
+    state.money -= info.cost;
+    showFloatingMoney(-info.cost);
+
+    const next = Object.keys(state.exhibits).length + 1;
+    const id = "exhibit" + next;
+
+    state.exhibits[id] = { 
+        name: `${exhibitType.name} ${next}`, 
+        size: size, 
+        type: type, 
+        animals: [], 
+        upgrades: [], 
+        buildDaysRemaining: info.buildDays, 
+        fenceCondition: 100 
+    };
+
+    addTicker(`🏗 Started building ${exhibitType.emoji} ${info.label} ${exhibitType.name} (ready in ${info.buildDays} days)`);
+    updateUI(); 
+    renderExhibits();
+}
+	document.getElementById("endDayBtn").onclick = advanceDay;
 document.getElementById("resetGameBtn").onclick = () => {
 if (!confirm("Are you sure you want to reset your zoo? This cannot be undone.")) return;
 localStorage.removeItem("zooSave");
@@ -2815,6 +2900,7 @@ loadUpgrades();
 loadFacilities();
 loadStaff();
 loadAmenities();
+loadExhibitTypes();
 loadAchievements();
 updateUI();
 renderExhibits();
