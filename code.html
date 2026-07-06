@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>ZooSmith V0.2.53</title>
+<title>ZooSmith V0.2.54</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
@@ -1872,7 +1872,7 @@ return `<span class="animalTag" data-exhibit="${id}" data-index="${i}" title="Ag
 }).join("")
 : "<em style='color:var(--muted)'>No animals yet</em>";
 div.innerHTML = `
-    const exhibitType = data.exhibitTypes[group.type] || data.exhibitTypes.terrestrial;
+    const exhibitType = data.exhibitTypes[group.type] || data.exhibitTypes.terrestrial || { emoji: '🏞️', name: 'Standard Exhibit' };
     div.innerHTML = `
 <div class="exhibit-header">
     <h3 class="exhibit-name" onclick="renameExhibit('${id}')" title="Click to rename">${exhibitType.emoji} ${group.name} <span style="font-size: 0.7rem; opacity: 0.6; margin-left: 6px;">️</span></h3>
@@ -2151,7 +2151,7 @@ function openBuyModal(animal) {
 
         const opt = document.createElement("option");
         opt.value = id;
-        const exhibitType = data.exhibitTypes[exhibit.type] || data.exhibitTypes.terrestrial;
+        const exhibitType = data.exhibitTypes[exhibit.type] || data.exhibitTypes.terrestrial || { emoji: '🏞️', name: 'Exhibit' };
         opt.textContent = `${exhibitType.emoji} ${exhibit.name}`;
         select.appendChild(opt);
         compatibleExhibits++;
@@ -2665,9 +2665,10 @@ state.tutorialSkipped = true;
 state.tutorialStep = TUTORIAL_STEPS.length;
 }
 for (const id in state.exhibits) {
-state.exhibits[id].animals ??= [];
-state.exhibits[id].upgrades ??= [];
-state.exhibits[id].size ??= "small";
+    state.exhibits[id].animals ??= [];
+    state.exhibits[id].upgrades ??= [];
+    state.exhibits[id].size ??= "small";
+    state.exhibits[id].type ??= "terrestrial"; // 👈 ADD THIS LINE
 }
 console.log("Game loaded successfully");
 } catch (e) { console.error("Failed to load save:", e); }
