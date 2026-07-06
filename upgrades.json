@@ -5,6 +5,7 @@
   { "id": "trees", "name": "🌳 Trees", "cost": 750 },
   { "id": "climbing_frame", "name": "🧗 Climbing Frame", "cost": 1200 },
   { "id": "breeding_den", "name": "🍼 Breeding Den", "cost": 2500 },
+  
   { "id": "barn_shelter", "name": "🏠 Barn Shelter", "cost": 1500 },
   { "id": "open_pasture_shelter", "name": "🌾 Open Pasture Shelter", "cost": 1200 },
   { "id": "burrow_system", "name": "🕳️ Burrow System", "cost": 1800 },
@@ -33,6 +34,7 @@
   { "id": "enchanted_shelter", "name": "✨ Enchanted Shelter", "cost": 15000 },
   { "id": "reinforced_shelter", "name": "🛡️ Reinforced Shelter", "cost": 4200 },
   { "id": "open_paddock", "name": "🌾 Open Paddock", "cost": 1000 },
+  
   { "id": "rocks", "name": "🪨 Rocks", "cost": 400 },
   { "id": "grass_patch", "name": "🌱 Grass Patch", "cost": 300 },
   { "id": "tunnels", "name": "🕳️ Tunnels", "cost": 900 },
@@ -56,6 +58,7 @@
   { "id": "climbing_structure", "name": "🧗 Climbing Structure", "cost": 1800 },
   { "id": "viewing_platform", "name": "👁️ Viewing Platform", "cost": 1200 },
   { "id": "running_track", "name": "🏃 Running Track", "cost": 2500 },
+  
   { "id": "feeding_trough", "name": "🍽️ Feeding Trough", "cost": 600 },
   { "id": "grooming_station", "name": "✂️ Grooming Station", "cost": 900 },
   { "id": "digging_area", "name": "⛏️ Digging Area", "cost": 800 },
