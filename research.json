@@ -98,4 +98,59 @@
     "unlocks": ["unicorn"],
     "requires": "rare_exotics"
   }
+    {
+    "id": "research_aquatic_habitats",
+    "name": "Aquatic Habitat Design",
+    "desc": "Engineer water filtration and tank systems for marine life.",
+    "icon": "🐠",
+    "cost": 8000,
+    "days": 12,
+    "tier": "advanced",
+    "unlocks": [],
+    "requires": "marine_biology"
+  },
+  {
+    "id": "research_aviary_design",
+    "name": "Aviary Architecture",
+    "desc": "Design large flight enclosures with proper netting and climate.",
+    "icon": "🦅",
+    "cost": 7000,
+    "days": 10,
+    "tier": "advanced",
+    "unlocks": [],
+    "requires": "avian_specialist"
+  },
+  {
+    "id": "research_climate_control",
+    "name": "Climate Control Systems",
+    "desc": "Develop advanced cooling and heating for extreme environments.",
+    "icon": "❄️",
+    "cost": 15000,
+    "days": 20,
+    "tier": "exotic",
+    "unlocks": [],
+    "requires": "research_aquatic_habitats"
+  },
+  {
+    "id": "research_nocturnal_exhibits",
+    "name": "Nocturnal Habitat Engineering",
+    "desc": "Create reversed light-cycle environments for night-active species.",
+    "icon": "🌙",
+    "cost": 9000,
+    "days": 14,
+    "tier": "advanced",
+    "unlocks": [],
+    "requires": "small_carnivores"
+  },
+  {
+    "id": "research_reptile_care",
+    "name": "Reptile & Amphibian Care",
+    "desc": "Study heating, humidity, and dietary needs of cold-blooded species.",
+    "icon": "🦎",
+    "cost": 6000,
+    "days": 10,
+    "tier": "advanced",
+    "unlocks": [],
+    "requires": "basic_herbivores"
+  }
 ]
