@@ -1485,54 +1485,72 @@ function renderHouses() {
         /* --------------------------------------------------------------------------
            🖱️ 13. MODALS & INTERACTIONS
            -------------------------------------------------------------------------- */
-        function openBuyModal(animal) {
-            const modal = document.getElementById("buyModal"); const select = document.getElementById("exhibitSelect"); select.innerHTML = "";
-            const ids = Object.keys(state.exhibits); if (ids.length === 0) return showToast("You need to build an exhibit first!", "error");
-            let compatibleExhibits = 0; const requiredType = animal.requiredExhibitType || 'terrestrial';
-            for (const id of ids) {
-                const exhibit = state.exhibits[id]; if (exhibit.type !== requiredType) continue;
-                if (!exhibitSizeOk(exhibit.size, animal.requiredExhibitSize || "small")) continue;
-                const opt = document.createElement("option"); opt.value = id;
-                const exhibitType = data.exhibitTypes[exhibit.type] || data.exhibitTypes.terrestrial || { emoji: '🏞️', name: 'Exhibit' };
-                opt.textContent = `${exhibitType.emoji} ${exhibit.name}`; select.appendChild(opt); compatibleExhibits++;
-            }
-            if (compatibleExhibits === 0) { const typeName = data.exhibitTypes[requiredType]?.name || 'Standard'; return showToast(`No compatible ${typeName} exhibits! Build one first.`, "error"); }
-            state.pendingAnimal = animal; modal.classList.add("active");
-        }
-        // After checking regular exhibits, also check house exhibits
+ function openBuyModal(animal) {
+const modal = document.getElementById("buyModal"); const select = document.getElementById("exhibitSelect"); select.innerHTML = "";
+const ids = Object.keys(state.exhibits);
+let compatibleExhibits = 0; const requiredType = animal.requiredExhibitType || 'terrestrial';
+
+// Add regular exhibits
+for (const id of ids) {
+const exhibit = state.exhibits[id]; if (exhibit.type !== requiredType) continue;
+if (!exhibitSizeOk(exhibit.size, animal.requiredExhibitSize || "small")) continue;
+const opt = document.createElement("option"); opt.value = id;
+const exhibitType = data.exhibitTypes[exhibit.type] || data.exhibitTypes.terrestrial || { emoji: '🏞️', name: 'Exhibit' };
+opt.textContent = `${exhibitType.emoji} ${exhibit.name}`; select.appendChild(opt); compatibleExhibits++;
+}
+
+// Add house exhibits
 for (const houseId in state.houses) {
-    const house = state.houses[houseId];
-    const houseType = data.houses[house.typeId];
-    
-    // Check if animal category is allowed in this house
-    if (!houseType.allowedCategories.includes(animal.category)) continue;
-    
-    for (const exhibitId in house.exhibits) {
-        const exhibit = house.exhibits[exhibitId];
-        if (exhibit.buildDaysRemaining > 0) continue;
-        
-        const opt = document.createElement("option");
-        opt.value = `house_${houseId}_${exhibitId}`;
-        opt.textContent = `🏠 ${house.name} → ${exhibit.name}`;
-        select.appendChild(opt);
-        compatibleExhibits++;
-    }
+const house = state.houses[houseId];
+const houseType = data.houses[house.typeId];
+if (!houseType.allowedCategories.includes(animal.category)) continue;
+for (const exhibitId in house.exhibits) {
+const exhibit = house.exhibits[exhibitId];
+if (exhibit.buildDaysRemaining > 0) continue;
+if (!exhibitSizeOk(exhibit.size, animal.requiredExhibitSize || "small")) continue;
+const opt = document.createElement("option");
+opt.value = `house_${houseId}_${exhibitId}`;
+opt.textContent = `🏠 ${house.name} → ${exhibit.name}`;
+select.appendChild(opt);
+compatibleExhibits++;
+}
+}
+
+if (compatibleExhibits === 0) { const typeName = data.exhibitTypes[requiredType]?.name || 'Standard'; return showToast(`No compatible exhibits! Build one first.`, "error"); }
+state.pendingAnimal = animal; modal.classList.add("active");
 }
         function closeBuyModal() { document.getElementById("buyModal").classList.remove("active"); state.pendingAnimal = null; }
-        document.getElementById("confirmBuyBtn").onclick = () => {
-            const id = document.getElementById("exhibitSelect").value; const gender = document.getElementById("genderSelect").value; const animal = state.pendingAnimal;
-            if (!id || !animal) return; if (!state.builtEnclosures[id]) return showToast("Exhibit not built yet!", "error");
-            if (state.money < animal.cost) return showToast("Not enough money!", "error");
-            const exhibit = state.exhibits[id];
-            const incompatible = exhibit.animals.some(existing => existing.id !== animal.id && !animal.compatibleWith.includes(existing.id));
-            if (incompatible) return showToast("This animal cannot live with current exhibit animals!", "error");
-            const slotCost = getAnimalSlotCost(animal); const available = getAvailableSlots();
-            if (available < slotCost) showToast(`⚠️ No keepers available! ${animal.name} will be unhappy without staff.`, "warn");
-            state.money -= animal.cost; showFloatingMoney(-animal.cost);
-            exhibit.animals.push({ id: animal.id, name: getNextAnimalName(animal.name), gender, dailyIncome: animal.dailyIncome, variation: pickVariation(animal), foodCost: animal.foodCost, diet: animal.diet, compatibleWith: animal.compatibleWith, minInExhibit: animal.minInExhibit, maxInExhibit: animal.maxInExhibit, preferredShelter: animal.preferredShelter || [], preferredDecorations: animal.preferredDecorations || [], preferredFacilities: animal.preferredFacilities || [], dislikedShelter: animal.dislikedShelter || [], dislikedDecorations: animal.dislikedDecorations || [], dislikedFacilities: animal.dislikedFacilities || [], bornInZoo: false, health: 100 });
-            state.daysSinceNewAnimal = 0; addTicker(`✨ A new ${animal.name} arrived! Visitor excitement is high!`);
-            closeBuyModal(); updateUI(); renderExhibits();
-        };
+document.getElementById("confirmBuyBtn").onclick = () => {
+const id = document.getElementById("exhibitSelect").value; const gender = document.getElementById("genderSelect").value; const animal = state.pendingAnimal;
+if (!id || !animal) return;
+if (state.money < animal.cost) return showToast("Not enough money!", "error");
+
+// Check if it's a house exhibit
+const isHouseExhibit = id.startsWith('house_');
+let exhibit;
+
+if (isHouseExhibit) {
+const parts = id.split('_');
+const houseId = parts[1];
+const exhibitId = parts.slice(2).join('_'); // Handle exhibit IDs with underscores
+if (!state.houses[houseId] || !state.houses[houseId].exhibits[exhibitId]) {
+return showToast("House exhibit not found!", "error");
+}
+exhibit = state.houses[houseId].exhibits[exhibitId];
+} else {
+if (!state.builtEnclosures[id]) return showToast("Exhibit not built yet!", "error");
+exhibit = state.exhibits[id];
+}
+
+const incompatible = exhibit.animals.some(existing => existing.id !== animal.id && !animal.compatibleWith.includes(existing.id));
+if (incompatible) return showToast("This animal cannot live with current exhibit animals!", "error");
+const slotCost = getAnimalSlotCost(animal); const available = getAvailableSlots();
+if (available < slotCost) showToast(`⚠️ No keepers available! ${animal.name} will be unhappy without staff.`, "warn");
+state.money -= animal.cost; showFloatingMoney(-animal.cost);
+exhibit.animals.push({ id: animal.id, name: getNextAnimalName(animal.name), gender, dailyIncome: animal.dailyIncome, variation: pickVariation(animal), foodCost: animal.foodCost, diet: animal.diet, compatibleWith: animal.compatibleWith, minInExhibit: animal.minInExhibit, maxInExhibit: animal.maxInExhibit, preferredShelter: animal.preferredShelter || [], preferredDecorations: animal.preferredDecorations || [], preferredFacilities: animal.preferredFacilities || [], dislikedShelter: animal.dislikedShelter || [], dislikedDecorations: animal.dislikedDecorations || [], dislikedFacilities: animal.dislikedFacilities || [], bornInZoo: false, health: 100 });
+state.daysSinceNewAnimal = 0; addTicker(`✨ A new ${animal.name} arrived! Visitor excitement is high!`);
+closeBuyModal(); updateUI(); renderExhibits(); renderHouses();
+};
 
         function generateAnimalThoughts(animal, exhibit) {
     const thoughts = [];
@@ -2285,7 +2303,7 @@ function refreshAllUI() {
     updateUI();
     renderExhibits(); renderShop(); renderStaff(); renderResearch();
     renderVisitors(); renderSupplies(); renderAmenities(); renderFacilities();
-    renderAchievements(); renderReports();
+    renderAchievements(); renderReports(); renderHouses();
 }
         
         /* --------------------------------------------------------------------------
@@ -2304,7 +2322,7 @@ document.getElementById("resetGameBtn").onclick = () => {
         // Boot up the game
         loadGame();
         state.food ??= { hay: 30, meat: 20, produce: 15 };
-        loadShop(); loadUpgrades(); loadFacilities(); loadStaff(); loadAmenities(); loadExhibitTypes(); loadAchievements();
+        loadShop(); loadUpgrades(); loadFacilities(); loadStaff(); loadAmenities(); loadExhibitTypes(); loadAchievements(); loadHouses();
         updateUI(); renderExhibits(); checkAchievements(); renderAchievements(); loadResearch(); renderReports(); renderFacilities(); renderStaff();
         leaderboardPlayerId = getPlayerId();
         setInterval(saveGame, 10000);
