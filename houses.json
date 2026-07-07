@@ -1,0 +1,24 @@
+[
+  {
+    "id": "primate_house",
+    "name": "Primate House",
+    "emoji": "🐒",
+    "description": "Climate-controlled habitat for primates. Houses multiple primate exhibits.",
+    "cost": 15000,
+    "buildDays": 8,
+    "unlockResearch": "primatology",
+    "allowedCategories": ["Primate Forest"],
+    "maxExhibits": 5
+  },
+  {
+    "id": "aquarium",
+    "name": "Aquarium",
+    "emoji": "🐠",
+    "description": "Large aquatic facility for marine and semi-aquatic animals.",
+    "cost": 20000,
+    "buildDays": 10,
+    "unlockResearch": "research_aquatic_habitats",
+    "allowedCategories": ["Aquatic"],
+    "maxExhibits": 4
+  }
+]
