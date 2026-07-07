@@ -352,6 +352,7 @@
         <button onclick="showSection('leaderboard', event)">🏆 Leaderboard</button>
         <button class="active" onclick="showSection('shop', event)">🛒 Shop</button>
         <button onclick="showSection('exhibits', event)">🏞 Exhibits</button>
+        <button onclick="showSection('houses', event)">🏠 Houses</button>
         <button onclick="showSection('research', event)">🔬 Research</button>
         <button onclick="showSection('visitors', event)">👥 Visitors</button>
         <button onclick="showSection('supplies', event)">🍽 Supplies</button>
@@ -372,6 +373,7 @@
     <div id="facilities" class="section"></div>
     <div id="shop" class="section active"></div>
     <div id="exhibits" class="section"></div>
+    <div id="houses" class="section"></div>
     <div id="research" class="section"></div>
     <div id="visitors" class="section"></div>
     <div id="supplies" class="section"></div>
@@ -517,7 +519,7 @@
             dailyVisitors: 0, visitorSpending: { food: 0, gifts: 0, total: 0 },
             visitorComplaints: [], amenities: {}, visitorSatisfaction: 0,
             maintenance: { dailyMaintenanceCost: 0 }, completedResearch: [], activeResearch: null,
-            maintenanceWorkers: 0, maintenanceLevel: 0, tutorialStep: 0, tutorialSkipped: false,
+            maintenanceWorkers: 0, maintenanceLevel: 0, tutorialStep: 0, tutorialSkipped: false, houses: {},
             recentDeathPenalty: 0, zooRating: 0, unnaturalDeaths: 0, naturalDeaths: 0, totalDeaths: 0
         };
 
@@ -559,10 +561,19 @@
             catch (e) { console.error("Failed to load exhibit types", e); }
         }
 
+        async function loadHouses() {
+        try { const res = await fetch("houses.json?nocache=" + Date.now()); const arr = await res.json(); data.houses = {}; arr.forEach(item => data.houses[item.id] = item);} 
+        catch (e) { console.error("Failed to load houses", e); }
+        }
+
         /* --------------------------------------------------------------------------
            🛠️ 4. UTILITY & HELPER FUNCTIONS
            -------------------------------------------------------------------------- */
-        function getAllAnimals() { return Object.values(state.exhibits).flatMap(ex => ex.animals || []); }
+       function getAllAnimals() { 
+    const regularAnimals = Object.values(state.exhibits).flatMap(ex => ex.animals || []);
+    const houseAnimals = getAllHouseAnimals();
+    return regularAnimals.concat(houseAnimals);
+}
         function countAnimals(id) { return getAllAnimals().filter(a => a.id === id).length; }
         function getNextAnimalName(speciesName) {
             if (!state.animalCounters[speciesName]) state.animalCounters[speciesName] = 1;
@@ -809,6 +820,8 @@
             return Math.max(0, Math.min(100, Math.round(happiness)));
         }
 
+        
+
         /* --------------------------------------------------------------------------
            📅 9. DAY CYCLE, INCOME & UPKEEP
            -------------------------------------------------------------------------- */
@@ -829,6 +842,155 @@
             state.money -= totalCost; if (totalCost > 0) addTicker(`🧾 Facility upkeep: -$${totalCost}`);
         }
 
+        function buildHouse(typeId) {
+    const houseType = data.houses[typeId];
+    if (!houseType) return showToast("Invalid house type!", "error");
+    if (houseType.unlockResearch && !isResearchComplete(houseType.unlockResearch)) {
+        return showToast(`🔒 ${houseType.name} requires research!`, "error");
+    }
+    if (state.money < houseType.cost) return showToast("Not enough money!", "error");
+    
+    state.money -= houseType.cost;
+    showFloatingMoney(-houseType.cost);
+    
+    const id = typeId + "_" + Date.now();
+    state.houses[id] = {
+        id: id,
+        typeId: typeId,
+        name: houseType.name,
+        exhibits: {},
+        upgrades: [],
+        buildDaysRemaining: houseType.buildDays
+    };
+    
+    addTicker(`🏗 Started building ${houseType.emoji} ${houseType.name}`);
+    updateUI();
+    renderHouses();
+}
+
+function buildHouseExhibit(houseId, size) {
+    const house = state.houses[houseId];
+    const houseType = data.houses[house.typeId];
+    
+    if (!house) return showToast("House not found!", "error");
+    if (Object.keys(house.exhibits).length >= houseType.maxExhibits) {
+        return showToast(`This house can only hold ${houseType.maxExhibits} exhibits!`, "error");
+    }
+    
+    const sizeInfo = EXHIBIT_SIZES[size];
+    if (state.money < sizeInfo.cost) return showToast("Not enough money!", "error");
+    
+    state.money -= sizeInfo.cost;
+    showFloatingMoney(-sizeInfo.cost);
+    
+    const exhibitId = "house_exhibit_" + Date.now();
+    house.exhibits[exhibitId] = {
+        id: exhibitId,
+        name: `${sizeInfo.label} Exhibit`,
+        size: size,
+        animals: [],
+        upgrades: [],
+        buildDaysRemaining: sizeInfo.buildDays,
+        fenceCondition: 100
+    };
+    
+    addTicker(`🏗 Added ${sizeInfo.label} exhibit to ${house.name}`);
+    updateUI();
+    renderHouses();
+}
+
+function getAllHouseAnimals() {
+    let animals = [];
+    for (const houseId in state.houses) {
+        const house = state.houses[houseId];
+        for (const exhibitId in house.exhibits) {
+            animals = animals.concat(house.exhibits[exhibitId].animals || []);
+        }
+    }
+    return animals;
+}
+
+function renderHouses() {
+    const box = document.getElementById("houses");
+    const houseIds = Object.keys(state.houses);
+    
+    if (houseIds.length === 0) {
+        box.innerHTML = '<div style="text-align:center; padding:40px; color:var(--muted);"><h2>🏠 No Houses Yet</h2><p>Build a house to get started!</p></div>';
+        return;
+    }
+    
+    box.innerHTML = '<div class="grid-layout"></div>';
+    const grid = box.querySelector('.grid-layout');
+    
+    houseIds.forEach(houseId => {
+        const house = state.houses[houseId];
+        const houseType = data.houses[house.typeId];
+        const isBuilding = house.buildDaysRemaining > 0;
+        const exhibitCount = Object.keys(house.exhibits).length;
+        const totalAnimals = Object.values(house.exhibits).reduce((sum, ex) => sum + (ex.animals?.length || 0), 0);
+        
+        const card = document.createElement("div");
+        card.className = "premium-card";
+        
+        card.innerHTML = `
+            <div class="card-header">
+                <h3>${houseType.emoji} ${house.name}</h3>
+                <div class="subtitle">${isBuilding ? `🏗 Building... ${house.buildDaysRemaining} days left` : `${exhibitCount}/${houseType.maxExhibits} exhibits • ${totalAnimals} animals`}</div>
+            </div>
+            <div class="card-body">
+                ${isBuilding ? '<div style="padding:20px; text-align:center; color:var(--warn);">⏳ Under construction</div>' : `
+                    <div style="display:flex; flex-direction:column; gap:8px;">
+                        ${Object.values(house.exhibits).map(ex => `
+                            <div style="padding:10px; background:#0b1220; border-radius:8px; border:1px solid #243042;">
+                                <div style="font-weight:700; margin-bottom:4px;">${ex.name}</div>
+                                <div style="font-size:0.8rem; color:var(--muted);">${ex.animals?.length || 0} animals • ${ex.upgrades?.length || 0} upgrades</div>
+                            </div>
+                        `).join('')}
+                    </div>
+                    <button class="primary-btn" onclick="buildHouseExhibit('${houseId}', 'small')" style="margin-top:10px;">➕ Add Small Exhibit ($${EXHIBIT_SIZES.small.cost.toLocaleString()})</button>
+                    <button class="secondary-btn" onclick="buildHouseExhibit('${houseId}', 'medium')">➕ Add Medium Exhibit ($${EXHIBIT_SIZES.medium.cost.toLocaleString()})</button>
+                `}
+            </div>
+        `;
+        
+        grid.appendChild(card);
+    });
+    
+    // Add "Build New House" section
+    const buildSection = document.createElement("div");
+    buildSection.style.gridColumn = "1 / -1";
+    buildSection.style.marginTop = "20px";
+    buildSection.innerHTML = `
+        <div class="premium-card">
+            <div class="card-header"><h3>🏗 Build New House</h3></div>
+            <div class="card-body">
+                <div class="grid-layout">
+                    ${Object.values(data.houses).map(ht => {
+                        const unlocked = !ht.unlockResearch || isResearchComplete(ht.unlockResearch);
+                        const canAfford = state.money >= ht.cost;
+                        return `
+                            <div class="premium-card" style="${!unlocked ? 'opacity:0.5;' : ''}">
+                                <div class="card-header">
+                                    <h3>${ht.emoji} ${ht.name}</h3>
+                                    <div class="subtitle">${!unlocked ? '🔒 Locked' : 'Available'}</div>
+                                </div>
+                                <div class="card-body">
+                                    <p class="card-desc">${ht.description}</p>
+                                    <div class="card-price">$${ht.cost.toLocaleString()}</div>
+                                    <button class="primary-btn" ${!unlocked || !canAfford ? 'disabled' : ''} onclick="buildHouse('${ht.id}')">
+                                        ${!unlocked ? '🔒 Locked' : !canAfford ? '💰 Need Funds' : 'Build House'}
+                                    </button>
+                                </div>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            </div>
+        </div>
+    `;
+    grid.appendChild(buildSection);
+}
+        
         /* --------------------------------------------------------------------------
            🍖 10. ANIMAL CARE (Food, Breeding, Health, Fences)
            -------------------------------------------------------------------------- */
@@ -1337,6 +1499,25 @@
             if (compatibleExhibits === 0) { const typeName = data.exhibitTypes[requiredType]?.name || 'Standard'; return showToast(`No compatible ${typeName} exhibits! Build one first.`, "error"); }
             state.pendingAnimal = animal; modal.classList.add("active");
         }
+        // After checking regular exhibits, also check house exhibits
+for (const houseId in state.houses) {
+    const house = state.houses[houseId];
+    const houseType = data.houses[house.typeId];
+    
+    // Check if animal category is allowed in this house
+    if (!houseType.allowedCategories.includes(animal.category)) continue;
+    
+    for (const exhibitId in house.exhibits) {
+        const exhibit = house.exhibits[exhibitId];
+        if (exhibit.buildDaysRemaining > 0) continue;
+        
+        const opt = document.createElement("option");
+        opt.value = `house_${houseId}_${exhibitId}`;
+        opt.textContent = `🏠 ${house.name} → ${exhibit.name}`;
+        select.appendChild(opt);
+        compatibleExhibits++;
+    }
+}
         function closeBuyModal() { document.getElementById("buyModal").classList.remove("active"); state.pendingAnimal = null; }
         document.getElementById("confirmBuyBtn").onclick = () => {
             const id = document.getElementById("exhibitSelect").value; const gender = document.getElementById("genderSelect").value; const animal = state.pendingAnimal;
@@ -1853,6 +2034,7 @@ const thoughtsHTML = thoughts.length > 0 ? `
             if (section === "shop") renderShop(); if (section === "staff") renderStaff(); if (section === "reports") renderReports();
             if (section === "visitors") renderVisitors(); if (section === "amenities") renderAmenities(); if (section === "leaderboard") renderLeaderboard();
             if (section === "supplies") renderSupplies(); if (section === "research") renderResearch();
+            if (section === "houses") renderHouses();
         }
         const TUTORIAL_STEPS = [
             { title: "👋 Welcome to ZooSmith!", message: "You're about to build the world's greatest zoo. Let's start with the basics.", action: "👉 Click 'Build Exhibit' to create your first enclosure", highlight: "buildExhibitBtn", autoAdvance: () => Object.keys(state.exhibits).length > 0 },
