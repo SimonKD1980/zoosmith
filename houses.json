@@ -4,7 +4,7 @@
     "name": "Primate House",
     "emoji": "🐒",
     "description": "Climate-controlled habitat for primates. Houses multiple primate exhibits.",
-    "cost": 15000,
+    "cost": 15,
     "buildDays": 8,
     "unlockResearch": null,
     "allowedCategories": ["Primate Forest"],
