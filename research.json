@@ -1,8 +1,8 @@
 [
   {
-    "id": "basic_herbivores",
-    "name": "Basic Herbivore Care",
-    "desc": "Learn to care for common grazing animals.",
+    "id": "Wildlife_Farm_Experience",
+    "name": "Wildlife & Farm Experience",
+    "desc": "Learn to care for a larger group of farm animals and small wildlife",
     "icon": "🌿",
     "cost": 2000,
     "days": 5,
