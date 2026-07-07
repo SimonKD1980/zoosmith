@@ -250,8 +250,6 @@
     "requiredExhibitSize": "small",
     "requiredExhibitType": "terrestrial"
   },
-
-  [
   {
     "id": "fallow_deer",
     "name": "Fallow Deer",
