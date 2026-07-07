@@ -6,7 +6,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>ZooSmith V0.3.6</title>
+    <title>ZooSmith V0.3.7</title>
     
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script type="module">
@@ -911,18 +911,23 @@ function getAllHouseAnimals() {
 }
 
 function renderHouses() {
-    const box = document.getElementById("houses");
-    const houseIds = Object.keys(state.houses);
-    
-    if (houseIds.length === 0) {
-        box.innerHTML = '<div style="text-align:center; padding:40px; color:var(--muted);"><h2>🏠 No Houses Yet</h2><p>Build a house to get started!</p></div>';
-        return;
-    }
-    
-    box.innerHTML = '<div class="grid-layout"></div>';
-    const grid = box.querySelector('.grid-layout');
-    
-    houseIds.forEach(houseId => {
+const box = document.getElementById("houses");
+const houseIds = Object.keys(state.houses);
+
+// Always show the build section, even if no houses exist yet
+box.innerHTML = '<div class="grid-layout"></div>';
+const grid = box.querySelector('.grid-layout');
+
+// Show message if no houses built yet
+if (houseIds.length === 0) {
+const emptyMsg = document.createElement("div");
+emptyMsg.style.gridColumn = "1 / -1";
+emptyMsg.innerHTML = '<div style="text-align:center; padding:40px; color:var(--muted);"><h2>🏠 No Houses Yet</h2><p>Build a house to get started!</p></div>';
+grid.appendChild(emptyMsg);
+}
+
+// Render built houses
+houseIds.forEach(houseId => {
         const house = state.houses[houseId];
         const houseType = data.houses[house.typeId];
         const isBuilding = house.buildDaysRemaining > 0;
