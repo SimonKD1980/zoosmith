@@ -6,7 +6,7 @@
     "description": "Climate-controlled habitat for primates. Houses multiple primate exhibits.",
     "cost": 15000,
     "buildDays": 8,
-    "unlockResearch": "primatology",
+    "unlockResearch": null,
     "allowedCategories": ["Primate Forest"],
     "maxExhibits": 5
   },
