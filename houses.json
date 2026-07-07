@@ -7,7 +7,7 @@
     "cost": 15,
     "buildDays": 8,
     "unlockResearch": null,
-    "allowedCategories": ["Primate Forest"],
+    "allowedCategories": ["Primate Forest","Petting Zoo"],
     "maxExhibits": 5
   },
   {
