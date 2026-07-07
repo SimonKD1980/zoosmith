@@ -8,6 +8,6 @@
     "days": 5,
     "tier": "basic",
     "unlocks": ["fallow_deer", "babydoll_southdowns_sheep", "alpaca"],
-    "requires": null
+    "requires": null,
   },
 ]
