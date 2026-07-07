@@ -6,7 +6,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>ZooSmith V0.3.7</title>
+    <title>ZooSmith V0.3.8</title>
     
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script type="module">
@@ -1058,16 +1058,46 @@ houseIds.forEach(houseId => {
             const staffEffects = getStaffEffects();
             return Math.min(100, avgHappiness + staffEffects.animalHappiness + staffEffects.cleanExhibits * 0.5);
         }
-        function processDailyMaintenance() {
-            for (const id in state.exhibits) {
-                const ex = state.exhibits[id];
-                if (ex.buildDaysRemaining > 0) { ex.buildDaysRemaining--; if (ex.buildDaysRemaining === 0) { state.builtEnclosures[id] = true; addTicker(`✅ ${ex.name} is now complete!`); showToast(`${ex.name} finished building! 🎉`, "info"); } }
-            }
-            let maintenanceCost = 0;
-            for (const id in data.amenities) { const count = state.amenities[id] || 0; const amenity = data.amenities[id]; if (count > 0 && amenity.maintenanceCost > 0) maintenanceCost += count * amenity.maintenanceCost; }
-            state.maintenance.dailyMaintenanceCost = maintenanceCost; state.money -= maintenanceCost;
-            if (maintenanceCost > 0) addTicker(`🧹 Daily maintenance: -$${maintenanceCost}`);
-        }
+function processDailyMaintenance() {
+// Process regular exhibits
+for (const id in state.exhibits) {
+const ex = state.exhibits[id];
+if (ex.buildDaysRemaining > 0) { ex.buildDaysRemaining--; if (ex.buildDaysRemaining === 0) { state.builtEnclosures[id] = true; addTicker(`✅ ${ex.name} is now complete!`); showToast(`${ex.name} finished building! 🎉`, "info"); } }
+}
+
+// Process houses and their exhibits
+for (const houseId in state.houses) {
+const house = state.houses[houseId];
+const houseType = data.houses[house.typeId];
+
+// Decrease house build timer
+if (house.buildDaysRemaining > 0) {
+house.buildDaysRemaining--;
+if (house.buildDaysRemaining === 0) {
+addTicker(`✅ ${houseType.emoji} ${house.name} is now complete!`);
+showToast(`${house.name} finished building! 🎉`, "info");
+}
+continue; // Skip exhibits if house is still building
+}
+
+// Decrease exhibit build timers inside the house
+for (const exhibitId in house.exhibits) {
+const ex = house.exhibits[exhibitId];
+if (ex.buildDaysRemaining > 0) {
+ex.buildDaysRemaining--;
+if (ex.buildDaysRemaining === 0) {
+addTicker(`✅ ${ex.name} in ${house.name} is now complete!`);
+showToast(`${ex.name} finished building! 🎉`, "info");
+}
+}
+}
+}
+
+let maintenanceCost = 0;
+for (const id in data.amenities) { const count = state.amenities[id] || 0; const amenity = data.amenities[id]; if (count > 0 && amenity.maintenanceCost > 0) maintenanceCost += count * amenity.maintenanceCost; }
+state.maintenance.dailyMaintenanceCost = maintenanceCost; state.money -= maintenanceCost;
+if (maintenanceCost > 0) addTicker(`🧹 Daily maintenance: -$${maintenanceCost}`);
+}
         function processFenceDegradation() {
             for (const id in state.exhibits) {
                 const exhibit = state.exhibits[id]; if (exhibit.buildDaysRemaining > 0) continue;
