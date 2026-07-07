@@ -6,7 +6,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>ZooSmith V0.3.4</title>
+    <title>ZooSmith V0.3.5</title>
     
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script type="module">
@@ -224,6 +224,20 @@
         transition: all 0.2s;
 }
 .zoo-name-display:hover { background: rgba(251, 191, 36, 0.2); transform: scale(1.05); }
+
+/* Animal Thoughts */
+.thoughts-container { margin: 15px 0; }
+.thoughts-title { font-size: 0.9rem; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; font-weight: 700; }
+.thought-bubble { display: flex; align-items: start; gap: 10px; padding: 10px 14px; background: #0b1220; border-radius: 10px; margin-bottom: 6px; border-left: 3px solid var(--blue); font-size: 0.9rem; line-height: 1.4; animation: thoughtFadeIn 0.3s ease; }
+.thought-bubble.critical { border-left-color: var(--danger); background: rgba(239, 68, 68, 0.1); }
+.thought-bubble.problem { border-left-color: var(--warn); background: rgba(245, 158, 11, 0.08); }
+.thought-bubble.want { border-left-color: var(--blue); background: rgba(59, 130, 246, 0.08); }
+.thought-bubble.happy { border-left-color: var(--accent); background: rgba(34, 197, 94, 0.08); }
+.thought-bubble.info { border-left-color: var(--purple); background: rgba(168, 85, 247, 0.08); }
+.thought-icon { font-size: 1.3rem; flex-shrink: 0; }
+.thought-text { flex: 1; color: var(--text); }
+@keyframes thoughtFadeIn { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: translateX(0); } }
+        
         /* Mobile Overrides */
         @media (max-width: 768px) {
             * { touch-action: manipulation; }
@@ -1338,14 +1352,129 @@
             state.daysSinceNewAnimal = 0; addTicker(`✨ A new ${animal.name} arrived! Visitor excitement is high!`);
             closeBuyModal(); updateUI(); renderExhibits();
         };
+
+        function generateAnimalThoughts(animal, exhibit) {
+    const thoughts = [];
+    const upgrades = exhibit.upgrades || [];
+    const exhibitAnimals = exhibit.animals;
+    const sameSpeciesCount = exhibitAnimals.filter(a => a.id === animal.id).length;
+    const health = animal.health ?? 100;
+    
+    // 🔴 CRITICAL needs (shown first)
+    if (health < 20) thoughts.push({ icon: '💀', text: "I'm barely alive... please help me!", type: 'critical' });
+    else if (health < 40) thoughts.push({ icon: '🤒', text: "I'm feeling really sick and weak...", type: 'critical' });
+    else if (health < 60) thoughts.push({ icon: '😷', text: "I'm not feeling very well today.", type: 'problem' });
+    
+    if (animal.wasHungry) thoughts.push({ icon: '😫', text: "I'm starving! Please feed me!", type: 'critical' });
+    if (isUnderstaffed()) thoughts.push({ icon: '😰', text: "Where are the keepers? Nobody's looking after us!", type: 'critical' });
+    
+    // 😔 Social needs
+    if (sameSpeciesCount < animal.minInExhibit) {
+        const needed = animal.minInExhibit - sameSpeciesCount;
+        thoughts.push({ icon: '😔', text: `I'm lonely... I need ${needed} more friend${needed > 1 ? 's' : ''} of my kind.`, type: 'want' });
+    } else if (sameSpeciesCount === animal.minInExhibit) {
+        thoughts.push({ icon: '🙂', text: `I have just enough friends here.`, type: 'happy' });
+    }
+    if (sameSpeciesCount > animal.maxInExhibit) {
+        thoughts.push({ icon: '😰', text: "It's way too crowded here! I need more space.", type: 'problem' });
+    }
+    
+    // 🏠 Missing preferred shelter
+    toArray(animal.preferredShelter).forEach(pref => {
+        if (!upgrades.includes(pref)) {
+            const upgrade = data.upgrades[pref];
+            thoughts.push({ icon: '🏠', text: `I'd love a ${upgrade?.name?.replace(/^[^\s]+\s/, '') || pref} to rest in.`, type: 'want' });
+        }
+    });
+    
+    // 🌳 Missing preferred decorations
+    toArray(animal.preferredDecorations).forEach(pref => {
+        if (!upgrades.includes(pref)) {
+            const upgrade = data.upgrades[pref];
+            thoughts.push({ icon: '🌳', text: `Some ${upgrade?.name?.replace(/^[^\s]+\s/, '') || pref} would make this place feel like home.`, type: 'want' });
+        }
+    });
+    
+    // 🍽️ Missing preferred facilities
+    toArray(animal.preferredFacilities).forEach(pref => {
+        if (!upgrades.includes(pref)) {
+            const upgrade = data.upgrades[pref];
+            thoughts.push({ icon: '🍽️', text: `I could really use a ${upgrade?.name?.replace(/^[^\s]+\s/, '') || pref}.`, type: 'want' });
+        }
+    });
+    
+    // 😠 Disliked items present
+    toArray(animal.dislikedShelter).forEach(pref => {
+        if (upgrades.includes(pref)) {
+            const upgrade = data.upgrades[pref];
+            thoughts.push({ icon: '😠', text: `I don't like the ${upgrade?.name?.replace(/^[^\s]+\s/, '') || pref} here.`, type: 'problem' });
+        }
+    });
+    toArray(animal.dislikedDecorations).forEach(pref => {
+        if (upgrades.includes(pref)) {
+            const upgrade = data.upgrades[pref];
+            thoughts.push({ icon: '😠', text: `Please remove the ${upgrade?.name?.replace(/^[^\s]+\s/, '') || pref}.`, type: 'problem' });
+        }
+    });
+    toArray(animal.dislikedFacilities).forEach(pref => {
+        if (upgrades.includes(pref)) {
+            const upgrade = data.upgrades[pref];
+            thoughts.push({ icon: '😠', text: `The ${upgrade?.name?.replace(/^[^\s]+\s/, '') || pref} bothers me.`, type: 'problem' });
+        }
+    });
+    
+    // 🤰 Pregnancy
+    if (animal.isPregnant) {
+        thoughts.push({ icon: '🤰', text: `I'm expecting! Baby due in ${animal.daysUntilBirth} day${animal.daysUntilBirth !== 1 ? 's' : ''}.`, type: 'info' });
+    }
+    
+    // 🍼 Life stage thoughts
+    const stage = getLifeStage(animal);
+    if (stage.stage === 'baby') thoughts.push({ icon: '🍼', text: "I'm just a baby! Everything is so new and exciting!", type: 'info' });
+    else if (stage.stage === 'juvenile') thoughts.push({ icon: '🐾', text: "I'm growing up so fast!", type: 'info' });
+    else if (stage.stage === 'senior') thoughts.push({ icon: '👴', text: "I've lived a long, good life here.", type: 'info' });
+    
+    // 😊 If everything is perfect, show happy thoughts
+    const hasProblems = thoughts.some(t => t.type === 'critical' || t.type === 'problem' || t.type === 'want');
+    if (!hasProblems && health >= 80) {
+        const happyThoughts = [
+            "Life is great here! I couldn't ask for more.",
+            "I feel safe and happy in my home.",
+            "This is the best zoo ever!",
+            "I love living here with my friends."
+        ];
+        thoughts.push({ icon: '😊', text: happyThoughts[Math.floor(Math.random() * happyThoughts.length)], type: 'happy' });
+    }
+    
+    // Limit to 6 thoughts max
+    return thoughts.slice(0, 6);
+}
+        
         function openAnimalInfo(animal, exhibitId, index) {
             const content = document.getElementById("animalInfoContent"); let pregnancyInfo = "";
             if (animal.isPregnant) pregnancyInfo = `<div style="margin-top: 15px; padding: 12px; background: rgba(168, 85, 247, 0.1); border: 1px solid var(--purple); border-radius: 8px;"><h4 style="margin: 0 0 8px 0; color: var(--purple);">🤰 Pregnant</h4><p style="margin: 0; font-size: 0.9rem;">Due in <strong>${animal.daysUntilBirth}</strong> day${animal.daysUntilBirth !== 1 ? 's' : ''}<br>Father: <strong>${animal.babyFather || 'Unknown'}</strong><br><span style="color: var(--warn); font-size: 0.8rem;">🍖 +50% food cost during pregnancy</span></p></div>`;
             const stage = getLifeStage(animal); const actualIncome = calculateAnimalIncome(animal); const ageDisplay = getAnimalAgeDisplay(animal);
+const exhibit = state.exhibits[exhibitId];
+const thoughts = generateAnimalThoughts(animal, exhibit);
+const thoughtsHTML = thoughts.length > 0 ? `
+    <div class="thoughts-container">
+        <div class="thoughts-title">💭 What ${animal.name} is thinking:</div>
+        ${thoughts.map(t => `
+            <div class="thought-bubble ${t.type}">
+                <span class="thought-icon">${t.icon}</span>
+                <span class="thought-text">${t.text}</span>
+            </div>
+        `).join('')}
+    </div>
+` : '';
+
+
+            
             content.innerHTML = `<h2>${animal.name}</h2><p>${stage.emoji} Life Stage: <strong>${stage.label}</strong> • Age: <strong>${ageDisplay}</strong></p>
                 <p>💰 Income: $${actualIncome}/day ${stage.incomeMultiplier !== 1 ? `<small style="color:var(--muted);">(base $${animal.dailyIncome} × ${stage.incomeMultiplier})</small>` : ''}</p>
                 <p>🍖 Food: $${animal.foodCost || 2}/day ${animal.isPregnant ? '<small style="color:var(--warn);">(×2 pregnant)</small>' : ''}</p>
                 <p>👥 Needs: ${animal.minInExhibit} - ${animal.maxInExhibit}</p><p>🏞 Exhibit: ${state.exhibits[exhibitId]?.name ?? "Unknown"}</p>
+                ${thoughtsHTML}
                 ${animal.variation ? `<p>✨ Variant: ${animal.variation.name}</p>` : ""}<p>🍼 Born in zoo: ${animal.bornInZoo ? "Yes" : "No"}</p>
                 ${(() => { const h = animal.health ?? 100; const color = h >= 80 ? 'var(--accent)' : h >= 50 ? 'var(--warn)' : h >= 20 ? 'var(--danger)' : '#dc2626'; const emoji = h >= 80 ? '💚' : h >= 50 ? '💛' : h >= 20 ? '🧡' : '❤️‍🩹'; const status = h >= 80 ? 'Healthy' : h >= 50 ? 'Unwell' : h >= 20 ? 'Sick' : 'Critical'; return `<div style="margin: 10px 0; padding: 12px; background: #0b1220; border-radius: 8px; border: 1px solid ${color};"><div style="display: flex; justify-content: space-between; margin-bottom: 6px;"><span>${emoji} Health</span><strong style="color: ${color};">${Math.round(h)}% (${status})</strong></div><div class="happiness-bar" style="height: 10px;"><div style="height: 100%; width: ${h}%; background: ${color}; transition: width 0.3s;"></div></div>${isUnderstaffed() ? '<div style="margin-top: 8px; font-size: 0.8rem; color: var(--danger);">⚠️ Health declining - no keepers on staff!</div>' : ''}</div>`; })()}
                 ${animal.sick ? `<p style="color:var(--danger);">🤒 Currently sick - health declining faster</p>` : ''}
