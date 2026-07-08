@@ -2364,6 +2364,8 @@ function loadGame() {
         state.completedResearch ??= []; state.activeResearch ??= null; 
         state.maintenance ??= { dailyMaintenanceCost: 0 }; state.maintenanceWorkers ??= 0; state.maintenanceLevel ??= 0;
         state.tutorialStep ??= 0; state.tutorialSkipped ??= false; state.zooRating ??= 0;
+        state.ticketPriceImpact ??= 0;
+        state.ticketSatisfactionImpact ??= 0;
         state.unnaturalDeaths ??= 0; state.naturalDeaths ??= 0; state.totalDeaths ??= 0;
         state.zooName = profile.zooName || "Unnamed Zoo";
 
