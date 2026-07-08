@@ -1,52 +1,81 @@
 [
-  {
-    "id": "barn_shelter",
-    "name": "🏠 Barn Shelter",
-    "cost": 1500
-  },
-  {
-    "id": "burrow_system",
-    "name": "🕳️ Burrow System",
-    "cost": 1800
-  },
-  {
-    "id": "coop",
-    "name": "🐔 Coop",
-    "cost": 800
-  },
-  {
-    "id": "open_pasture_shelter",
-    "name": "🌾 Open Pasture Shelter",
-    "cost": 1200
-  },
-  {
-    "id": "rocks",
-    "name": "🪨 Rocks",
-    "cost": 400
-  },
-  {
-    "id": "grass_patch",
-    "name": "🌱 Grass Patch",
-    "cost": 300
-  },
-  {
-    "id": "tunnels",
-    "name": "🕳️ Tunnels",
-    "cost": 900
-  },
-  {
-    "id": "water_pool",
-    "name": "🏊 Water Pool",
-    "cost": 2000
-  },
-  {
-    "id": "feeding_trough",
-    "name": "🍽️ Feeding Trough",
-    "cost": 600
-  },
-  {
-    "id": "trees",
-    "name": "🌳 Trees",
-    "cost": 750
-  }
+  {"id": "barn_shelter", "name": "🏠 Barn Shelter", "cost": 1500, "type": "shelter"},
+  {"id": "open_pasture_shelter", "name": "🌾 Open Pasture Shelter", "cost": 1200, "type": "shelter"},
+  {"id": "burrow_system", "name": "🕳️ Burrow System", "cost": 1800, "type": "shelter"},
+  {"id": "rocky_burrow", "name": "🪨 Rocky Burrow", "cost": 2000, "type": "shelter"},
+  {"id": "vertical_perch", "name": "🐦 Vertical Perch", "cost": 750, "type": "shelter"},
+  {"id": "coop", "name": "🐔 Coop", "cost": 800, "type": "shelter"},
+  {"id": "woodland_shelter", "name": "🌲 Woodland Shelter", "cost": 1600, "type": "shelter"},
+  {"id": "heat_lamp_shelter", "name": "💡 Heat Lamp Shelter", "cost": 1400, "type": "shelter"},
+  {"id": "water_access_shelter", "name": "💧 Water Access Shelter", "cost": 2500, "type": "shelter"},
+  {"id": "tree_platform", "name": "🌳 Tree Platform", "cost": 2200, "type": "shelter"},
+  {"id": "cave_shelter", "name": "🕳️ Cave Shelter", "cost": 3000, "type": "shelter"},
+  {"id": "open_savanna_shelter", "name": "🌅 Open Savanna Shelter", "cost": 1800, "type": "shelter"},
+  {"id": "large_barn", "name": "🏚️ Large Barn", "cost": 4000, "type": "shelter"},
+  {"id": "rocky_den", "name": "🪨 Rocky Den", "cost": 2800, "type": "shelter"},
+  {"id": "cliff_shelter", "name": "⛰️ Cliff Shelter", "cost": 2600, "type": "shelter"},
+  {"id": "windbreak_shelter", "name": "🌬️ Windbreak Shelter", "cost": 1500, "type": "shelter"},
+  {"id": "insulated_den", "name": "❄️ Insulated Den", "cost": 3500, "type": "shelter"},
+  {"id": "primate_house", "name": "🏠 Primate House", "cost": 5000, "type": "shelter"},
+  {"id": "wetland_shelter", "name": "🌊 Wetland Shelter", "cost": 2400, "type": "shelter"},
+  {"id": "forest_shelter", "name": "🌲 Forest Shelter", "cost": 2000, "type": "shelter"},
+  {"id": "rocky_shelter", "name": "🪨 Rocky Shelter", "cost": 1800, "type": "shelter"},
+  {"id": "desert_shelter", "name": "🏜️ Desert Shelter", "cost": 1600, "type": "shelter"},
+  {"id": "ice_cave", "name": "🧊 Ice Cave", "cost": 4500, "type": "shelter"},
+  {"id": "tall_shelter", "name": "🦒 Tall Shelter", "cost": 3800, "type": "shelter"},
+  {"id": "aquatic_shelter", "name": "🐟 Aquatic Shelter", "cost": 3200, "type": "shelter"},
+  {"id": "prehistoric_shelter", "name": "🦕 Prehistoric Shelter", "cost": 8000, "type": "shelter"},
+  {"id": "enchanted_shelter", "name": "✨ Enchanted Shelter", "cost": 15000, "type": "shelter"},
+  {"id": "reinforced_shelter", "name": "🛡️ Reinforced Shelter", "cost": 4200, "type": "shelter"},
+  {"id": "open_paddock", "name": "🌾 Open Paddock", "cost": 1000, "type": "shelter"},
+  {"id": "nocturnal_shelter", "name": "🌙 Nocturnal Shelter", "cost": 2800, "type": "shelter"},
+  
+  {"id": "rocks", "name": "🪨 Rocks", "cost": 400, "type": "decoration"},
+  {"id": "trees", "name": "🌳 Trees", "cost": 750, "type": "decoration"},
+  {"id": "grass_patch", "name": "🌱 Grass Patch", "cost": 300, "type": "decoration"},
+  {"id": "tunnels", "name": "🕳️ Tunnels", "cost": 900, "type": "decoration"},
+  {"id": "bushes", "name": "🌿 Bushes", "cost": 350, "type": "decoration"},
+  {"id": "bamboo", "name": "🎋 Bamboo", "cost": 600, "type": "decoration"},
+  {"id": "fence_line_trees", "name": "🌳 Fence Line Trees", "cost": 500, "type": "decoration"},
+  {"id": "pond", "name": "💧 Pond", "cost": 1500, "type": "decoration"},
+  {"id": "mud_wallow", "name": "🟤 Mud Wallow", "cost": 800, "type": "decoration"},
+  {"id": "logs", "name": "🪵 Logs", "cost": 450, "type": "decoration"},
+  {"id": "sand", "name": "🏖️ Sand", "cost": 400, "type": "decoration"},
+  {"id": "ice", "name": "🧊 Ice", "cost": 1200, "type": "decoration"},
+  {"id": "water_pool", "name": "🏊 Water Pool", "cost": 2000, "type": "decoration"},
+  {"id": "branches", "name": "🌿 Branches", "cost": 350, "type": "decoration"},
+  {"id": "reeds", "name": "🌾 Reeds", "cost": 500, "type": "decoration"},
+  {"id": "snow_cover", "name": "❄️ Snow Cover", "cost": 1400, "type": "decoration"},
+  {"id": "leaf_litter", "name": "🍂 Leaf Litter", "cost": 300, "type": "decoration"},
+  {"id": "ferns", "name": "🌿 Ferns", "cost": 400, "type": "decoration"},
+  {"id": "flowers", "name": "🌸 Flowers", "cost": 600, "type": "decoration"},
+  {"id": "rainbow", "name": "🌈 Rainbow", "cost": 5000, "type": "decoration"},
+  {"id": "bones", "name": "🦴 Bones", "cost": 500, "type": "decoration"},
+  {"id": "climbing_structure", "name": "🧗 Climbing Structure", "cost": 1800, "type": "decoration"},
+  {"id": "viewing_platform", "name": "👁️ Viewing Platform", "cost": 1200, "type": "decoration"},
+  {"id": "running_track", "name": "🏃 Running Track", "cost": 2500, "type": "decoration"},
+  {"id": "watering_hole", "name": "💧 Watering Hole", "cost": 1800, "type": "decoration"},
+  
+  {"id": "feeding_trough", "name": "🍽️ Feeding Trough", "cost": 600, "type": "facility"},
+  {"id": "grooming_station", "name": "✂️ Grooming Station", "cost": 900, "type": "facility"},
+  {"id": "digging_area", "name": "⛏️ Digging Area", "cost": 800, "type": "facility"},
+  {"id": "foraging_boxes", "name": "🌿 Foraging Boxes", "cost": 500, "type": "facility"},
+  {"id": "basking_platform", "name": "☀️ Basking Platform", "cost": 1000, "type": "facility"},
+  {"id": "mud_bath", "name": "🟤 Mud Bath", "cost": 1200, "type": "facility"},
+  {"id": "bamboo_feeder", "name": "🎋 Bamboo Feeder", "cost": 1500, "type": "facility"},
+  {"id": "feeding_station", "name": "🍖 Feeding Station", "cost": 1400, "type": "facility"},
+  {"id": "dust_bath", "name": "💨 Dust Bath", "cost": 900, "type": "facility"},
+  {"id": "water_sprayer", "name": "💦 Water Sprayer", "cost": 1100, "type": "facility"},
+  {"id": "meat_feeder", "name": "🥩 Meat Feeder", "cost": 1600, "type": "facility"},
+  {"id": "fish_feeder", "name": "🐟 Fish Feeder", "cost": 1400, "type": "facility"},
+  {"id": "cooling_system", "name": "❄️ Cooling System", "cost": 2800, "type": "facility"},
+  {"id": "swimming_pool", "name": "🏊 Swimming Pool", "cost": 3500, "type": "facility"},
+  {"id": "puzzle_feeder", "name": "🧩 Puzzle Feeder", "cost": 1200, "type": "facility"},
+  {"id": "swinging_rope", "name": "🪢 Swinging Rope", "cost": 800, "type": "facility"},
+  {"id": "filter_feeder", "name": "🔬 Filter Feeder", "cost": 1800, "type": "facility"},
+  {"id": "elevated_feeder", "name": "📏 Elevated Feeder", "cost": 2000, "type": "facility"},
+  {"id": "insect_feeder", "name": "🐜 Insect Feeder", "cost": 1000, "type": "facility"},
+  {"id": "heating_lamp", "name": "💡 Heating Lamp", "cost": 900, "type": "facility"},
+  {"id": "prehistoric_feeder", "name": "🦕 Prehistoric Feeder", "cost": 6000, "type": "facility"},
+  {"id": "magic_feeder", "name": "✨ Magic Feeder", "cost": 12000, "type": "facility"}
 ]
