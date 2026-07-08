@@ -11,6 +11,17 @@
     "maxExhibits": 5
   },
   {
+  "id": "nocturnal_house",
+  "name": "Nocturnal House",
+  "emoji": "🌙",
+  "description": "Reversed light-cycle habitat for night-active species.",
+  "cost": 12000,
+  "buildDays": 7,
+  "unlockResearch": "research_nocturnal_exhibits",
+  "allowedCategories": ["Nocturnal"],
+  "maxExhibits": 4
+},
+  {
     "id": "aquarium",
     "name": "Aquarium",
     "emoji": "🐠",
