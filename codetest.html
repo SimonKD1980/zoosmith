@@ -6,7 +6,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>ZooSmith V0.3.9</title>
+    <title>ZooSmith V0.3.10</title>
     
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script type="module">
@@ -237,6 +237,42 @@
 .thought-icon { font-size: 1.3rem; flex-shrink: 0; }
 .thought-text { flex: 1; color: var(--text); }
 @keyframes thoughtFadeIn { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: translateX(0); } }
+
+/* Ticket Price Slider */
+input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    height: 6px;
+    border-radius: 3px;
+    outline: none;
+    background: linear-gradient(to right, #22c55e, #22c55e);
+}
+
+input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--accent);
+    cursor: pointer;
+    border: 2px solid #000;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+}
+
+input[type="range"]::-moz-range-thumb {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--accent);
+    cursor: pointer;
+    border: 2px solid #000;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+}
+
+input[type="range"]:hover {
+    transform: scale(1.05);
+}
         
         /* Mobile Overrides */
         @media (max-width: 768px) {
@@ -341,7 +377,7 @@
             <span>🗓 Month <span id="month">1</span></span>
             <span>📆 Year <span id="year">1</span></span>
             <span>📈 $<span id="income">0</span>/day</span>
-            <span>🎟 $<span id="ticketPrice">20</span></span>
+            <span>🎟 <input type="range" id="ticketPriceSlider" min="5" max="100" value="20" style="width: 80px; vertical-align: middle; cursor: pointer;" oninput="updateTicketPrice(this.value)"><span id="ticketPrice">$20</span></span>
             <span>✨ Novelty: <span id="novelty">100%</span></span>
             <span id="staffingStatus">🧑‍🌾 <span id="staffSlots">0/0</span></span>
             <span class="rating-badge" id="ratingBadge" onclick="showRatingBreakdown()" title="Click for details">⭐ <span id="zooRating">0</span>% <span id="zooRatingTier">(Struggling)</span></span>
@@ -520,7 +556,8 @@
             visitorComplaints: [], amenities: {}, visitorSatisfaction: 0,
             maintenance: { dailyMaintenanceCost: 0 }, completedResearch: [], activeResearch: null,
             maintenanceWorkers: 0, maintenanceLevel: 0, tutorialStep: 0, tutorialSkipped: false, houses: {},
-            recentDeathPenalty: 0, zooRating: 0, unnaturalDeaths: 0, naturalDeaths: 0, totalDeaths: 0
+            recentDeathPenalty: 0, zooRating: 0, unnaturalDeaths: 0, naturalDeaths: 0, totalDeaths: 0, ticketPriceImpact: 0,
+ticketSatisfactionImpact: 0
         };
 
         /* --------------------------------------------------------------------------
@@ -750,16 +787,30 @@
                 score += getExhibitHappiness(ex) * 0.5;
             } return score;
         }
-        function generateVisitors() {
-            const attraction = calculateAttraction(); if (attraction <= 0) return 0;
-            const hasRestroom = (state.amenities.restroom || 0) > 0;
-            const hasFood = (state.amenities.food_stand || 0) > 0 || (state.amenities.cafe || 0) > 0 || (state.amenities.restaurant || 0) > 0;
-            let baseVisitors = (hasRestroom && hasFood) ? 5 : (hasRestroom || hasFood) ? 2 : 0;
-            let visitors = baseVisitors + Math.floor(2 * Math.sqrt(attraction));
-            const decayFactor = Math.min(1, state.daysSinceNewAnimal / 20);
-            visitors = Math.floor(visitors * (1 - (decayFactor * 0.4)));
-            return Math.max(0, Math.floor(visitors * (state.visitorSatisfaction / 100)));
-        }
+function generateVisitors() {
+    const attraction = calculateAttraction(); 
+    if (attraction <= 0) return 0;
+    
+    const hasRestroom = (state.amenities.restroom || 0) > 0;
+    const hasFood = (state.amenities.food_stand || 0) > 0 || (state.amenities.cafe || 0) > 0 || (state.amenities.restaurant || 0) > 0;
+    
+    let baseVisitors = (hasRestroom && hasFood) ? 5 : (hasRestroom || hasFood) ? 2 : 0;
+    let visitors = baseVisitors + Math.floor(2 * Math.sqrt(attraction));
+    
+    // Apply novelty decay
+    const decayFactor = Math.min(1, state.daysSinceNewAnimal / 20);
+    visitors = Math.floor(visitors * (1 - (decayFactor * 0.4)));
+    
+    // Apply ticket price elasticity
+    const priceImpact = state.ticketPriceImpact || 0;
+    const priceMultiplier = Math.max(0.1, 1 + (priceImpact / 100)); // Min 10% visitors even at max price
+    visitors = Math.floor(visitors * priceMultiplier);
+    
+    // Apply satisfaction multiplier
+    visitors = Math.max(0, Math.floor(visitors * (state.visitorSatisfaction / 100)));
+    
+    return visitors;
+}
         function processVisitorBehavior(visitors) {
             state.visitorComplaints = []; state.visitorSpending = { food: 0, gifts: 0, total: 0 };
             const staffEffects = getStaffEffects(); const cleanlinessFactor = Math.min(0.8, staffEffects.cleanPark / 100);
@@ -807,7 +858,9 @@
             if ((state.amenities.gift_shop || 0) > 0) baseSatisfaction += 10;
             baseSatisfaction += Math.min(20, Object.values(state.amenities).reduce((sum, count) => sum + count, 0) * 2);
             const penalty = state.visitorComplaints.reduce((sum, c) => sum + (c.type === 'warning' ? 5 : c.type === 'info' ? 2 : 3), 0);
-            state.visitorSatisfaction = Math.max(0, Math.min(100, baseSatisfaction - penalty));
+            // Apply ticket price satisfaction impact
+const priceSatisfactionImpact = state.ticketSatisfactionImpact || 0;
+state.visitorSatisfaction = Math.max(0, Math.min(100, baseSatisfaction - penalty + priceSatisfactionImpact));
         }
         function calculateGuestHappiness() {
             let happiness = 50;
@@ -2146,11 +2199,52 @@ function switchUpgradeTab(type) {
             else if (newTier.tierNum < oldTier.tierNum) { addTicker(`📉 Zoo rating dropped to ${newTier.emoji} ${newTier.label}`); showToast(`Zoo rating dropped!`, "warn"); }
             saveGame(); triggerRandomEvent();
         }
+        function updateTicketPrice(newPrice) {
+    const price = parseInt(newPrice);
+    if (price < 5 || price > 100) return;
+    
+    state.ticketPrice = price;
+    document.getElementById("ticketPrice").textContent = `$${price}`;
+    
+    // Calculate price impact
+    const basePrice = 20;
+    const priceDiff = price - basePrice;
+    const zooRating = state.zooRating || 0;
+    
+    // Premium zoos (80%+) can charge 50% more without penalty
+    const premiumMultiplier = zooRating >= 80 ? 1.5 : zooRating >= 60 ? 1.2 : 1.0;
+    const adjustedPrice = basePrice * premiumMultiplier;
+    const effectiveDiff = price - adjustedPrice;
+    
+    // Price elasticity: -3% visitors per $1 over recommended, +2% per $1 under
+    const visitorImpact = effectiveDiff > 0 ? -3 * effectiveDiff : 2 * Math.abs(effectiveDiff);
+    const satisfactionImpact = effectiveDiff > 0 ? -2 * effectiveDiff : 1 * Math.abs(effectiveDiff);
+    
+    // Update slider color based on price
+    const slider = document.getElementById("ticketPriceSlider");
+    if (effectiveDiff > 10) {
+        slider.style.background = 'linear-gradient(to right, #22c55e 0%, #ef4444 100%)';
+        showToast(`⚠️ Price too high! Visitors will drop by ${Math.abs(visitorImpact)}%`, "warn");
+    } else if (effectiveDiff < -5) {
+        slider.style.background = 'linear-gradient(to right, #22c55e 0%, #3b82f6 100%)';
+        showToast(`💰 Great value! Visitors will increase by ${visitorImpact}%`, "info");
+    } else {
+        slider.style.background = 'linear-gradient(to right, #22c55e, #22c55e)';
+    }
+    
+    // Store impact for visitor calculation
+    state.ticketPriceImpact = visitorImpact;
+    state.ticketSatisfactionImpact = satisfactionImpact;
+    
+    saveGame();
+}
+        
         function updateUI() {
             document.getElementById("zooNameDisplay").textContent = state.zooName || "My Zoo";
             document.getElementById("money").textContent = state.money.toLocaleString(undefined, { maximumFractionDigits: 2 });
-            document.getElementById("day").textContent = state.day; document.getElementById("month").textContent = state.month; document.getElementById("year").textContent = state.year; document.getElementById("ticketPrice").textContent = state.ticketPrice;
-            const allAnimals = getAllAnimals();
+            document.getElementById("day").textContent = state.day; document.getElementById("month").textContent = state.month; document.getElementById("year").textContent = state.year; document.getElementById("ticketPrice").textContent = `$${state.ticketPrice}`;
+const slider = document.getElementById("ticketPriceSlider");
+if (slider) slider.value = state.ticketPrice;
             if (allAnimals.length === 0) document.getElementById("novelty").textContent = "0%";
             else { const decayFactor = Math.min(1, state.daysSinceNewAnimal / 10); document.getElementById("novelty").textContent = Math.round((1 - decayFactor) * 100) + "%"; }
             const usedSlots = getUsedSlots(); const totalSlots = getKeeperSlots();
