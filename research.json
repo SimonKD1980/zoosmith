@@ -5,9 +5,75 @@
     "desc": "Learn to care for a larger group of farm animals and small wildlife",
     "icon": "🌿",
     "cost": 2000,
-    "days": 5,
+    "days": 3,
     "tier": "basic",
-    "unlocks": ["fallow_deer", "babydoll_southdowns_sheep", "alpaca"],
+    "unlocks": ["fallow_deer", "wallaby", "meerkat", "ring_tailed_lemur", "emu"],
     "requires": null
+  },
+  {
+    "id": "small_zoo_accredition",
+    "name": "Small Zoo Accreditation",
+    "desc": "Meet the standards for housing exotic small animals",
+    "icon": "🏅",
+    "cost": 5000,
+    "days": 7,
+    "tier": "basic",
+    "unlocks": ["capybara", "otter", "red_panda", "flamingo"],
+    "requires": "Wildlife_Farm_Experience"
+  },
+  {
+    "id": "small_primate_care",
+    "name": "Small Primate Care",
+    "desc": "Specialized care techniques for small primates",
+    "icon": "🐒",
+    "cost": 8000,
+    "days": 10,
+    "tier": "advanced",
+    "unlocks": ["cotton_top_tamarin", "common_marmoset", "common_squirrel_monkey", "pygmy_marmoset"],
+    "requires": "small_zoo_accredition"
+  },
+  {
+    "id": "research_nocturnal_exhibits",
+    "name": "Nocturnal Habitat Engineering",
+    "desc": "Create reversed light-cycle environments for night-active species",
+    "icon": "🌙",
+    "cost": 9000,
+    "days": 14,
+    "tier": "advanced",
+    "unlocks": ["slender_loris", "bushbaby", "aardvark", "fennec_fox"],
+    "requires": "small_zoo_accredition"
+  },
+  {
+    "id": "advanced_big_cats",
+    "name": "Advanced Big Cats",
+    "desc": "Study large carnivore behavior and habitat needs",
+    "icon": "🦁",
+    "cost": 10000,
+    "days": 15,
+    "tier": "advanced",
+    "unlocks": ["african_lion", "tiger", "leopard", "jaguar", "snow_leopard"],
+    "requires": "small_zoo_accredition"
+  },
+  {
+    "id": "predatory_cats",
+    "name": "Predatory Cats",
+    "desc": "Research medium-sized predatory cats and their needs",
+    "icon": "🐆",
+    "cost": 12000,
+    "days": 18,
+    "tier": "advanced",
+    "unlocks": ["cheetah", "cougar", "clouded_leopard", "eurasian_lynx", "caracal", "serval"],
+    "requires": "advanced_big_cats"
+  },
+  {
+    "id": "predators_care",
+    "name": "Predators Care",
+    "desc": "Advanced care for pack hunters and specialized predators",
+    "icon": "🐺",
+    "cost": 11000,
+    "days": 16,
+    "tier": "advanced",
+    "unlocks": ["gray_wolf", "african_wild_dog", "spotted_hyena", "wolverine"],
+    "requires": "advanced_big_cats"
   }
 ]
