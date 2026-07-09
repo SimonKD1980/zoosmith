@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>ZooSmith V0.4.4</title>
+<title>ZooSmith V0.4.5</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
@@ -2619,7 +2619,7 @@ const animal = ctx.exhibit.animals[index];
 if (animal) openAnimalInfo(animal, exhibitId, index);
 }
 });
-let leaderboardPlayerId = null; let leaderboardCategory = 'money';
+let leaderboardPlayerId = null; let leaderboardCategory = 'zooRating';
 function getPlayerId() { let id = localStorage.getItem('zooPlayerId'); if (!id) { id = 'player_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9); localStorage.setItem('zooPlayerId', id); } return id; }
 function getPlayerName() { return localStorage.getItem('zooPlayerName') || 'Anonymous Zookeeper'; }
 function setPlayerName(name) { localStorage.setItem('zooPlayerName', name); }
@@ -2629,7 +2629,25 @@ try {
 const playerId = getPlayerId(); leaderboardPlayerId = playerId;
 const { doc, setDoc, getDoc } = window.firebaseModules;
 const ref = doc(window.firebaseDB, 'leaderboard', playerId); const snap = await getDoc(ref);
-const stats = { name: getPlayerName(), money: state.money, animals: getAllAnimals().length, achievements: Object.keys(state.achievements).length, daysPlayed: (state.year - 1) * 360 + (state.month - 1) * 30 + state.day, visitors: state.dailyVisitors, lastUpdated: new Date().toISOString() };
+const stats = { 
+    name: getPlayerName(), 
+    zooName: state.zooName || "Unnamed Zoo",
+    zooRating: state.zooRating || 0,
+    money: state.money, 
+    animals: getAllAnimals().length, 
+    achievements: Object.keys(state.achievements).length, 
+    daysPlayed: (state.year - 1) * 360 + (state.month - 1) * 30 + state.day, 
+    visitors: state.dailyVisitors, 
+    lastUpdated: new Date().toISOString() 
+};
+const categories = [
+    { id: 'zooRating', label: '🏞️ Best Zoos', icon: '🏞️' }, // 👈 Added new tab
+    { id: 'money', label: '💰 Richest', icon: '💰' }, 
+    { id: 'animals', label: '🦁 Most Animals', icon: '🦁' }, 
+    { id: 'achievements', label: '🏆 Achievements', icon: '🏆' }, 
+    { id: 'daysPlayed', label: '📅 Longest', icon: '📅' }
+];
+    
 if (snap.exists()) { const existing = snap.data(); stats.money = Math.max(stats.money, existing.money || 0); stats.animals = Math.max(stats.animals, existing.animals || 0); stats.achievements = Math.max(stats.achievements, existing.achievements || 0); stats.daysPlayed = Math.max(stats.daysPlayed, existing.daysPlayed || 0); await setDoc(ref, stats, { merge: true }); }
 else { await setDoc(ref, stats); }
 } catch (e) { console.error("Leaderboard submit error:", e); }
@@ -2655,7 +2673,13 @@ await updateLeaderboardContent();
 async function updateLeaderboardContent() {
 const content = document.getElementById('leaderboardContent'); if (!content) return;
 const players = await fetchLeaderboard(leaderboardCategory, 20); const myRank = await getPlayerRank(leaderboardCategory);
-const categoryLabels = { money: { label: 'Net Worth', format: v => '$' + v.toLocaleString() }, animals: { label: 'Animals', format: v => v.toLocaleString() }, achievements: { label: 'Achievements', format: v => v.toLocaleString() }, daysPlayed: { label: 'Days', format: v => v.toLocaleString() } };
+const categoryLabels = { 
+    zooRating: { label: 'Zoo Rating', format: v => v + '%' }, // 👈 Added formatting for the new tab
+    money: { label: 'Net Worth', format: v => '$' + v.toLocaleString() }, 
+    animals: { label: 'Animals', format: v => v.toLocaleString() }, 
+    achievements: { label: 'Achievements', format: v => v.toLocaleString() }, 
+    daysPlayed: { label: 'Days', format: v => v.toLocaleString() } 
+};  
 const cat = categoryLabels[leaderboardCategory]; let yourRankHTML = '';
 if (myRank) yourRankHTML = `<div class="your-rank-card"><h3>🎯 Your Rank</h3><div class="your-rank-number">#${myRank.rank}</div><div style="color: var(--muted);">out of ${myRank.total} zookeepers worldwide</div></div>`;
 let rowsHTML = '';
@@ -2663,9 +2687,26 @@ if (players.length === 0) rowsHTML = `<div style="text-align: center; padding: 4
 else {
 rowsHTML = `<div class="leaderboard-row header"><div>Rank</div><div>Player</div><div style="text-align: right;">${cat.label}</div></div>`;
 players.forEach(player => {
-const isYou = player.id === leaderboardPlayerId; const rankClass = player.rank === 1 ? 'top1' : player.rank === 2 ? 'top2' : player.rank === 3 ? 'top3' : '';
-const rankEmoji = player.rank === 1 ? '🥇' : player.rank === 2 ? '🥈' : player.rank === 3 ? '🥉' : `#${player.rank}`;
-rowsHTML += `<div class="leaderboard-row ${rankClass} ${isYou ? 'you' : ''}"><div class="rank-badge ${player.rank <= 3 ? 'rank-' + player.rank : ''}">${rankEmoji}</div><div class="player-info"><div class="player-name">${escapeHtml(player.name || 'Anonymous')}</div><div class="player-zoo">Day ${player.daysPlayed || 0} • ${player.animals || 0} animals</div></div><div class="player-score">${cat.format(player[leaderboardCategory] || 0)}</div></div>`;
+    const isYou = player.id === leaderboardPlayerId; 
+    const rankClass = player.rank === 1 ? 'top1' : player.rank === 2 ? 'top2' : player.rank === 3 ? 'top3' : '';
+    const rankEmoji = player.rank === 1 ? '🥇' : player.rank === 2 ? '🥈' : player.rank === 3 ? '🥉' : `#${player.rank}`;
+    
+    // 👇 NEW LOGIC: Check if we are in the "Best Zoos" view
+    const isZooView = leaderboardCategory === 'zooRating';
+    const mainName = isZooView ? escapeHtml(player.zooName || 'Unnamed Zoo') : escapeHtml(player.name || 'Anonymous');
+    const subInfo = isZooView 
+        ? `<div class="player-zoo">by ${escapeHtml(player.name || 'Anonymous')}</div>` 
+        : `<div class="player-zoo">Day ${player.daysPlayed || 0} • ${player.animals || 0} animals</div>`;
+    const nameStyle = isZooView ? 'color: var(--gold); font-size: 1.1rem;' : '';
+
+    rowsHTML += `<div class="leaderboard-row ${rankClass} ${isYou ? 'you' : ''}">
+        <div class="rank-badge ${player.rank <= 3 ? 'rank-' + player.rank : ''}">${rankEmoji}</div>
+        <div class="player-info">
+            <div class="player-name" style="${nameStyle}">${mainName}</div>
+            ${subInfo}
+        </div>
+        <div class="player-score">${cat.format(player[leaderboardCategory] || 0)}</div>
+    </div>`;
 });
 }
 content.innerHTML = yourRankHTML + `<div class="leaderboard-table">${rowsHTML}</div><div style="text-align: center; margin-top: 20px; color: var(--muted); font-size: 0.85rem;">🔄 Leaderboard updates automatically as you play</div>`;
@@ -2762,14 +2803,14 @@ renderShop();
 state.day++; if (state.day > 30) { state.day = 1; state.month++; showMonthlyReport(); }
 if (state.month > 12) { state.month = 1; state.year++; }
 
-checkAchievements(); updateUI(); renderExhibits(); renderHouses(); renderAchievements(); renderVisitors(); submitToLeaderboard(); renderSupplies();
+checkAchievements(); updateUI(); renderExhibits(); renderHouses(); renderAchievements(); renderVisitors(); renderSupplies();
 
 const oldRating = state.zooRating || 0; state.zooRating = calculateZooRating();
 const newTier = getZooRatingTier(state.zooRating); const oldTier = getZooRatingTier(oldRating);
 if (newTier.tierNum > oldTier.tierNum) { addTicker(`🎉 Zoo upgraded to ${newTier.emoji} ${newTier.label}!`); showToast(`Zoo Rating: ${newTier.emoji} ${newTier.label}!`, "info"); const tierBonus = newTier.tierNum * 500; state.money += tierBonus; showFloatingMoney(tierBonus); }
 else if (newTier.tierNum < oldTier.tierNum) { addTicker(`📉 Zoo rating dropped to ${newTier.emoji} ${newTier.label}`); showToast(`Zoo rating dropped!`, "warn"); }
 
-saveGame(); triggerRandomEvent();
+saveGame(); submitToLeaderboard(); triggerRandomEvent();
 }
 
 function updateTicketPrice(newPrice) {
