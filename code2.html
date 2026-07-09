@@ -2640,13 +2640,6 @@ const stats = {
     visitors: state.dailyVisitors, 
     lastUpdated: new Date().toISOString() 
 };
-const categories = [
-    { id: 'zooRating', label: '🏞️ Best Zoos', icon: '🏞️' }, // 👈 Added new tab
-    { id: 'money', label: '💰 Richest', icon: '💰' }, 
-    { id: 'animals', label: '🦁 Most Animals', icon: '🦁' }, 
-    { id: 'achievements', label: '🏆 Achievements', icon: '🏆' }, 
-    { id: 'daysPlayed', label: '📅 Longest', icon: '📅' }
-];
     
 if (snap.exists()) { const existing = snap.data(); stats.money = Math.max(stats.money, existing.money || 0); stats.animals = Math.max(stats.animals, existing.animals || 0); stats.achievements = Math.max(stats.achievements, existing.achievements || 0); stats.daysPlayed = Math.max(stats.daysPlayed, existing.daysPlayed || 0); await setDoc(ref, stats, { merge: true }); }
 else { await setDoc(ref, stats); }
@@ -2666,8 +2659,14 @@ async function renderLeaderboard() {
 const box = document.getElementById('leaderboard'); box.innerHTML = '<div class="leaderboard-loading">🔄 Loading leaderboard...</div>';
 const hasName = localStorage.getItem('zooPlayerName'); let namePromptHTML = '';
 if (!hasName) namePromptHTML = `<div class="name-prompt"><h3>👋 Welcome to the Leaderboard!</h3><p style="color: var(--muted); margin-bottom: 10px;">Choose a name to compete with players worldwide</p><input type="text" id="playerNameInput" placeholder="Your zookeeper name..." maxlength="20"><br><button class="primary-btn" onclick="savePlayerName()" style="max-width: 200px; margin: 0 auto;">Save Name</button></div>`;
-const categories = [{ id: 'money', label: '💰 Richest', icon: '💰' }, { id: 'animals', label: '🦁 Most Animals', icon: '🦁' }, { id: 'achievements', label: '🏆 Achievements', icon: '🏆' }, { id: 'daysPlayed', label: '📅 Longest', icon: '📅' }];
-box.innerHTML = namePromptHTML + `<div class="leaderboard-tabs">${categories.map(cat => `<button class="leaderboard-tab ${leaderboardCategory === cat.id ? 'active' : ''}" onclick="changeLeaderboardCategory('${cat.id}')">${cat.label}</button>`).join('')}</div><div id="leaderboardContent"><div class="leaderboard-loading">🔄 Loading...</div></div>`;
+const categories = [
+    { id: 'zooRating', label: '🏞️ Best Zoos', icon: '🏞️' }, // 👈 Added new tab
+    { id: 'money', label: '💰 Richest', icon: '💰' }, 
+    { id: 'animals', label: '🦁 Most Animals', icon: '🦁' }, 
+    { id: 'achievements', label: '🏆 Achievements', icon: '🏆' }, 
+    { id: 'daysPlayed', label: '📅 Longest', icon: '📅' }
+];
+    box.innerHTML = namePromptHTML + `<div class="leaderboard-tabs">${categories.map(cat => `<button class="leaderboard-tab ${leaderboardCategory === cat.id ? 'active' : ''}" onclick="changeLeaderboardCategory('${cat.id}')">${cat.label}</button>`).join('')}</div><div id="leaderboardContent"><div class="leaderboard-loading">🔄 Loading...</div></div>`;
 await updateLeaderboardContent();
 }
 async function updateLeaderboardContent() {
