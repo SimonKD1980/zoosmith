@@ -291,186 +291,331 @@ transform: scale(1.05);
 }
 
 /* Zoo Map Styles */
+/* Zoo Map Styles - Immersive Park View */
 .map-container {
-    background: linear-gradient(135deg, #1a4d2e, #2d6a4f);
+    background: 
+        radial-gradient(circle at 20% 30%, rgba(34, 197, 94, 0.1) 0%, transparent 50%),
+        radial-gradient(circle at 80% 70%, rgba(59, 130, 246, 0.08) 0%, transparent 50%),
+        linear-gradient(135deg, #1a472a 0%, #0f2818 50%, #1a3a25 100%);
     border-radius: var(--radius);
     padding: 20px;
     min-height: 600px;
     position: relative;
-    border: 3px solid #1e5631;
-    box-shadow: inset 0 0 50px rgba(0,0,0,0.3);
-}
-
-.map-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-    gap: 15px;
-    margin-bottom: 20px;
-}
-
-.map-plot {
-    background: linear-gradient(135deg, #2d4a22, #1e3a16);
-    border: 2px solid #3d5a32;
-    border-radius: 12px;
-    padding: 12px;
-    min-height: 160px;
-    position: relative;
-    cursor: pointer;
-    transition: all 0.3s;
+    border: 3px solid #2d5a3f;
+    box-shadow: inset 0 0 80px rgba(0,0,0,0.4);
     overflow: hidden;
 }
 
-.map-plot:hover {
-    transform: translateY(-4px) scale(1.03);
+.map-container::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background-image: 
+        repeating-linear-gradient(0deg, transparent, transparent 40px, rgba(255,255,255,0.02) 40px, rgba(255,255,255,0.02) 41px),
+        repeating-linear-gradient(90deg, transparent, transparent 40px, rgba(255,255,255,0.02) 40px, rgba(255,255,255,0.02) 41px);
+    pointer-events: none;
+}
+
+.map-dashboard {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 12px;
+    margin-bottom: 20px;
+    position: relative;
+    z-index: 2;
+}
+
+.map-stat-card {
+    background: rgba(11, 18, 32, 0.8);
+    backdrop-filter: blur(10px);
+    border: 1px solid #243042;
+    border-radius: 10px;
+    padding: 12px;
+    text-align: center;
+    transition: all 0.3s;
+}
+
+.map-stat-card:hover {
+    transform: translateY(-2px);
     border-color: var(--accent);
-    box-shadow: 0 8px 20px rgba(34, 197, 94, 0.4);
+    box-shadow: 0 4px 12px rgba(34, 197, 94, 0.2);
+}
+
+.map-stat-label {
+    font-size: 0.7rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 4px;
+}
+
+.map-stat-value {
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: var(--text);
+}
+
+.map-stat-value.good { color: var(--accent); }
+.map-stat-value.warn { color: var(--warn); }
+.map-stat-value.danger { color: var(--danger); }
+
+.map-park-area {
+    position: relative;
+    min-height: 500px;
+    padding: 20px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 20px;
+    align-content: start;
+}
+
+.map-exhibit {
+    position: relative;
+    background: linear-gradient(135deg, rgba(45, 74, 34, 0.9), rgba(30, 58, 22, 0.9));
+    border: 2px solid #3d5a32;
+    border-radius: 12px;
+    padding: 15px;
+    min-height: 140px;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    overflow: hidden;
+    backdrop-filter: blur(5px);
+}
+
+.map-exhibit::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(circle, rgba(255,255,255,0.05) 0%, transparent 70%);
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+
+.map-exhibit:hover::before {
+    opacity: 1;
+}
+
+.map-exhibit:hover {
+    transform: translateY(-6px) scale(1.03);
+    border-color: var(--accent);
+    box-shadow: 0 12px 24px rgba(34, 197, 94, 0.3), 0 0 0 2px rgba(34, 197, 94, 0.2);
     z-index: 10;
 }
 
-.map-plot.building {
-    background: linear-gradient(135deg, #4a3b22, #3a2e16);
+.map-exhibit.needs-attention {
     border-color: var(--warn);
-    animation: constructionPulse 2s ease-in-out infinite;
+    animation: attentionPulse 2s ease-in-out infinite;
 }
 
-@keyframes constructionPulse {
+.map-exhibit.critical {
+    border-color: var(--danger);
+    animation: criticalPulse 1.5s ease-in-out infinite;
+}
+
+@keyframes attentionPulse {
     0%, 100% { box-shadow: 0 0 10px rgba(245, 158, 11, 0.3); }
     50% { box-shadow: 0 0 20px rgba(245, 158, 11, 0.6); }
 }
 
-.map-plot.empty {
-    background: linear-gradient(135deg, #3a3a3a, #2a2a2a);
-    border-color: #555;
-    border-style: dashed;
+@keyframes criticalPulse {
+    0%, 100% { box-shadow: 0 0 10px rgba(239, 68, 68, 0.4); }
+    50% { box-shadow: 0 0 25px rgba(239, 68, 68, 0.7); }
+}
+
+.map-exhibit.building {
+    background: linear-gradient(135deg, rgba(74, 59, 34, 0.9), rgba(58, 46, 22, 0.9));
+    border-color: var(--warn);
+}
+
+.exhibit-status-icon {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    font-size: 1.2rem;
+    background: rgba(0,0,0,0.6);
+    padding: 4px 8px;
+    border-radius: 20px;
+    z-index: 2;
+}
+
+.exhibit-name-tag {
+    font-weight: 700;
+    font-size: 0.95rem;
+    margin-bottom: 8px;
+    color: var(--text);
     display: flex;
     align-items: center;
-    justify-content: center;
-    color: var(--muted);
-    font-size: 0.85rem;
-    text-align: center;
+    gap: 6px;
 }
 
-.map-plot.empty:hover {
-    border-color: var(--blue);
-    background: linear-gradient(135deg, #4a4a4a, #3a3a3a);
-}
-
-.plot-header {
-    font-weight: 700;
-    font-size: 0.9rem;
-    margin-bottom: 6px;
-    color: var(--text);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.plot-type {
+.exhibit-type-badge {
     font-size: 0.7rem;
+    padding: 2px 8px;
+    border-radius: 12px;
+    background: rgba(0,0,0,0.4);
     color: var(--muted);
-    margin-bottom: 8px;
+    font-weight: 600;
 }
 
-.plot-animals {
+.exhibit-quick-stats {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: 10px;
+    font-size: 0.8rem;
+}
+
+.exhibit-stat-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: var(--muted);
+}
+
+.exhibit-stat-row strong {
+    color: var(--text);
+}
+
+.exhibit-animal-icons {
     display: flex;
     flex-wrap: wrap;
     gap: 4px;
     margin-top: 8px;
 }
 
-.plot-animal-icon {
-    font-size: 1.3rem;
-    background: rgba(0,0,0,0.4);
-    padding: 2px 5px;
+.animal-icon-badge {
+    font-size: 1.1rem;
+    background: rgba(0,0,0,0.5);
+    padding: 3px 6px;
     border-radius: 6px;
-    cursor: pointer;
     transition: transform 0.2s;
 }
 
-.plot-animal-icon:hover {
-    transform: scale(1.3);
-    background: rgba(34, 197, 94, 0.3);
+.animal-icon-badge:hover {
+    transform: scale(1.2);
 }
 
-.plot-stats {
-    margin-top: 8px;
-    font-size: 0.75rem;
-    color: var(--muted);
-}
-
-.plot-happiness {
-    width: 100%;
-    height: 4px;
-    background: #0b1220;
-    border-radius: 2px;
-    margin-top: 6px;
-    overflow: hidden;
-}
-
-.plot-happiness-fill {
-    height: 100%;
-    background: linear-gradient(90deg, var(--accent), var(--gold));
-    transition: width 0.3s;
-}
-
-.plot-building-progress {
+.exhibit-progress-bar {
     position: absolute;
     bottom: 0;
     left: 0;
     right: 0;
-    height: 6px;
+    height: 5px;
     background: rgba(0,0,0,0.5);
 }
 
-.plot-building-fill {
+.exhibit-progress-fill {
     height: 100%;
     background: linear-gradient(90deg, var(--warn), var(--accent));
     transition: width 0.3s;
 }
 
-.map-legend {
+.exhibit-happiness-bar {
+    width: 100%;
+    height: 4px;
+    background: rgba(0,0,0,0.4);
+    border-radius: 2px;
+    margin-top: 6px;
+    overflow: hidden;
+}
+
+.exhibit-happiness-fill {
+    height: 100%;
+    transition: width 0.3s;
+}
+
+.map-legend-panel {
+    background: rgba(11, 18, 32, 0.8);
+    backdrop-filter: blur(10px);
+    border: 1px solid #243042;
+    border-radius: 10px;
+    padding: 15px;
+    margin-bottom: 20px;
+    position: relative;
+    z-index: 2;
+}
+
+.legend-title {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 10px;
     display: flex;
-    gap: 15px;
+    align-items: center;
+    gap: 6px;
+}
+
+.legend-items {
+    display: flex;
     flex-wrap: wrap;
-    padding: 12px;
-    background: rgba(0,0,0,0.3);
-    border-radius: 8px;
-    margin-bottom: 15px;
+    gap: 12px;
 }
 
 .legend-item {
     display: flex;
     align-items: center;
     gap: 6px;
-    font-size: 0.85rem;
+    font-size: 0.8rem;
     color: var(--muted);
 }
 
-.legend-color {
-    width: 16px;
-    height: 16px;
-    border-radius: 4px;
-    border: 1px solid rgba(255,255,255,0.2);
+.legend-color-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    border: 2px solid rgba(255,255,255,0.2);
 }
 
-.map-controls {
+.map-controls-bar {
     display: flex;
     gap: 10px;
     margin-bottom: 15px;
     flex-wrap: wrap;
+    position: relative;
+    z-index: 2;
+}
+
+.map-filter-btn {
+    padding: 8px 16px;
+    background: rgba(11, 18, 32, 0.8);
+    border: 1px solid #243042;
+    border-radius: 8px;
+    color: var(--text);
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.map-filter-btn:hover {
+    border-color: var(--accent);
+    transform: translateY(-1px);
+}
+
+.map-filter-btn.active {
+    background: var(--accent);
+    color: #000;
+    border-color: var(--accent);
 }
 
 @media (max-width: 768px) {
-    .map-grid {
-        grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
-        gap: 10px;
+    .map-park-area {
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+        gap: 15px;
+        min-height: 400px;
     }
-    .map-plot {
-        min-height: 130px;
-        padding: 10px;
+    .map-exhibit {
+        min-height: 120px;
+        padding: 12px;
     }
-    .plot-animal-icon {
-        font-size: 1.1rem;
+    .map-dashboard {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    .animal-icon-badge {
+        font-size: 1rem;
     }
 }
 /* Mobile Overrides */
@@ -1278,63 +1423,121 @@ grid.appendChild(buildSection);
 }
 
 /* Map */
-
 function renderMap() {
     const box = document.getElementById("map");
     if (!box) return;
     
     const allExhibits = getAllExhibits();
-    const totalPlots = allExhibits.length;
     
-    if (totalPlots === 0) {
+    if (allExhibits.length === 0) {
         box.innerHTML = `
             <div class="map-container">
-                <div style="text-align: center; padding: 60px 20px; color: var(--muted);">
-                    <div style="font-size: 4rem; margin-bottom: 15px;">🗺️</div>
-                    <h2>Your Zoo Map</h2>
-                    <p style="margin: 10px 0 20px;">Build your first exhibit to see it on the map!</p>
-                    <button class="primary-btn" onclick="document.getElementById('buildExhibitBtn').click()">🏗 Build Your First Exhibit</button>
+                <div style="text-align: center; padding: 80px 20px; color: var(--muted); position: relative; z-index: 2;">
+                    <div style="font-size: 5rem; margin-bottom: 20px; animation: floatUp 3s ease-in-out infinite alternate;">🗺️</div>
+                    <h2 style="color: var(--text); margin-bottom: 10px;">Your Zoo Awaits</h2>
+                    <p style="max-width: 400px; margin: 0 auto 25px; line-height: 1.6;">Build your first exhibit to start creating your wildlife sanctuary!</p>
+                    <button class="primary-btn" onclick="document.getElementById('buildExhibitBtn').click()" style="padding: 14px 28px; font-size: 1rem;">🏗 Build First Exhibit</button>
                 </div>
             </div>
         `;
         return;
     }
     
-    // Count exhibit types for legend
+    // Calculate dashboard stats
+    const totalAnimals = allExhibits.reduce((sum, { exhibit }) => sum + (exhibit.animals?.length || 0), 0);
+    const avgHappiness = allExhibits.length > 0 
+        ? Math.round(allExhibits.reduce((sum, { exhibit }) => sum + getExhibitHappiness(exhibit), 0) / allExhibits.length)
+        : 0;
+    const needsAttention = allExhibits.filter(({ exhibit }) => {
+        const happiness = getExhibitHappiness(exhibit);
+        const fence = exhibit.fenceCondition ?? 100;
+        return happiness < 50 || fence < 50 || exhibit.animals?.some(a => (a.health ?? 100) < 40);
+    }).length;
+    const underConstruction = allExhibits.filter(({ exhibit }) => exhibit.buildDaysRemaining > 0).length;
+    
+    // Build dashboard
+    const dashboardHTML = `
+        <div class="map-dashboard">
+            <div class="map-stat-card">
+                <div class="map-stat-label">Total Exhibits</div>
+                <div class="map-stat-value">${allExhibits.length}</div>
+            </div>
+            <div class="map-stat-card">
+                <div class="map-stat-label">Animals</div>
+                <div class="map-stat-value good">${totalAnimals}</div>
+            </div>
+            <div class="map-stat-card">
+                <div class="map-stat-label">Avg Happiness</div>
+                <div class="map-stat-value ${avgHappiness >= 80 ? 'good' : avgHappiness >= 50 ? 'warn' : 'danger'}">${avgHappiness}%</div>
+            </div>
+            <div class="map-stat-card">
+                <div class="map-stat-label">Needs Attention</div>
+                <div class="map-stat-value ${needsAttention > 0 ? 'danger' : 'good'}">${needsAttention}</div>
+            </div>
+            <div class="map-stat-card">
+                <div class="map-stat-label">Under Construction</div>
+                <div class="map-stat-value warn">${underConstruction}</div>
+            </div>
+        </div>
+    `;
+    
+    // Build legend
     const typeCounts = {};
     allExhibits.forEach(({ exhibit }) => {
         const type = exhibit.type || 'terrestrial';
-        const exhibitType = data.exhibitTypes[type] || data.exhibitTypes.terrestrial || { emoji: '️', name: 'Exhibit' };
+        const exhibitType = data.exhibitTypes[type] || data.exhibitTypes.terrestrial || { emoji: '🏞️', name: 'Exhibit', color: '#22c55e' };
         typeCounts[type] = (typeCounts[type] || 0) + 1;
     });
     
-    let legendHTML = '<div class="map-legend"><strong style="color: var(--text); margin-right: 10px;">Legend:</strong>';
+    let legendHTML = '<div class="map-legend-panel"><div class="legend-title">🗺️ Exhibit Types</div><div class="legend-items">';
     for (const [typeId, count] of Object.entries(typeCounts)) {
         const exhibitType = data.exhibitTypes[typeId] || data.exhibitTypes.terrestrial || { emoji: '🏞️', name: 'Exhibit', color: '#22c55e' };
-        legendHTML += `<div class="legend-item"><div class="legend-color" style="background: ${exhibitType.color || '#22c55e'}"></div>${exhibitType.emoji} ${exhibitType.name} (${count})</div>`;
+        legendHTML += `<div class="legend-item"><div class="legend-color-dot" style="background: ${exhibitType.color || '#22c55e'}"></div>${exhibitType.emoji} ${exhibitType.name} (${count})</div>`;
     }
-    legendHTML += '</div>';
+    legendHTML += '</div></div>';
     
-    let plotsHTML = '';
+    // Build exhibit cards
+    let exhibitsHTML = '';
     
     allExhibits.forEach(({ exhibit, isHouse, houseId }) => {
         const isBuilding = exhibit.buildDaysRemaining > 0;
-        const exhibitType = data.exhibitTypes[exhibit.type] || data.exhibitTypes.terrestrial || { emoji: '️', name: 'Standard Exhibit', color: '#22c55e' };
+        const exhibitType = data.exhibitTypes[exhibit.type] || data.exhibitTypes.terrestrial || { emoji: '🏞️', name: 'Standard Exhibit', color: '#22c55e' };
         const happiness = getExhibitHappiness(exhibit);
+        const fence = exhibit.fenceCondition ?? 100;
         const animalCount = exhibit.animals?.length || 0;
+        const hasSickAnimals = exhibit.animals?.some(a => (a.health ?? 100) < 40);
+        
+        // Determine status
+        let statusClass = '';
+        let statusIcon = '';
+        if (isBuilding) {
+            statusClass = 'building';
+            statusIcon = '🏗️';
+        } else if (hasSickAnimals || fence < 30) {
+            statusClass = 'critical';
+            statusIcon = '🚨';
+        } else if (happiness < 50 || fence < 50) {
+            statusClass = 'needs-attention';
+            statusIcon = '⚠️';
+        } else if (happiness >= 90) {
+            statusIcon = '✨';
+        }
         
         // Get animal icons
         let animalIcons = '';
         if (animalCount > 0) {
             const uniqueAnimals = [...new Set(exhibit.animals.map(a => a.id))];
-            animalIcons = uniqueAnimals.slice(0, 6).map(animalId => {
+            animalIcons = uniqueAnimals.slice(0, 8).map(animalId => {
                 const animalData = data.animals.find(a => a.id === animalId);
-                return `<span class="plot-animal-icon" onclick="event.stopPropagation(); showAnimalOnMap('${animalId}', '${exhibit.id}')" title="${animalData?.name || animalId}">${animalData?.emoji || '🐾'}</span>`;
+                return `<span class="animal-icon-badge" onclick="event.stopPropagation(); showAnimalOnMap('${animalId}', '${exhibit.id}')" title="${animalData?.name || animalId}">${animalData?.emoji || '🐾'}</span>`;
             }).join('');
-            if (uniqueAnimals.length > 6) {
-                animalIcons += `<span style="font-size: 0.75rem; color: var(--muted);">+${uniqueAnimals.length - 6} more</span>`;
+            if (uniqueAnimals.length > 8) {
+                animalIcons += `<span style="font-size: 0.75rem; color: var(--muted); padding: 3px 6px;">+${uniqueAnimals.length - 8}</span>`;
             }
         }
+        
+        // Happiness bar color
+        const happinessColor = happiness >= 80 ? 'var(--accent)' : happiness >= 50 ? 'var(--warn)' : 'var(--danger)';
         
         // Building progress
         let buildingHTML = '';
@@ -1342,52 +1545,67 @@ function renderMap() {
             const sizeInfo = EXHIBIT_SIZES[exhibit.size] || EXHIBIT_SIZES.small;
             const progress = ((sizeInfo.buildDays - exhibit.buildDaysRemaining) / sizeInfo.buildDays) * 100;
             buildingHTML = `
-                <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; color: var(--warn); font-weight: 700;">
-                    <div style="font-size: 2rem; margin-bottom: 8px;">🏗</div>
-                    <div style="font-size: 0.85rem;">${exhibit.buildDaysRemaining} days</div>
-                </div>
-                <div class="plot-building-progress"><div class="plot-building-fill" style="width: ${progress}%"></div></div>
+                <div class="exhibit-progress-bar"><div class="exhibit-progress-fill" style="width: ${progress}%"></div></div>
             `;
         }
         
-        const plotClass = `map-plot ${isBuilding ? 'building' : ''} ${animalCount === 0 && !isBuilding ? 'empty' : ''}`;
-        const bgColor = exhibitType.color || '#22c55e';
-        
-        plotsHTML += `
-            <div class="${plotClass}" onclick="jumpToExhibit('${exhibit.id}')" style="${!isBuilding ? `border-top: 3px solid ${bgColor}` : ''}">
-                ${buildingHTML}
-                <div class="plot-header">${exhibit.name}</div>
-                <div class="plot-type">${exhibitType.emoji} ${exhibitType.name} • ${exhibit.size}</div>
+        exhibitsHTML += `
+            <div class="map-exhibit ${statusClass}" onclick="jumpToExhibit('${exhibit.id}')" style="border-top: 4px solid ${exhibitType.color || '#22c55e'}">
+                ${statusIcon ? `<div class="exhibit-status-icon">${statusIcon}</div>` : ''}
+                <div class="exhibit-name-tag">
+                    <span>${exhibitType.emoji}</span>
+                    <span style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${exhibit.name}</span>
+                </div>
+                <div class="exhibit-type-badge">${exhibitType.name} • ${exhibit.size}</div>
                 ${!isBuilding ? `
-                    <div class="plot-stats">
-                        <div>🐾 ${animalCount} animal${animalCount !== 1 ? 's' : ''}</div>
-                        <div>😊 ${happiness}% happiness</div>
+                    <div class="exhibit-quick-stats">
+                        <div class="exhibit-stat-row">
+                            <span>🐾 Animals</span>
+                            <strong>${animalCount}</strong>
+                        </div>
+                        <div class="exhibit-stat-row">
+                            <span>😊 Happiness</span>
+                            <strong style="color: ${happinessColor}">${happiness}%</strong>
+                        </div>
+                        <div class="exhibit-stat-row">
+                            <span>🔒 Fence</span>
+                            <strong style="color: ${fence >= 70 ? 'var(--accent)' : fence >= 50 ? 'var(--warn)' : 'var(--danger)'}">${Math.round(fence)}%</strong>
+                        </div>
                     </div>
-                    <div class="plot-happiness"><div class="plot-happiness-fill" style="width: ${happiness}%"></div></div>
-                    <div class="plot-animals">${animalIcons}</div>
-                ` : ''}
+                    <div class="exhibit-happiness-bar">
+                        <div class="exhibit-happiness-fill" style="width: ${happiness}%; background: ${happinessColor}"></div>
+                    </div>
+                    <div class="exhibit-animal-icons">${animalIcons}</div>
+                ` : `
+                    <div style="text-align: center; padding: 15px 0; color: var(--warn);">
+                        <div style="font-size: 2rem; margin-bottom: 8px;">🏗️</div>
+                        <div style="font-size: 0.85rem; font-weight: 700;">${exhibit.buildDaysRemaining} days left</div>
+                    </div>
+                `}
+                ${buildingHTML}
             </div>
         `;
     });
     
     box.innerHTML = `
         <div class="map-container">
-            <div style="margin-bottom: 15px;">
-                <h2 style="margin: 0 0 5px 0;">🗺️ Zoo Map</h2>
-                <p style="margin: 0; color: var(--muted); font-size: 0.9rem;">Click on any exhibit to manage it</p>
+            <div style="margin-bottom: 15px; position: relative; z-index: 2;">
+                <h2 style="margin: 0 0 5px 0; color: var(--text);">🗺️ Zoo Overview</h2>
+                <p style="margin: 0; color: var(--muted); font-size: 0.9rem;">Click any exhibit to manage it • Hover for details</p>
             </div>
+            ${dashboardHTML}
             ${legendHTML}
-            <div class="map-grid">${plotsHTML}</div>
-            <div style="text-align: center; padding: 15px; background: rgba(0,0,0,0.2); border-radius: 8px;">
-                <button class="primary-btn" onclick="document.getElementById('buildExhibitBtn').click()">➕ Add New Exhibit</button>
-                <button class="secondary-btn" onclick="document.getElementById('buildExhibitBtn').click()" style="margin-left: 10px;">🏠 Build House</button>
+            <div class="map-park-area">
+                ${exhibitsHTML}
+            </div>
+            <div style="text-align: center; padding: 20px; background: rgba(0,0,0,0.3); border-radius: 10px; margin-top: 20px; position: relative; z-index: 2;">
+                <button class="primary-btn" onclick="document.getElementById('buildExhibitBtn').click()" style="padding: 12px 24px;">➕ Add New Exhibit</button>
             </div>
         </div>
     `;
 }
 
 function jumpToExhibit(exhibitId) {
-    // Switch to exhibits tab and scroll to the exhibit
     showSection('exhibits');
     setTimeout(() => {
         const exhibitCards = document.querySelectorAll('.exhibitCard');
@@ -1402,7 +1620,6 @@ function jumpToExhibit(exhibitId) {
 }
 
 function showAnimalOnMap(animalId, exhibitId) {
-    // Open animal info for the first animal of this type in the exhibit
     const ctx = getExhibitContext(exhibitId);
     if (!ctx) return;
     const animal = ctx.exhibit.animals.find(a => a.id === animalId);
@@ -1411,7 +1628,6 @@ function showAnimalOnMap(animalId, exhibitId) {
         openAnimalInfo(animal, exhibitId, index);
     }
 }
-    
 /* --------------------------------------------------------------------------
 🍖 10. ANIMAL CARE (Food, Breeding, Health, Fences)
 -------------------------------------------------------------------------- */
