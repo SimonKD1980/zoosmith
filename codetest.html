@@ -6,7 +6,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>ZooSmith V0.3.10</title>
+    <title>ZooSmith V0.3.11</title>
     
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script type="module">
@@ -611,6 +611,17 @@ ticketSatisfactionImpact: 0
     const houseAnimals = getAllHouseAnimals();
     return regularAnimals.concat(houseAnimals);
 }
+
+        function getAllExhibits() {
+    const exhibits = [];
+    for (const id in state.exhibits) exhibits.push({ exhibit: state.exhibits[id], isHouse: false, houseId: null });
+    for (const houseId in state.houses) {
+        for (const exId in state.houses[houseId].exhibits) {
+            exhibits.push({ exhibit: state.houses[houseId].exhibits[exId], isHouse: true, houseId: houseId });
+        }
+    }
+    return exhibits;
+}
         function countAnimals(id) { return getAllAnimals().filter(a => a.id === id).length; }
         function getNextAnimalName(speciesName) {
             if (!state.animalCounters[speciesName]) state.animalCounters[speciesName] = 1;
@@ -888,6 +899,14 @@ state.visitorSatisfaction = Math.max(0, Math.min(100, baseSatisfaction - penalty
         function processAnimalIncome() {
             let totalIncome = 0;
             for (const id in state.exhibits) for (const animal of state.exhibits[id].animals) totalIncome += calculateAnimalIncome(animal);
+            // Add house animals
+for (const houseId in state.houses) {
+    for (const exId in state.houses[houseId].exhibits) {
+        for (const animal of state.houses[houseId].exhibits[exId].animals) {
+            totalIncome += calculateAnimalIncome(animal);
+        }
+    }
+}
             if (totalIncome > 0) state.money += totalIncome;
         }
         function processUpkeep() {
@@ -1072,6 +1091,14 @@ houseIds.forEach(houseId => {
             }
             if (hungryAnimals.length > 0) { addTicker(`⚠️ ${hungryAnimals.join(', ')}`); showToast("Animals are hungry! Buy more food!", "error"); }
             return consumption;
+
+            for (const houseId in state.houses) {
+    for (const exId in state.houses[houseId].exhibits) {
+        for (const animal of state.houses[houseId].exhibits[exId].animals) {
+            consumption[getDietFoodType(animal.diet)] += animal.isPregnant ? 2 : 1;
+        }
+    }
+}
         }
         function tryBreeding(exhibit) {
             const animals = exhibit.animals; if (!animals || animals.length < 2) return;
@@ -2199,6 +2226,19 @@ function switchUpgradeTab(type) {
             else if (newTier.tierNum < oldTier.tierNum) { addTicker(`📉 Zoo rating dropped to ${newTier.emoji} ${newTier.label}`); showToast(`Zoo rating dropped!`, "warn"); }
             saveGame(); triggerRandomEvent();
         }
+        for (const houseId in state.houses) {
+    for (const exId in state.houses[houseId].exhibits) {
+        const exhibit = state.houses[houseId].exhibits[exId];
+        for (const animal of exhibit.animals) {
+            animal.ageDays = (animal.ageDays || 0) + 1;
+            if (animal.ageDays === 30) addTicker(`🎂 ${animal.name} is now a juvenile!`);
+            else if (animal.ageDays === 90) addTicker(`🎉 ${animal.name} has reached adulthood!`);
+            else if (animal.ageDays === 365) addTicker(`👴 ${animal.name} is now a senior.`);
+            if (shouldDieOfOldAge(animal)) deaths.push({ animal, exhibitId: exId, cause: 'old age', houseId: houseId });
+            if (animal.sick && Math.random() < 0.05) deaths.push({ animal, exhibitId: exId, cause: 'sickness', houseId: houseId });
+        }
+    }
+}
         function updateTicketPrice(newPrice) {
     const price = parseInt(newPrice);
     if (price < 5 || price > 100) return;
@@ -2240,6 +2280,7 @@ function switchUpgradeTab(type) {
 }
         
         function updateUI() {
+            const allAnimals = getAllAnimals(); 
             document.getElementById("zooNameDisplay").textContent = state.zooName || "My Zoo";
             document.getElementById("money").textContent = state.money.toLocaleString(undefined, { maximumFractionDigits: 2 });
             document.getElementById("day").textContent = state.day; document.getElementById("month").textContent = state.month; document.getElementById("year").textContent = state.year; document.getElementById("ticketPrice").textContent = `$${state.ticketPrice}`;
@@ -2502,21 +2543,23 @@ function deleteZoo(profileId) {
 }
 
 function resetStateToDefault() {
-    state = {
-        money: 10000, food: { hay: 30, meat: 20, produce: 15 },
-        day: 1, month: 1, year: 1, ticketPrice: 20,
-        exhibits: {}, builtEnclosures: {}, zooFacilities: [], hiredStaff: [],
-        achievements: {}, animalCounters: {}, monthlyReports: [],
-        moveState: { active: false, fromExhibit: null, animalIndex: null },
-        uiMode: "normal", pendingAnimal: null, activeUpgradeExhibit: null,
-        bredAnimals: 0, animalsSold: 0, daysSinceNewAnimal: 0,
-        dailyVisitors: 0, visitorSpending: { food: 0, gifts: 0, total: 0 },
-        visitorComplaints: [], amenities: {}, visitorSatisfaction: 0,
-        maintenance: { dailyMaintenanceCost: 0 }, completedResearch: [], activeResearch: null,
-        maintenanceWorkers: 0, maintenanceLevel: 0, tutorialStep: 0, tutorialSkipped: false,
-        recentDeathPenalty: 0, zooRating: 0, unnaturalDeaths: 0, naturalDeaths: 0, totalDeaths: 0,
-        zooName: "Unnamed Zoo"
-    };
+state = {
+money: 10000, food: { hay: 30, meat: 20, produce: 15 },
+day: 1, month: 1, year: 1, ticketPrice: 20,
+ticketPriceImpact: 0, ticketSatisfactionImpact: 0,
+exhibits: {}, builtEnclosures: {}, zooFacilities: [], hiredStaff: [],
+achievements: {}, animalCounters: {}, monthlyReports: [],
+moveState: { active: false, fromExhibit: null, animalIndex: null },
+uiMode: "normal", pendingAnimal: null, activeUpgradeExhibit: null,
+bredAnimals: 0, animalsSold: 0, daysSinceNewAnimal: 0,
+dailyVisitors: 0, visitorSpending: { food: 0, gifts: 0, total: 0 },
+visitorComplaints: [], amenities: {}, visitorSatisfaction: 0,
+maintenance: { dailyMaintenanceCost: 0 }, completedResearch: [], activeResearch: null,
+maintenanceWorkers: 0, maintenanceLevel: 0, tutorialStep: 0, tutorialSkipped: false,
+houses: {},
+recentDeathPenalty: 0, zooRating: 0, unnaturalDeaths: 0, naturalDeaths: 0, totalDeaths: 0,
+zooName: "Unnamed Zoo"
+};
 }
 
 function refreshAllUI() {
