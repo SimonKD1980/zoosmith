@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>ZooSmith V0.4.0</title>
+<title>ZooSmith V0.4.1</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
@@ -497,6 +497,12 @@ if (diet === "Omnivore") return "produce";
 return "hay";
 }
 
+function getActualFoodCost(animal) {
+    const foodType = getDietFoodType(animal.diet);
+    const units = animal.isPregnant ? 2 : 1;
+    return FOOD_TYPES[foodType].costPerUnit * units;
+}
+
 const TIER_INFO = {
 basic:     { label: "Basic",     color: "#22c55e", emoji: "🟢" },
 advanced:  { label: "Advanced",  color: "#3b82f6", emoji: "🔵" },
@@ -534,7 +540,7 @@ visitorComplaints: [], amenities: {}, visitorSatisfaction: 0,
 maintenance: { dailyMaintenanceCost: 0 }, completedResearch: [], activeResearch: null,
 maintenanceWorkers: 0, maintenanceLevel: 0, tutorialStep: 0, tutorialSkipped: false, houses: {},
 recentDeathPenalty: 0, zooRating: 0, unnaturalDeaths: 0, naturalDeaths: 0, totalDeaths: 0, ticketPriceImpact: 0,
-ticketSatisfactionImpact: 0, zooName: "My Zoo"
+ticketSatisfactionImpact: 0, zooName: "My Zoo", monthlyIncomeTracker: 0
 };
 
 /* --------------------------------------------------------------------------
@@ -877,8 +883,19 @@ for (const animal of allAnimals) totalIncome += calculateAnimalIncome(animal);
 if (totalIncome > 0) state.money += totalIncome;
 }
 function processUpkeep() {
-let totalCost = 0; for (const id in state.exhibits) totalCost += 5;
-state.money -= totalCost; if (totalCost > 0) addTicker(`🧾 Facility upkeep: -$${totalCost}`);
+    let totalCost = 0;
+    for (const id in state.exhibits) totalCost += 5;
+    
+    // Add upkeep for houses and their exhibits
+    for (const houseId in state.houses) {
+        totalCost += 10; // Base house upkeep
+        for (const exId in state.houses[houseId].exhibits) {
+            totalCost += 5; // Upkeep for exhibits inside the house
+        }
+    }
+    
+    state.money -= totalCost;
+    if (totalCost > 0) addTicker(`🧾 Facility upkeep: -$${totalCost}`);
 }
 function buildHouse(typeId) {
 const houseType = data.houses[typeId];
@@ -1141,7 +1158,7 @@ else if (exhibit.fenceCondition < 50 && Math.random() < 0.1 && exhibit.animals.l
 }
 }
 function processAnimalHealth() {
-state.recentDeathPenalty = Math.min(50, state.recentDeathPenalty + 15);
+
 const understaffed = isUnderstaffed();
 const allExhibits = getAllExhibits();
 
@@ -1238,7 +1255,7 @@ if (!group.id) group.id = id; // Ensure ID exists
 const isBuilt = !!state.builtEnclosures[id]; const isBuilding = group.buildDaysRemaining > 0;
 const happiness = getExhibitHappiness(group); const upgradeCount = group.upgrades?.length || 0;
 const sizeInfo = EXHIBIT_SIZES[group.size] || EXHIBIT_SIZES.small;
-const dailyFoodCost = group.animals.reduce((sum, a) => sum + (a.foodCost || 2), 0); const dailyExhibitCost = 5 + dailyFoodCost;
+const dailyFoodCost = group.animals.reduce((sum, a) => sum + getActualFoodCost(a), 0); const dailyExhibitCost = 5 + dailyFoodCost;
 const fenceCondition = group.fenceCondition ?? 100;
 const fenceColor = fenceCondition >= 70 ? 'var(--accent)' : fenceCondition >= 50 ? 'var(--warn)' : fenceCondition >= 30 ? 'var(--danger)' : '#dc2626';
 const fenceEmoji = fenceCondition >= 70 ? '✅' : fenceCondition >= 50 ? '⚠️' : fenceCondition >= 30 ? '🔶' : '🔴';
@@ -1366,7 +1383,7 @@ ${animal.category ? `<span class="stat-badge purple">${animal.category}</span>` 
 </div>
 <p class="card-desc">${animal.info}</p>
 <div class="card-price">$${animal.cost.toLocaleString()}<small>📈 Earns $${animal.dailyIncome}/day</small></div>
-<div style="display:flex; gap:6px; flex-wrap:wrap; margin: 6px 0;"><span class="stat-badge warn">🍖 Food: $${animal.foodCost}/day</span><span class="stat-badge green">💰 Net: $${animal.dailyIncome - animal.foodCost}/day</span></div>
+<div style="display:flex; gap:6px; flex-wrap:wrap; margin: 6px 0;"><span class="stat-badge warn">🍖 Food: $${FOOD_TYPES[getDietFoodType(animal.diet)].costPerUnit}/day</span><span class="stat-badge green">💰 Net: $${animal.dailyIncome - FOOD_TYPES[getDietFoodType(animal.diet)].costPerUnit}/day</span></div>
 <button class="primary-btn">Add to Zoo</button></div>`;
 card.querySelector(".primary-btn").onclick = () => openBuyModal(animal); grid.appendChild(card);
 });
@@ -1699,7 +1716,7 @@ ${thoughts.map(t => `
 ` : '';
 content.innerHTML = `<h2>${animal.name}</h2><p>${stage.emoji} Life Stage: <strong>${stage.label}</strong> • Age: <strong>${ageDisplay}</strong></p>
 <p>💰 Income: $${actualIncome}/day ${stage.incomeMultiplier !== 1 ? `<small style="color:var(--muted);">(base $${animal.dailyIncome} × ${stage.incomeMultiplier})</small>` : ''}</p>
-<p>🍖 Food: $${animal.foodCost || 2}/day ${animal.isPregnant ? '<small style="color:var(--warn);">(×2 pregnant)</small>' : ''}</p>
+<p>🍖 Food: $${getActualFoodCost(animal)}/day ${animal.isPregnant ? '<small style="color:var(--warn);">(×2 pregnant)</small>' : ''}</p>
 <p>👥 Needs: ${animal.minInExhibit} - ${animal.maxInExhibit}</p><p>🏞 Exhibit: ${exhibit.name ?? "Unknown"}</p>
 ${thoughtsHTML}
 ${animal.variation ? `<p>✨ Variant: ${animal.variation.name}</p>` : ""}<p>🍼 Born in zoo: ${animal.bornInZoo ? "Yes" : "No"}</p>
@@ -1869,8 +1886,7 @@ const box = document.getElementById("exhibits");
 const ctx = getExhibitContext(state.moveState.fromExhibit);
 if (!ctx) return;
 const fromGroup = ctx.exhibit;
-box.innerHTML = `<div class="exhibitCard" style="grid-column: 1 / -1;"><div class="exhibit-header"><h3>🔄 Move Animal Mode</h3></div><div class="exhibit-body"><p>Step 1: Click an animal to move</p><div class="animalList">${fromGroup.animals.map((a, i) => `<span class="animalTag" data-index="${i}">${a.name}</span>`).join("")}</div><button class="danger-btn" onclick="cancelMove()">Cancel</button></div></div>`;
-document.querySelectorAll(".animalTag").forEach(tag => { tag.onclick = () => { state.moveState.animalIndex = parseInt(tag.dataset.index); renderDestinationSelection(); }; });
+box.innerHTML = `<div class="exhibitCard" style="grid-column: 1 / -1;"><div class="exhibit-header"><h3>🔄 Move Animal Mode</h3></div><div class="exhibit-body"><p>Step 1: Click an animal to move</p><div class="animalList">${fromGroup.animals.map((a, i) => `<span class="animalTag" data-exhibit="${state.moveState.fromExhibit}" data-index="${i}">${a.name}</span>`).join("")}</div><button class="danger-btn" onclick="cancelMove()">Cancel</button></div></div>`;
 }
 function renderDestinationSelection() {
 const box = document.getElementById("exhibits"); 
@@ -1943,10 +1959,10 @@ const info = EXHIBIT_SIZES[size]; const exhibitType = data.exhibitTypes[type];
 if (!exhibitType) return showToast("Invalid exhibit type!", "error");
 if (exhibitType.unlockResearch && !isResearchComplete(exhibitType.unlockResearch)) return showToast(`🔒 ${exhibitType.name} requires research!`, "error");
 if (state.money < info.cost) return showToast("Not enough money!", "error");
-state.money -= info.cost; showFloatingMoney(-info.cost);
-const next = Object.keys(state.exhibits).length + 1; const id = "exhibit" + next;
-state.exhibits[id] = { id: id, name: `${exhibitType.name} ${next}`, size: size, type: type, animals: [], upgrades: [], buildDaysRemaining: info.buildDays, fenceCondition: 100 };
-addTicker(`🏗 Started building ${exhibitType.emoji} ${info.label} ${exhibitType.name} (ready in ${info.buildDays} days)`);
+    state.money -= info.cost; showFloatingMoney(-info.cost);
+    const id = "exhibit_" + Date.now();
+    const exhibitCount = Object.keys(state.exhibits).length + 1;
+    state.exhibits[id] = { id: id, name: `${exhibitType.name} ${exhibitCount}`, size: size, type: type, animals: [], upgrades: [], buildDaysRemaining: info.buildDays, fenceCondition: 100 };addTicker(`🏗 Started building ${exhibitType.emoji} ${info.label} ${exhibitType.name} (ready in ${info.buildDays} days)`);
 updateUI(); renderExhibits();
 }
 
@@ -2083,9 +2099,11 @@ function escapeHtml(text) { const div = document.createElement('div'); div.textC
 💾 15. SAVE/LOAD, TUTORIAL & CORE LOOP
 -------------------------------------------------------------------------- */
 function showMonthlyReport() {
-const attraction = calculateAttraction(); const visitors = generateVisitors();
-state.monthlyReports.unshift({ month: state.month, year: state.year, attraction, visitors, guestHappiness: calculateGuestHappiness(), income: visitors * state.ticketPrice * 30 });
-renderReports();
+    const attraction = calculateAttraction(); const visitors = generateVisitors();
+    const actualMonthlyIncome = state.monthlyIncomeTracker || 0;
+    state.monthlyReports.unshift({ month: state.month, year: state.year, attraction, visitors, guestHappiness: calculateGuestHappiness(), income: actualMonthlyIncome });
+    state.monthlyIncomeTracker = 0; // Reset tracker for the new month
+    renderReports();
 }
 function advanceDay() {
 if (state.activeEvent) { showToast("Resolve the current event before ending the day!", "warn"); return; }
@@ -2105,6 +2123,7 @@ else if (condition < 70 && condition >= 50) addTicker(`⚠️ ${exhibit.name} fe
 
 renderExhibits(); renderHouses();
 const delta = state.money - startMoney; if (delta !== 0) showFloatingMoney(delta);
+state.monthlyIncomeTracker = (state.monthlyIncomeTracker || 0) + delta;  
 state.daysSinceNewAnimal++;
 
 const deaths = [];
@@ -2114,8 +2133,11 @@ animal.ageDays = (animal.ageDays || 0) + 1;
 if (animal.ageDays === 30) addTicker(`🎂 ${animal.name} is now a juvenile!`);
 else if (animal.ageDays === 90) addTicker(`🎉 ${animal.name} has reached adulthood!`);
 else if (animal.ageDays === 365) addTicker(`👴 ${animal.name} is now a senior.`);
-if (shouldDieOfOldAge(animal)) deaths.push({ animal, exhibit, cause: 'old age' });
-if (animal.sick && Math.random() < 0.05) deaths.push({ animal, exhibit, cause: 'sickness' });
+if (shouldDieOfOldAge(animal)) {
+    deaths.push({ animal, exhibit, cause: 'old age' });
+} else if (animal.sick && Math.random() < 0.05) {
+    deaths.push({ animal, exhibit, cause: 'sickness' });
+}
 }
 }
 
@@ -2317,6 +2339,7 @@ state.ticketPriceImpact ??= 0;
 state.ticketSatisfactionImpact ??= 0;
 state.unnaturalDeaths ??= 0; state.naturalDeaths ??= 0; state.totalDeaths ??= 0;
 state.zooName = profile.zooName || "Unnamed Zoo";
+state.monthlyIncomeTracker ??= 0;
 if (getAllAnimals().length > 0 || Object.keys(state.exhibits).length > 0) {
 state.tutorialSkipped = true; state.tutorialStep = TUTORIAL_STEPS.length;
 }
@@ -2475,7 +2498,6 @@ renderAchievements(); renderReports(); renderHouses();
 /* --------------------------------------------------------------------------
 🚀 16. INITIALIZATION & EVENT LISTENERS
 -------------------------------------------------------------------------- */
-document.getElementById("endDayBtn").onclick = advanceDay;
 document.getElementById("resetGameBtn").onclick = () => {
 if (!confirm("Are you sure you want to reset your CURRENT zoo? This cannot be undone.")) return;
 resetStateToDefault();
@@ -2495,6 +2517,8 @@ window.addEventListener("beforeunload", saveGame);
 setTimeout(renderTutorial, 1000);
 const originalAdvanceDay = advanceDay;
 window.advanceDay = function() { originalAdvanceDay(); setTimeout(renderTutorial, 100); };
+document.getElementById("endDayBtn").onclick = advanceDay;
+
 // Mobile touch optimizations
 let lastTouchEnd = 0;
 document.addEventListener('touchend', (e) => { const now = Date.now(); if (now - lastTouchEnd <= 300) e.preventDefault(); lastTouchEnd = now; }, { passive: false });
