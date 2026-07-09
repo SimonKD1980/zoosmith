@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>ZooSmith V0.4.1</title>
+<title>ZooSmith V0.4.2</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
@@ -265,6 +265,190 @@ box-shadow: 0 2px 4px rgba(0,0,0,0.3);
 input[type="range"]:hover {
 transform: scale(1.05);
 }
+
+/* Zoo Map Styles */
+.map-container {
+    background: linear-gradient(135deg, #1a4d2e, #2d6a4f);
+    border-radius: var(--radius);
+    padding: 20px;
+    min-height: 600px;
+    position: relative;
+    border: 3px solid #1e5631;
+    box-shadow: inset 0 0 50px rgba(0,0,0,0.3);
+}
+
+.map-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+.map-plot {
+    background: linear-gradient(135deg, #2d4a22, #1e3a16);
+    border: 2px solid #3d5a32;
+    border-radius: 12px;
+    padding: 12px;
+    min-height: 160px;
+    position: relative;
+    cursor: pointer;
+    transition: all 0.3s;
+    overflow: hidden;
+}
+
+.map-plot:hover {
+    transform: translateY(-4px) scale(1.03);
+    border-color: var(--accent);
+    box-shadow: 0 8px 20px rgba(34, 197, 94, 0.4);
+    z-index: 10;
+}
+
+.map-plot.building {
+    background: linear-gradient(135deg, #4a3b22, #3a2e16);
+    border-color: var(--warn);
+    animation: constructionPulse 2s ease-in-out infinite;
+}
+
+@keyframes constructionPulse {
+    0%, 100% { box-shadow: 0 0 10px rgba(245, 158, 11, 0.3); }
+    50% { box-shadow: 0 0 20px rgba(245, 158, 11, 0.6); }
+}
+
+.map-plot.empty {
+    background: linear-gradient(135deg, #3a3a3a, #2a2a2a);
+    border-color: #555;
+    border-style: dashed;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--muted);
+    font-size: 0.85rem;
+    text-align: center;
+}
+
+.map-plot.empty:hover {
+    border-color: var(--blue);
+    background: linear-gradient(135deg, #4a4a4a, #3a3a3a);
+}
+
+.plot-header {
+    font-weight: 700;
+    font-size: 0.9rem;
+    margin-bottom: 6px;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.plot-type {
+    font-size: 0.7rem;
+    color: var(--muted);
+    margin-bottom: 8px;
+}
+
+.plot-animals {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 8px;
+}
+
+.plot-animal-icon {
+    font-size: 1.3rem;
+    background: rgba(0,0,0,0.4);
+    padding: 2px 5px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+
+.plot-animal-icon:hover {
+    transform: scale(1.3);
+    background: rgba(34, 197, 94, 0.3);
+}
+
+.plot-stats {
+    margin-top: 8px;
+    font-size: 0.75rem;
+    color: var(--muted);
+}
+
+.plot-happiness {
+    width: 100%;
+    height: 4px;
+    background: #0b1220;
+    border-radius: 2px;
+    margin-top: 6px;
+    overflow: hidden;
+}
+
+.plot-happiness-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), var(--gold));
+    transition: width 0.3s;
+}
+
+.plot-building-progress {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 6px;
+    background: rgba(0,0,0,0.5);
+}
+
+.plot-building-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--warn), var(--accent));
+    transition: width 0.3s;
+}
+
+.map-legend {
+    display: flex;
+    gap: 15px;
+    flex-wrap: wrap;
+    padding: 12px;
+    background: rgba(0,0,0,0.3);
+    border-radius: 8px;
+    margin-bottom: 15px;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.85rem;
+    color: var(--muted);
+}
+
+.legend-color {
+    width: 16px;
+    height: 16px;
+    border-radius: 4px;
+    border: 1px solid rgba(255,255,255,0.2);
+}
+
+.map-controls {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 15px;
+    flex-wrap: wrap;
+}
+
+@media (max-width: 768px) {
+    .map-grid {
+        grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+        gap: 10px;
+    }
+    .map-plot {
+        min-height: 130px;
+        padding: 10px;
+    }
+    .plot-animal-icon {
+        font-size: 1.1rem;
+    }
+}
 /* Mobile Overrides */
 @media (max-width: 768px) {
 * { touch-action: manipulation; }
@@ -375,6 +559,7 @@ button { padding: 12px; font-size: 14px; min-height: 44px; }
 </header>
 <div class="nav">
 <button onclick="showSection('leaderboard', event)">🏆 Leaderboard</button>
+<button onclick="showSection('map', event)">️ Zoo Map</button>
 <button class="active" onclick="showSection('shop', event)">🛒 Shop</button>
 <button onclick="showSection('exhibits', event)">🏞 Exhibits</button>
 <button onclick="showSection('houses', event)">🏠 Houses</button>
@@ -395,6 +580,7 @@ button { padding: 12px; font-size: 14px; min-height: 44px; }
 </div>
 <div id="facilities" class="section"></div>
 <div id="shop" class="section active"></div>
+<div id="map" class="section"></div>
 <div id="exhibits" class="section"></div>
 <div id="houses" class="section"></div>
 <div id="research" class="section"></div>
@@ -1045,6 +1231,141 @@ ${!unlocked ? '🔒 Locked' : !canAfford ? '💰 Need Funds' : 'Build House'}
 grid.appendChild(buildSection);
 }
 
+/* Map
+
+function renderMap() {
+    const box = document.getElementById("map");
+    if (!box) return;
+    
+    const allExhibits = getAllExhibits();
+    const totalPlots = allExhibits.length;
+    
+    if (totalPlots === 0) {
+        box.innerHTML = `
+            <div class="map-container">
+                <div style="text-align: center; padding: 60px 20px; color: var(--muted);">
+                    <div style="font-size: 4rem; margin-bottom: 15px;">🗺️</div>
+                    <h2>Your Zoo Map</h2>
+                    <p style="margin: 10px 0 20px;">Build your first exhibit to see it on the map!</p>
+                    <button class="primary-btn" onclick="document.getElementById('buildExhibitBtn').click()">🏗 Build Your First Exhibit</button>
+                </div>
+            </div>
+        `;
+        return;
+    }
+    
+    // Count exhibit types for legend
+    const typeCounts = {};
+    allExhibits.forEach(({ exhibit }) => {
+        const type = exhibit.type || 'terrestrial';
+        const exhibitType = data.exhibitTypes[type] || data.exhibitTypes.terrestrial || { emoji: '️', name: 'Exhibit' };
+        typeCounts[type] = (typeCounts[type] || 0) + 1;
+    });
+    
+    let legendHTML = '<div class="map-legend"><strong style="color: var(--text); margin-right: 10px;">Legend:</strong>';
+    for (const [typeId, count] of Object.entries(typeCounts)) {
+        const exhibitType = data.exhibitTypes[typeId] || data.exhibitTypes.terrestrial || { emoji: '🏞️', name: 'Exhibit', color: '#22c55e' };
+        legendHTML += `<div class="legend-item"><div class="legend-color" style="background: ${exhibitType.color || '#22c55e'}"></div>${exhibitType.emoji} ${exhibitType.name} (${count})</div>`;
+    }
+    legendHTML += '</div>';
+    
+    let plotsHTML = '';
+    
+    allExhibits.forEach(({ exhibit, isHouse, houseId }) => {
+        const isBuilding = exhibit.buildDaysRemaining > 0;
+        const exhibitType = data.exhibitTypes[exhibit.type] || data.exhibitTypes.terrestrial || { emoji: '️', name: 'Standard Exhibit', color: '#22c55e' };
+        const happiness = getExhibitHappiness(exhibit);
+        const animalCount = exhibit.animals?.length || 0;
+        
+        // Get animal icons
+        let animalIcons = '';
+        if (animalCount > 0) {
+            const uniqueAnimals = [...new Set(exhibit.animals.map(a => a.id))];
+            animalIcons = uniqueAnimals.slice(0, 6).map(animalId => {
+                const animalData = data.animals.find(a => a.id === animalId);
+                return `<span class="plot-animal-icon" onclick="event.stopPropagation(); showAnimalOnMap('${animalId}', '${exhibit.id}')" title="${animalData?.name || animalId}">${animalData?.emoji || '🐾'}</span>`;
+            }).join('');
+            if (uniqueAnimals.length > 6) {
+                animalIcons += `<span style="font-size: 0.75rem; color: var(--muted);">+${uniqueAnimals.length - 6} more</span>`;
+            }
+        }
+        
+        // Building progress
+        let buildingHTML = '';
+        if (isBuilding) {
+            const sizeInfo = EXHIBIT_SIZES[exhibit.size] || EXHIBIT_SIZES.small;
+            const progress = ((sizeInfo.buildDays - exhibit.buildDaysRemaining) / sizeInfo.buildDays) * 100;
+            buildingHTML = `
+                <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; color: var(--warn); font-weight: 700;">
+                    <div style="font-size: 2rem; margin-bottom: 8px;">🏗</div>
+                    <div style="font-size: 0.85rem;">${exhibit.buildDaysRemaining} days</div>
+                </div>
+                <div class="plot-building-progress"><div class="plot-building-fill" style="width: ${progress}%"></div></div>
+            `;
+        }
+        
+        const plotClass = `map-plot ${isBuilding ? 'building' : ''} ${animalCount === 0 && !isBuilding ? 'empty' : ''}`;
+        const bgColor = exhibitType.color || '#22c55e';
+        
+        plotsHTML += `
+            <div class="${plotClass}" onclick="jumpToExhibit('${exhibit.id}')" style="${!isBuilding ? `border-top: 3px solid ${bgColor}` : ''}">
+                ${buildingHTML}
+                <div class="plot-header">${exhibit.name}</div>
+                <div class="plot-type">${exhibitType.emoji} ${exhibitType.name} • ${exhibit.size}</div>
+                ${!isBuilding ? `
+                    <div class="plot-stats">
+                        <div>🐾 ${animalCount} animal${animalCount !== 1 ? 's' : ''}</div>
+                        <div>😊 ${happiness}% happiness</div>
+                    </div>
+                    <div class="plot-happiness"><div class="plot-happiness-fill" style="width: ${happiness}%"></div></div>
+                    <div class="plot-animals">${animalIcons}</div>
+                ` : ''}
+            </div>
+        `;
+    });
+    
+    box.innerHTML = `
+        <div class="map-container">
+            <div style="margin-bottom: 15px;">
+                <h2 style="margin: 0 0 5px 0;">🗺️ Zoo Map</h2>
+                <p style="margin: 0; color: var(--muted); font-size: 0.9rem;">Click on any exhibit to manage it</p>
+            </div>
+            ${legendHTML}
+            <div class="map-grid">${plotsHTML}</div>
+            <div style="text-align: center; padding: 15px; background: rgba(0,0,0,0.2); border-radius: 8px;">
+                <button class="primary-btn" onclick="document.getElementById('buildExhibitBtn').click()">➕ Add New Exhibit</button>
+                <button class="secondary-btn" onclick="document.getElementById('buildExhibitBtn').click()" style="margin-left: 10px;">🏠 Build House</button>
+            </div>
+        </div>
+    `;
+}
+
+function jumpToExhibit(exhibitId) {
+    // Switch to exhibits tab and scroll to the exhibit
+    showSection('exhibits');
+    setTimeout(() => {
+        const exhibitCards = document.querySelectorAll('.exhibitCard');
+        exhibitCards.forEach(card => {
+            if (card.textContent.includes(exhibitId) || card.querySelector(`[data-exhibit="${exhibitId}"]`)) {
+                card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                card.style.animation = 'tutorialPulse 1s ease-in-out';
+                setTimeout(() => card.style.animation = '', 1000);
+            }
+        });
+    }, 100);
+}
+
+function showAnimalOnMap(animalId, exhibitId) {
+    // Open animal info for the first animal of this type in the exhibit
+    const ctx = getExhibitContext(exhibitId);
+    if (!ctx) return;
+    const animal = ctx.exhibit.animals.find(a => a.id === animalId);
+    if (animal) {
+        const index = ctx.exhibit.animals.indexOf(animal);
+        openAnimalInfo(animal, exhibitId, index);
+    }
+}
+    
 /* --------------------------------------------------------------------------
 🍖 10. ANIMAL CARE (Food, Breeding, Health, Fences)
 -------------------------------------------------------------------------- */
@@ -2121,7 +2442,8 @@ else if (condition < 50 && condition >= 30) addTicker(`🔶 ${exhibit.name} fenc
 else if (condition < 70 && condition >= 50) addTicker(`⚠️ ${exhibit.name} fence is wearing down.`);
 }
 
-renderExhibits(); renderHouses();
+renderExhibits(); renderHouses(); 
+if (document.getElementById("map").classList.contains("active")) renderMap();
 const delta = state.money - startMoney; if (delta !== 0) showFloatingMoney(delta);
 state.monthlyIncomeTracker = (state.monthlyIncomeTracker || 0) + delta;  
 state.daysSinceNewAnimal++;
@@ -2248,6 +2570,7 @@ if (section === "shop") renderShop(); if (section === "staff") renderStaff(); if
 if (section === "visitors") renderVisitors(); if (section === "amenities") renderAmenities(); if (section === "leaderboard") renderLeaderboard();
 if (section === "supplies") renderSupplies(); if (section === "research") renderResearch();
 if (section === "houses") renderHouses();
+ if (section === "map") renderMap();
 }
 const TUTORIAL_STEPS = [
 { title: "👋 Welcome to ZooSmith!", message: "You're about to build the world's greatest zoo. Let's start with the basics.", action: "👉 Click 'Build Exhibit' to create your first enclosure", highlight: "buildExhibitBtn", autoAdvance: () => Object.keys(state.exhibits).length > 0 },
