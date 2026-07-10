@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>ZooSmith V0.4.7</title>
+<title>ZooSmith V0.5.0</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
@@ -2626,45 +2626,40 @@ lockedGrid.appendChild(card);
 }
 }
 function renderVisitors() {
-const box = document.getElementById("visitors");
-const totalSpending = state.visitorSpending.total;
-const foodPercent = totalSpending > 0 ? Math.round((state.visitorSpending.food / totalSpending) * 100) : 0;
-const giftPercent = totalSpending > 0 ? Math.round((state.visitorSpending.gifts / totalSpending) * 100) : 0;
-box.innerHTML = `
-<div class="premium-card" style="grid-column: 1 / -1; margin-bottom: 10px;">
-    <div class="card-header"><h3>🎟️ Ticket & Marketing Management</h3></div>
-    <div class="card-body">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-            <span style="font-weight: 700;">Ticket Price:</span>
-            <span style="font-weight: 800; color: var(--accent); font-size: 1.2rem;">$<span id="ticketPrice">${state.ticketPrice}</span></span>
+    const box = document.getElementById("visitors");
+    if (!box) return;
+    
+    const totalSpending = state.visitorSpending.total;
+    
+    // ✅ CORRECT HTML BLOCK (Note the closing backtick ` at the end)
+    box.innerHTML = `
+        <div class="premium-card" style="grid-column: 1 / -1; margin-bottom: 10px;">
+            <div class="card-header"><h3>🎟️ Ticket & Marketing Management</h3></div>
+            <div class="card-body">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <span style="font-weight: 700;">Ticket Price:</span>
+                    <span style="font-weight: 800; color: var(--accent); font-size: 1.2rem;">$<span id="ticketPrice">${state.ticketPrice}</span></span>
+                </div>
+                <input type="range" id="ticketPriceSlider" min="5" max="100" value="${state.ticketPrice}" style="width: 100%; cursor: pointer;" oninput="updateTicketPrice(this.value)">
+                <div style="display: flex; justify-content: space-between; font-size: 0.8rem; color: var(--muted); margin-top: 10px;">
+                    <span>✨ Zoo Novelty: <strong style="color: var(--purple);" id="novelty">${state.daysSinceNewAnimal === 0 ? '100%' : 'Decaying...'}</strong></span>
+                    <span>🧑‍🌾 Staffing: <strong id="staffSlots" style="color: var(--accent);">0/0</strong></span>
+                </div>
+            </div>
         </div>
-        <input type="range" id="ticketPriceSlider" min="5" max="100" value="${state.ticketPrice}" style="width: 100%; cursor: pointer;" oninput="updateTicketPrice(this.value)">
-        <div style="display: flex; justify-content: space-between; font-size: 0.8rem; color: var(--muted); margin-top: 10px;">
-            <span>✨ Zoo Novelty: <strong style="color: var(--purple);" id="novelty">${state.daysSinceNewAnimal === 0 ? '100%' : 'Decaying...'}</strong></span>
-            <span>🧑‍🌾 Staffing: <strong id="staffSlots" style="color: var(--accent);">0/0</strong></span>
+        <div class="visitor-overview">
+            <div class="visitor-stat-card"><h4>👥 Today's Visitors</h4><div class="stat-value blue">${state.dailyVisitors.toLocaleString()}</div></div>
+            <div class="visitor-stat-card"><h4>😊 Satisfaction</h4><div class="stat-value ${state.visitorSatisfaction >= 80 ? 'green' : state.visitorSatisfaction >= 50 ? 'warn' : 'danger'}">${state.visitorSatisfaction}%</div></div>
+            <div class="visitor-stat-card"><h4>💵 Total Spending</h4><div class="stat-value gold">$${totalSpending.toLocaleString()}</div></div>
+            <div class="visitor-stat-card"><h4>🎫 Ticket Price</h4><div class="stat-value">$${state.ticketPrice}</div></div>
         </div>
-    </div>
-</div>
-<div class="visitor-overview">
-<div class="visitor-stat-card"><h4>👥 Today's Visitors</h4><div class="stat-value blue">${state.dailyVisitors.toLocaleString()}</div></div>
-<div class="visitor-stat-card"><h4>😊 Satisfaction</h4><div class="stat-value ${state.visitorSatisfaction >= 80 ? 'green' : state.visitorSatisfaction >= 50 ? 'warn' : 'danger'}">${state.visitorSatisfaction}%</div></div>
-<div class="visitor-stat-card"><h4>💵 Total Spending</h4><div class="stat-value gold">$${totalSpending.toLocaleString()}</div></div>
-<div class="visitor-stat-card"><h4>🎫 Ticket Price</h4><div class="stat-value">$${state.ticketPrice}</div></div>
-</div>
-<div class="grid-layout" style="grid-template-columns: 1fr 1fr;">
-<div class="premium-card"><div class="card-header"><h3>💰 Spending Breakdown</h3></div><div class="card-body"><div class="spending-breakdown">
-<div class="spending-card"><h4>🌭 Food & Drinks</h4><div class="amount">$${state.visitorSpending.food.toLocaleString()}</div><div class="percentage">${foodPercent}% of total spending</div><div class="amenity-bar"><div class="amenity-fill" style="width: ${foodPercent}%"></div></div></div>
-<div class="spending-card"><h4>🎁 Gift Shop</h4><div class="amount">$${state.visitorSpending.gifts.toLocaleString()}</div><div class="percentage">${giftPercent}% of total spending</div><div class="amenity-bar"><div class="amenity-fill" style="width: ${giftPercent}%"></div></div></div>
-</div></div></div>
-<div class="premium-card"><div class="card-header"><h3>🏪 Amenities Overview</h3></div><div class="card-body">
-${Object.keys(data.amenities).map(id => { const amenity = data.amenities[id]; const count = state.amenities[id] || 0; let detail = ''; if (amenity.capacity > 0) detail = `${count * amenity.capacity} capacity`; else if (amenity.maxCustomers > 0) detail = `Serves ${count * amenity.maxCustomers}/day`; else if (amenity.revenue > 0) detail = `$${amenity.revenue}/visitor`; return `<div class="exhibit-stat"><span>${amenity.icon} ${amenity.name}</span><strong>${count} ${detail ? `(${detail})` : ''}</strong></div>`; }).join('')}
-<div class="exhibit-stat" style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #243042;"><span>🧹 Daily Maintenance</span><strong style="color: var(--warn);">$${state.maintenance.dailyMaintenanceCost}/day</strong></div>
-</div></div></div>
-<div class="complaints-list"><h3 style="margin: 0 0 15px 0; font-size: 1.2rem;">📋 Visitor Feedback</h3>
-${state.visitorComplaints.length === 0 ? '<div style="text-align: center; padding: 20px; color: var(--muted);">😊 No complaints today! Visitors are happy.</div>' : state.visitorComplaints.map(c => `<div class="complaint-item ${c.type}"><span class="complaint-icon">${c.icon}</span><span class="complaint-text">${c.text}</span><span class="complaint-time">${c.time}</span></div>`).join('')}
-</div>`;
-}
-function renderAmenities() {
+    `; // <--- Make sure this backtick and semicolon are here!
+    
+    // Initialize slider value
+    const slider = document.getElementById('ticketPriceSlider');
+    if (slider) slider.value = state.ticketPrice;
+    
+} // <--- Make sure this closing brace is here!function renderAmenities() {
 const box = document.getElementById("amenities");
 if (!data.amenities || Object.keys(data.amenities).length === 0) { box.innerHTML = '<div style="text-align:center; padding:40px; color:var(--muted);">Loading amenities...</div>'; return; }
 box.innerHTML = '<div class="grid-layout"></div>'; const grid = box.querySelector('.grid-layout');
