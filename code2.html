@@ -3457,10 +3457,10 @@ saveGame(); submitToLeaderboard(); triggerRandomEvent();
 }
 
 function updateTicketPrice(newPrice) {
-const price = parseInt(newPrice);
-if (price < 5 || price > 100) return;
-state.ticketPrice = price;
-document.getElementById("ticketPrice").textContent = `$${price}`;
+    const price = parseInt(newPrice);
+    if (price < 5 || price > 100) return;
+    state.ticketPrice = price;
+    document.getElementById("ticketPrice").textContent = `${price}`; // ✅ Correct
 const basePrice = 20;
 const priceDiff = price - basePrice;
 const zooRating = state.zooRating || 0;
