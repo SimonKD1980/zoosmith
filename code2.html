@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>ZooSmith V0.4.5</title>
+<title>ZooSmith V0.4.6</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
@@ -1177,19 +1177,18 @@ button:focus, .animalTag:focus, .category-tab:focus {
 </div>
 </header>
 <div class="nav">
-<button onclick="showSection('leaderboard', event)">🏆 Leaderboard</button>
-<button onclick="showSection('map', event)">️ Zoo Map</button>
 <button class="active" onclick="showSection('shop', event)">🛒 Shop</button>
 <button onclick="showSection('exhibits', event)">🏞 Exhibits</button>
 <button onclick="showSection('houses', event)">🏠 Houses</button>
-<button onclick="showSection('research', event)">🔬 Research</button>
-<button onclick="showSection('visitors', event)">👥 Visitors</button>
-<button onclick="showSection('supplies', event)">🍽 Supplies</button>
-<button onclick="showSection('achievements', event)">🏆 Achievements</button>
-<button onclick="showSection('reports', event)">📊 Reports</button>
-<button onclick="showSection('amenities', event)">🏪 Amenities</button>
-<button onclick="showSection('facilities', event)">🏗 Facilities</button>
 <button onclick="showSection('staff', event)">👷 Staff</button>
+<button onclick="showSection('supplies', event)">🍽 Supplies</button>
+<button onclick="showSection('amenities', event)">🏪 Amenities</button>
+<button onclick="showSection('facilities', event)"> Facilities</button>
+<button onclick="showSection('research', event)">🔬 Research</button>
+<button onclick="showSection('visitors', event)"> Visitors</button>
+<button onclick="showSection('reports', event)">📊 Reports</button>
+<button onclick="showSection('achievements', event)">🏆 Achievements</button>
+<button onclick="showSection('leaderboard', event)">🏆 Leaderboard</button>
 </div>
 <div style="padding: 10px; display: flex; gap: 10px;">
 <button id="manageZoosBtn" class="moveBtn" onclick="openManageZoosModal()">💾 Manage Zoos</button>
