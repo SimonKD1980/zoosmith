@@ -1488,8 +1488,19 @@ try { const res = await fetch("animals.json?nocache=" + Date.now()); data.animal
 catch (e) { console.error("Failed to load animals", e); }
 }
 async function loadResearch() {
-try { const res = await fetch("research.json?nocache=" + Date.now()); const arr = await res.json(); data.researchProjects = {}; arr.forEach(item => data.researchProjects[item.id] = item); renderResearch(); renderShop(); }
-catch (e) { console.error("Failed to load research", e); }
+    try { 
+        const res = await fetch("research.json?nocache=" + Date.now()); 
+        if (!res.ok) throw new Error(`File not found or server error (Status: ${res.status})`);
+        const arr = await res.json(); 
+        if (!Array.isArray(arr)) throw new Error("research.json must be an array [ ... ]");
+        data.researchProjects = {}; 
+        arr.forEach(item => data.researchProjects[item.id] = item); 
+        renderResearch(); 
+        renderShop(); 
+    } catch (e) { 
+        console.error("Failed to load research:", e); 
+        showToast("❌ Error loading research.json! Check Console (F12)", "error");
+    }
 }
 async function loadUpgrades() {
 try { const res = await fetch("upgrades.json?nocache=" + Date.now()); const arr = await res.json(); data.upgrades = {}; arr.forEach(item => data.upgrades[item.id] = item); }
@@ -3487,7 +3498,7 @@ function updateUI() {
 const allAnimals = getAllAnimals();
 document.getElementById("zooNameDisplay").textContent = state.zooName || "My Zoo";
 document.getElementById("money").textContent = state.money.toLocaleString(undefined, { maximumFractionDigits: 2 });
-document.getElementById("day").textContent = state.day; document.getElementById("month").textContent = state.month; document.getElementById("year").textContent = state.year; document.getElementById("ticketPrice").textContent = `${state.ticketPrice}`;
+document.getElementById("day").textContent = state.day; document.getElementById("month").textContent = state.month; document.getElementById("year").textContent = state.year; document.getElementById("ticketPrice").textContent = `$${state.ticketPrice}`;
 const slider = document.getElementById("ticketPriceSlider");
 if (slider) slider.value = state.ticketPrice;
 
