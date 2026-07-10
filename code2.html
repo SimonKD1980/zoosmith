@@ -2659,7 +2659,8 @@ function renderVisitors() {
     const slider = document.getElementById('ticketPriceSlider');
     if (slider) slider.value = state.ticketPrice;
     
-} // <--- Make sure this closing brace is here!function renderAmenities() {
+} // <--- Make sure this closing brace is here!
+function renderAmenities() {
 const box = document.getElementById("amenities");
 if (!data.amenities || Object.keys(data.amenities).length === 0) { box.innerHTML = '<div style="text-align:center; padding:40px; color:var(--muted);">Loading amenities...</div>'; return; }
 box.innerHTML = '<div class="grid-layout"></div>'; const grid = box.querySelector('.grid-layout');
