@@ -3773,14 +3773,17 @@ renderAchievements(); renderReports(); renderHouses();
 /* --------------------------------------------------------------------------
 🚀 16. INITIALIZATION & EVENT LISTENERS
 -------------------------------------------------------------------------- */
-document.getElementById("resetGameBtn").onclick = () => {
-if (!confirm("Are you sure you want to reset your CURRENT zoo? This cannot be undone.")) return;
-resetStateToDefault();
-state.zooName = "Reset Zoo";
-saveGame();
-refreshAllUI();
-showToast("Current zoo has been reset! 🔄", "info");
-};
+const resetBtn = document.getElementById("resetGameBtn");
+if (resetBtn) {
+    resetBtn.onclick = () => {
+        if (!confirm("Are you sure you want to reset your CURRENT zoo? This cannot be undone.")) return;
+        resetStateToDefault();
+        state.zooName = "Reset Zoo";
+        saveGame();
+        refreshAllUI();
+        showToast("Current zoo has been reset! 🔄", "info");
+    };
+}
 // Boot up the game
 loadGame();
 state.food ??= { hay: 30, meat: 20, produce: 15 };
