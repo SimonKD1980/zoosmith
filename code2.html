@@ -618,119 +618,547 @@ transform: scale(1.05);
         font-size: 1rem;
     }
 }
-/* Mobile Overrides */
+/* ==========================================================================
+📱 MOBILE OPTIMIZATION - Complete Overhaul
+========================================================================== */
+
 @media (max-width: 768px) {
-* { touch-action: manipulation; }
-body { padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom); padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); }
-header { padding: 8px; position: sticky; top: 0; z-index: 50; }
-#ticker { font-size: 13px; padding: 6px 10px; max-width: 100%; white-space: normal; height: auto; margin-bottom: 8px; text-align: center; }
-.stats-bar { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; font-size: 12px; padding: 4px; }
-.stats-bar span { background: rgba(255,255,255,0.05); padding: 4px 8px; border-radius: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.nav { overflow-x: auto; overflow-y: hidden; -webkit-overflow-scrolling: touch; scrollbar-width: none; padding: 8px; gap: 6px; position: sticky; top: 0; background: var(--panel); z-index: 40; }
-.nav::-webkit-scrollbar { display: none; }
-.nav button { flex: 0 0 auto; min-width: 90px; padding: 10px 12px; font-size: 13px; white-space: nowrap; }
-div[style*="padding: 10px"] { flex-wrap: wrap !important; gap: 6px !important; padding: 10px !important; }
-div[style*="padding: 10px"] button { flex: 1 1 calc(50% - 6px); min-width: 120px; font-size: 13px; padding: 12px 8px; min-height: 44px; }
-.section { padding: 8px; }
-.grid-layout { grid-template-columns: 1fr !important; gap: 12px; }
-#exhibits.active { min-height: auto; padding: 12px; grid-template-columns: 1fr !important; }
-.shop-card-img { height: 160px; object-fit: cover; }
-.card-body { padding: 12px; gap: 8px; }
-.card-header { padding: 12px; }
-.card-header h3 { font-size: 1.1rem; }
-.card-price { font-size: 1.3rem; }
-.exhibitCard { width: 100%; }
-.exhibit-header { padding: 12px; }
-.exhibit-header h3 { font-size: 1rem; }
-.exhibit-body { padding: 10px; }
-.animalTag { font-size: 13px; padding: 8px 12px; min-height: 36px; display: inline-flex; align-items: center; }
-.modal-content { width: 95%; max-width: none; padding: 16px; max-height: 90vh; overflow-y: auto; }
-.modal-content h3 { font-size: 1.1rem; }
-button { padding: 12px; font-size: 14px; min-height: 44px; }
-.primary-btn, .secondary-btn, .danger-btn { padding: 12px 8px; font-size: 13px; min-height: 44px; }
-.stat-badge { font-size: 0.7rem; padding: 4px 8px; }
-#toast-container { top: auto; bottom: 10px; right: 10px; left: 10px; }
-.toast { min-width: auto; width: 100%; font-size: 13px; padding: 12px 15px; }
-.floating-money { font-size: 1rem; }
-.visitor-overview { grid-template-columns: repeat(2, 1fr) !important; gap: 8px; }
-.visitor-stat-card { padding: 12px; }
-.visitor-stat-card h4 { font-size: 0.75rem; }
-.visitor-stat-card .stat-value { font-size: 1.8rem; }
-.spending-breakdown { grid-template-columns: 1fr !important; }
-.report-body { grid-template-columns: 1fr !important; }
-.achievement-card { padding: 15px; }
-.achievement-icon { font-size: 2.5rem; }
-.complaints-list { max-height: 250px; }
-.complaint-item { padding: 10px; font-size: 0.85rem; }
-.leaderboard-row { grid-template-columns: 50px 1fr 100px; padding: 12px; }
-.rank-badge { font-size: 1.2rem; }
-.player-score { font-size: 1rem; }
-.role-badge { font-size: 0.65rem; padding: 4px 8px; }
-.salary-highlight { font-size: 1.1rem; }
-.tutorial-overlay { bottom: 10px; right: 10px; left: 10px; max-width: none; }
-.research-tree { gap: 20px; padding: 10px; }
-.research-tier { min-width: 240px; }
+    * { touch-action: manipulation; }
+    
+    body { 
+        padding-top: env(safe-area-inset-top); 
+        padding-bottom: env(safe-area-inset-bottom); 
+        padding-left: env(safe-area-inset-left); 
+        padding-right: env(safe-area-inset-right);
+        font-size: 14px;
+    }
+    
+    /* HEADER - Simplified for mobile */
+    header { 
+        padding: 8px; 
+        position: sticky; 
+        top: 0; 
+        z-index: 50;
+        background: var(--panel);
+        border-bottom: 2px solid #243042;
+    }
+    
+    /* Zoo Name - More compact */
+    .zoo-name-display {
+        font-size: 1rem;
+        padding: 6px 12px;
+        margin-bottom: 6px;
+    }
+    
+    /* Ticker - Better mobile display */
+    #ticker { 
+        font-size: 12px; 
+        padding: 6px 10px; 
+        max-width: 100%; 
+        white-space: normal; 
+        height: auto; 
+        min-height: 28px;
+        margin-bottom: 6px; 
+        text-align: center;
+        line-height: 1.3;
+    }
+    
+    /* Stats Bar - Scrollable horizontal on mobile */
+    .stats-bar { 
+        display: flex;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        overflow-y: hidden;
+        gap: 6px;
+        padding: 6px;
+        margin: 0 -8px 8px -8px;
+        width: calc(100% + 16px);
+        scrollbar-width: none;
+        -webkit-overflow-scrolling: touch;
+        justify-content: flex-start;
+    }
+    
+    .stats-bar::-webkit-scrollbar { display: none; }
+    
+    .stats-bar span { 
+        background: rgba(255,255,255,0.05); 
+        padding: 6px 10px; 
+        border-radius: 6px; 
+        white-space: nowrap;
+        font-size: 0.75rem;
+        flex-shrink: 0;
+        min-height: 32px;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+    }
+    
+    /* NAVIGATION - Better mobile UX */
+    .nav { 
+        overflow-x: auto; 
+        overflow-y: hidden; 
+        -webkit-overflow-scrolling: touch; 
+        scrollbar-width: none; 
+        padding: 8px; 
+        gap: 6px; 
+        position: sticky; 
+        top: 0; 
+        background: var(--panel); 
+        z-index: 40;
+        border-bottom: 2px solid #243042;
+        margin: 0 -8px;
+        width: calc(100% + 16px);
+    }
+    
+    .nav::-webkit-scrollbar { display: none; }
+    
+    .nav button { 
+        flex: 0 0 auto; 
+        min-width: 100px; 
+        padding: 10px 14px; 
+        font-size: 0.85rem; 
+        white-space: nowrap;
+        min-height: 44px;
+        border-radius: 8px;
+    }
+    
+    /* ACTION BUTTONS - Stack vertically on mobile */
+    div[style*="padding: 10px"] { 
+        flex-direction: column !important; 
+        gap: 8px !important; 
+        padding: 8px !important;
+    }
+    
+    div[style*="padding: 10px"] button { 
+        width: 100%;
+        font-size: 0.9rem; 
+        padding: 14px 12px; 
+        min-height: 48px;
+        font-weight: 700;
+    }
+    
+    /* SECTIONS - Better spacing */
+    .section { 
+        padding: 10px;
+        margin-bottom: 20px;
+    }
+    
+    /* GRIDS - Single column on mobile */
+    .grid-layout { 
+        grid-template-columns: 1fr !important; 
+        gap: 12px; 
+    }
+    
+    #exhibits.active { 
+        min-height: auto; 
+        padding: 12px; 
+        grid-template-columns: 1fr !important;
+        gap: 12px;
+    }
+    
+    /* SHOP CARDS - Better mobile layout */
+    .shop-card-img { 
+        height: 180px; 
+        object-fit: contain;
+    }
+    
+    .card-body { 
+        padding: 14px; 
+        gap: 10px; 
+    }
+    
+    .card-header { 
+        padding: 14px; 
+    }
+    
+    .card-header h3 { 
+        font-size: 1.15rem; 
+    }
+    
+    .card-price { 
+        font-size: 1.4rem; 
+    }
+    
+    /* EXHIBIT CARDS - Full width */
+    .exhibitCard { 
+        width: 100%;
+        margin-bottom: 12px;
+    }
+    
+    .exhibit-header { 
+        padding: 14px; 
+    }
+    
+    .exhibit-header h3 { 
+        font-size: 1.05rem; 
+    }
+    
+    .exhibit-body { 
+        padding: 12px; 
+    }
+    
+    /* ANIMAL TAGS - Larger touch targets */
+    .animalTag { 
+        font-size: 0.85rem; 
+        padding: 10px 14px; 
+        min-height: 40px; 
+        display: inline-flex; 
+        align-items: center;
+        margin: 3px;
+    }
+    
+    /* MODALS - Full screen on mobile */
+    .modal-content { 
+        width: 98%; 
+        max-width: none; 
+        padding: 18px; 
+        max-height: 92vh; 
+        overflow-y: auto;
+        margin: 10px;
+    }
+    
+    .modal-content h3 { 
+        font-size: 1.2rem; 
+        margin-bottom: 12px;
+    }
+    
+    /* BUTTONS - Larger touch targets */
+    button { 
+        padding: 14px; 
+        font-size: 0.95rem; 
+        min-height: 48px;
+        font-weight: 600;
+    }
+    
+    .primary-btn, .secondary-btn, .danger-btn { 
+        padding: 14px 12px; 
+        font-size: 0.9rem; 
+        min-height: 48px;
+        font-weight: 700;
+    }
+    
+    /* STAT BADGES - Better mobile sizing */
+    .stat-badge { 
+        font-size: 0.75rem; 
+        padding: 5px 10px;
+        margin: 2px;
+    }
+    
+    /* TOAST NOTIFICATIONS - Full width on mobile */
+    #toast-container { 
+        top: auto; 
+        bottom: 10px; 
+        right: 10px; 
+        left: 10px;
+        max-width: none;
+    }
+    
+    .toast { 
+        min-width: auto; 
+        width: 100%; 
+        font-size: 0.9rem; 
+        padding: 14px 16px;
+        border-radius: 10px;
+    }
+    
+    /* FLOATING MONEY - Smaller on mobile */
+    .floating-money { 
+        font-size: 1rem; 
+    }
+    
+    /* VISITOR OVERVIEW - 2 columns on mobile */
+    .visitor-overview { 
+        grid-template-columns: repeat(2, 1fr) !important; 
+        gap: 10px; 
+    }
+    
+    .visitor-stat-card { 
+        padding: 14px; 
+    }
+    
+    .visitor-stat-card h4 { 
+        font-size: 0.8rem; 
+    }
+    
+    .visitor-stat-card .stat-value { 
+        font-size: 1.8rem; 
+    }
+    
+    /* SPENDING BREAKDOWN - Single column */
+    .spending-breakdown { 
+        grid-template-columns: 1fr !important; 
+    }
+    
+    /* REPORTS - Single column */
+    .report-body { 
+        grid-template-columns: 1fr !important; 
+    }
+    
+    /* ACHIEVEMENTS - Better mobile layout */
+    .achievement-card { 
+        padding: 16px;
+        margin-bottom: 12px;
+    }
+    
+    .achievement-icon { 
+        font-size: 2.5rem; 
+    }
+    
+    /* COMPLAINTS - Better mobile scrolling */
+    .complaints-list { 
+        max-height: 300px; 
+    }
+    
+    .complaint-item { 
+        padding: 12px; 
+        font-size: 0.9rem;
+        margin-bottom: 8px;
+    }
+    
+    /* LEADERBOARD - Better mobile layout */
+    .leaderboard-row { 
+        grid-template-columns: 50px 1fr 90px; 
+        padding: 14px 12px;
+        gap: 8px;
+    }
+    
+    .rank-badge { 
+        font-size: 1.3rem; 
+    }
+    
+    .player-name {
+        font-size: 0.95rem;
+    }
+    
+    .player-zoo {
+        font-size: 0.75rem;
+    }
+    
+    .player-score { 
+        font-size: 1rem; 
+    }
+    
+    /* STAFF CARDS - Better mobile layout */
+    .role-badge { 
+        font-size: 0.7rem; 
+        padding: 5px 10px; 
+    }
+    
+    .salary-highlight { 
+        font-size: 1.2rem; 
+    }
+    
+    /* TUTORIAL - Full width on mobile */
+    .tutorial-overlay { 
+        bottom: 10px; 
+        right: 10px; 
+        left: 10px; 
+        max-width: none;
+        padding: 16px;
+    }
+    
+    .tutorial-title {
+        font-size: 1.1rem;
+    }
+    
+    .tutorial-message {
+        font-size: 0.9rem;
+    }
+    
+    /* RESEARCH TREE - Better mobile scrolling */
+    .research-tree { 
+        gap: 20px; 
+        padding: 12px; 
+    }
+    
+    .research-tier { 
+        min-width: 260px; 
+    }
+    
+    .research-node {
+        padding: 12px;
+    }
+    
+    .research-node-title {
+        font-size: 0.95rem;
+    }
+    
+    /* MAP - Mobile optimized */
+    .map-dashboard {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 8px;
+    }
+    
+    .map-stat-card {
+        padding: 10px;
+    }
+    
+    .map-stat-label {
+        font-size: 0.65rem;
+    }
+    
+    .map-stat-value {
+        font-size: 1.3rem;
+    }
+    
+    .map-park-area {
+        grid-template-columns: 1fr;
+        gap: 12px;
+        min-height: 400px;
+        padding: 12px;
+    }
+    
+    .map-exhibit {
+        min-height: 130px;
+        padding: 14px;
+    }
+    
+    .animal-icon-badge {
+        font-size: 1.1rem;
+        padding: 4px 7px;
+    }
+    
+    .exhibit-name-tag {
+        font-size: 0.9rem;
+    }
+    
+    .exhibit-stat-row {
+        font-size: 0.8rem;
+    }
+    
+    /* MANAGE ZOOS MODAL - Better mobile layout */
+    #manageZoosModal .modal-content {
+        max-height: 85vh;
+    }
+    
+    #zoosList {
+        gap: 12px;
+    }
+    
+    #zoosList .premium-card {
+        margin-bottom: 0;
+    }
+    
+    #zoosList button {
+        min-height: 44px;
+        font-size: 0.85rem;
+    }
+    
+    /* TICKET PRICE SLIDER - Better mobile touch */
+    input[type="range"] {
+        height: 8px;
+    }
+    
+    input[type="range"]::-webkit-slider-thumb {
+        width: 24px;
+        height: 24px;
+    }
+    
+    input[type="range"]::-moz-range-thumb {
+        width: 24px;
+        height: 24px;
+    }
+    
+    /* PREVENT ZOOM ON INPUT FOCUS */
+    input, select, textarea {
+        font-size: 16px !important;
+    }
 }
+
+/* Extra small screens (iPhone SE, etc.) */
 @media (max-width: 400px) {
-.visitor-overview { grid-template-columns: 1fr !important; }
-.nav button { min-width: 80px; font-size: 12px; padding: 8px 10px; }
-.stats-bar { font-size: 11px; gap: 4px; }
-.card-price { font-size: 1.2rem; }
-.visitor-stat-card .stat-value { font-size: 1.5rem; }
-.animalTag { font-size: 12px; padding: 6px 10px; }
+    .visitor-overview { 
+        grid-template-columns: 1fr !important; 
+    }
+    
+    .nav button { 
+        min-width: 90px; 
+        font-size: 0.8rem; 
+        padding: 10px 12px; 
+    }
+    
+    .stats-bar span {
+        font-size: 0.7rem;
+        padding: 5px 8px;
+    }
+    
+    .card-price { 
+        font-size: 1.3rem; 
+    }
+    
+    .visitor-stat-card .stat-value { 
+        font-size: 1.6rem; 
+    }
+    
+    .animalTag { 
+        font-size: 0.8rem; 
+        padding: 8px 12px; 
+    }
+    
+    .map-dashboard {
+        grid-template-columns: 1fr;
+    }
+    
+    .map-stat-value {
+        font-size: 1.2rem;
+    }
 }
+
+/* Landscape mode on mobile */
 @media (max-width: 900px) and (orientation: landscape) {
-.grid-layout { grid-template-columns: repeat(2, 1fr) !important; }
-#exhibits.active { grid-template-columns: repeat(2, 1fr) !important; }
-}
-/* Leaderboard */
-.leaderboard-tabs { display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; }
-.leaderboard-tab { padding: 10px 20px; background: var(--card); border: 1px solid #243042; border-radius: 10px; cursor: pointer; font-weight: 600; color: var(--text); transition: all 0.2s; }
-.leaderboard-tab:hover { border-color: var(--accent); }
-.leaderboard-tab.active { background: var(--accent); color: #000; border-color: var(--accent); }
-.leaderboard-table { background: var(--card); border-radius: var(--radius); border: 1px solid #243042; overflow: hidden; }
-.leaderboard-row { display: grid; grid-template-columns: 60px 1fr 150px; padding: 15px 20px; border-bottom: 1px solid #243042; align-items: center; transition: background 0.2s; }
-.leaderboard-row:hover { background: var(--card-hover); }
-.leaderboard-row.header { background: linear-gradient(135deg, #1e293b, #0f172a); font-weight: 800; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); }
-.leaderboard-row.you { background: rgba(34, 197, 94, 0.1); border-left: 4px solid var(--accent); }
-.leaderboard-row.top1 { background: linear-gradient(90deg, rgba(251, 191, 36, 0.15), transparent); }
-.leaderboard-row.top2 { background: linear-gradient(90deg, rgba(192, 192, 192, 0.1), transparent); }
-.leaderboard-row.top3 { background: linear-gradient(90deg, rgba(205, 127, 50, 0.1), transparent); }
-.rank-badge { font-size: 1.5rem; font-weight: 900; text-align: center; }
-.rank-1 { color: var(--gold); } .rank-2 { color: #c0c0c0; } .rank-3 { color: #cd7f32; }
-.player-info { display: flex; flex-direction: column; gap: 2px; }
-.player-name { font-weight: 700; font-size: 1rem; }
-.player-zoo { font-size: 0.8rem; color: var(--muted); }
-.player-score { text-align: right; font-weight: 800; font-size: 1.2rem; color: var(--accent); }
-.your-rank-card { background: linear-gradient(135deg, rgba(34, 197, 94, 0.1), rgba(59, 130, 246, 0.1)); border: 2px solid var(--accent); border-radius: var(--radius); padding: 20px; margin-bottom: 20px; text-align: center; }
-.your-rank-card h3 { margin: 0 0 10px 0; color: var(--accent); }
-.your-rank-number { font-size: 3rem; font-weight: 900; color: var(--gold); }
-.leaderboard-loading { text-align: center; padding: 40px; color: var(--muted); }
-.name-prompt { background: var(--card); border: 2px solid var(--accent); border-radius: var(--radius); padding: 30px; text-align: center; margin-bottom: 20px; }
-.name-prompt input { width: 100%; max-width: 300px; padding: 12px; font-size: 1rem; background: #0b1220; color: var(--text); border: 1px solid #243042; border-radius: 8px; margin: 10px 0; }
-/* Tactile Button Press Effect */
-button:active, .premium-card:active, .animalTag:active, .category-tab:active {
-    transform: scale(0.96) !important;
-    transition: transform 0.05s ease-in !important;
-    filter: brightness(0.9);
+    .grid-layout { 
+        grid-template-columns: repeat(2, 1fr) !important; 
+    }
+    
+    #exhibits.active { 
+        grid-template-columns: repeat(2, 1fr) !important; 
+    }
+    
+    .map-park-area {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    header {
+        position: relative;
+    }
+    
+    .nav {
+        position: relative;
+    }
 }
 
-/* Make animal tags look like little ID badges */
-.animalTag {
-    position: relative;
-    padding-left: 24px !important;
-}
-.animalTag::before {
-    content: '🐾';
-    position: absolute;
-    left: 6px;
-    top: 50%;
-    transform: translateY(-50%);
-    font-size: 0.75rem;
-    opacity: 0.7;
+/* Prevent text selection on buttons */
+button, .animalTag, .category-tab {
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
 }
 
-</style>
+/* Smooth scrolling for the whole page */
+html {
+    scroll-behavior: smooth;
+}
+
+/* Better focus states for accessibility */
+button:focus, .animalTag:focus, .category-tab:focus {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+}
+
+/* Disable hover effects on touch devices */
+@media (hover: none) {
+    button:hover, 
+    .premium-card:hover, 
+    .animalTag:hover, 
+    .category-tab:hover {
+        transform: none !important;
+    }
+    
+    .premium-card:hover {
+        box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+    }
+}</style>
 </head>
 <body>
 <header>
