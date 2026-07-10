@@ -789,7 +789,7 @@
     "scienceName": "Panthera leo",
     "category": "Predator Ridge",
     "unlock": null,
-    "researchRequired": "advanced_big_cats"
+    "researchRequired": "advanced_big_cats",
     "cost": 25000,
     "dailyIncome": 900,
     "attractionValue": 28,
@@ -823,7 +823,7 @@
     "scienceName": "Panthera tigris",
     "category": "Predator Ridge",
     "unlock": null,
-    "researchRequired": "advanced_big_cats"
+    "researchRequired": "advanced_big_cats",
     "cost": 30000,
     "dailyIncome": 1100,
     "attractionValue": 32,
@@ -857,7 +857,7 @@
     "scienceName": "Panthera pardus",
     "category": "Predator Ridge",
     "unlock": null,
-    "researchRequired": "advanced_big_cats"
+    "researchRequired": "advanced_big_cats",
     "cost": 20000,
     "dailyIncome": 780,
     "attractionValue": 23,
