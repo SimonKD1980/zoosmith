@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>ZooSmith V0.5.0</title>
+<title>ZooSmith V0.6.0</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
@@ -3498,7 +3498,11 @@ function updateUI() {
 const allAnimals = getAllAnimals();
 document.getElementById("zooNameDisplay").textContent = state.zooName || "My Zoo";
 document.getElementById("money").textContent = state.money.toLocaleString(undefined, { maximumFractionDigits: 2 });
-document.getElementById("day").textContent = state.day; document.getElementById("month").textContent = state.month; document.getElementById("year").textContent = state.year; document.getElementById("ticketPrice").textContent = `$${state.ticketPrice}`;
+document.getElementById("day").textContent = state.day; document.getElementById("month").textContent = state.month; document.getElementById("year").textContent = state.year; 
+const ticketPriceEl = document.getElementById("ticketPrice");
+if (ticketPriceEl) {
+    ticketPriceEl.textContent = state.ticketPrice;
+}
 const slider = document.getElementById("ticketPriceSlider");
 if (slider) slider.value = state.ticketPrice;
 
