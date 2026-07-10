@@ -3177,6 +3177,7 @@ sizeDiv.appendChild(btn);
 }
 modal.classList.add("active");
 };
+}
 function selectExhibitType(typeId) { currentExhibitType = typeId; document.getElementById("buildExhibitBtn").onclick(); }
 function closeBuildModal() { document.getElementById("buildModal").classList.remove("active"); document.getElementById("buildModal").querySelector('.modal-content').style.maxWidth = '400px'; }
 function buildExhibit(size, type = 'terrestrial') {
@@ -3271,19 +3272,19 @@ try {
 const playerId = getPlayerId(); leaderboardPlayerId = playerId;
 const { doc, setDoc, getDoc } = window.firebaseModules;
 const ref = doc(window.firebaseDB, 'leaderboard', playerId); const snap = await getDoc(ref);
-const stats = { 
-    name: getPlayerName(), 
-    zooName: state.zooName || "Unnamed Zoo",
-    zooRating: state.zooRating || 0,
-    money: state.money, 
-    animals: getAllAnimals().length, 
-    achievements: Object.keys(state.achievements).length, 
-    daysPlayed: (state.year - 1) * 360 + (state.month - 1) * 30 + state.day, 
-    visitors: state.dailyVisitors, 
-    lastUpdated: new Date().toISOString() 
+const stats = {
+name: getPlayerName(),
+zooName: state.zooName || "Unnamed Zoo",
+zooRating: state.zooRating || 0,
+money: state.money,
+animals: getAllAnimals().length,
+achievements: Object.keys(state.achievements).length,
+daysPlayed: (state.year - 1) * 360 + (state.month - 1) * 30 + state.day,
+visitors: state.dailyVisitors,
+lastUpdated: new Date().toISOString()
 };
-    
-if (snap.exists()) { const existing = snap.data(); stats.money = Math.max(stats.money, existing.money || 0); stats.animals = Math.max(stats.animals, existing.animals || 0); stats.achievements = Math.max(stats.achievements, existing.achievements || 0); stats.daysPlayed = Math.max(stats.daysPlayed, existing.daysPlayed || 0); await setDoc(ref, stats, { merge: true }); }
+
+    if (snap.exists()) { const existing = snap.data(); stats.money = Math.max(stats.money, existing.money || 0); stats.animals = Math.max(stats.animals, existing.animals || 0); stats.achievements = Math.max(stats.achievements, existing.achievements || 0); stats.daysPlayed = Math.max(stats.daysPlayed, existing.daysPlayed || 0); await setDoc(ref, stats, { merge: true }); }
 else { await setDoc(ref, stats); }
 } catch (e) { console.error("Leaderboard submit error:", e); }
 }
