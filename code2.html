@@ -2472,7 +2472,6 @@ const box = document.getElementById("visitors");
 const totalSpending = state.visitorSpending.total;
 const foodPercent = totalSpending > 0 ? Math.round((state.visitorSpending.food / totalSpending) * 100) : 0;
 const giftPercent = totalSpending > 0 ? Math.round((state.visitorSpending.gifts / totalSpending) * 100) : 0;
-box.innerHTML = `<div class="visitor-overview">
 box.innerHTML = `
 <div class="premium-card" style="grid-column: 1 / -1; margin-bottom: 10px;">
     <div class="card-header"><h3>🎟️ Ticket & Marketing Management</h3></div>
