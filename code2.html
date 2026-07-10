@@ -3487,7 +3487,7 @@ function updateUI() {
 const allAnimals = getAllAnimals();
 document.getElementById("zooNameDisplay").textContent = state.zooName || "My Zoo";
 document.getElementById("money").textContent = state.money.toLocaleString(undefined, { maximumFractionDigits: 2 });
-document.getElementById("day").textContent = state.day; document.getElementById("month").textContent = state.month; document.getElementById("year").textContent = state.year; document.getElementById("ticketPrice").textContent = `$${state.ticketPrice}`;
+document.getElementById("day").textContent = state.day; document.getElementById("month").textContent = state.month; document.getElementById("year").textContent = state.year; document.getElementById("ticketPrice").textContent = `${state.ticketPrice}`;
 const slider = document.getElementById("ticketPriceSlider");
 if (slider) slider.value = state.ticketPrice;
 
