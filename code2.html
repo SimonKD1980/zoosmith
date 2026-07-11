@@ -3182,8 +3182,7 @@ state.money += salePrice; showFloatingMoney(salePrice); state.animalsSold++;
 const breakdown = []; if (ageMultiplier !== 1.0) breakdown.push(`age ${Math.round(ageMultiplier * 100)}%`); if (healthMultiplier !== 1.0) breakdown.push(`health ${Math.round(healthMultiplier * 100)}%`); if (pregnancyBonus > 0) breakdown.push(`+pregnancy bonus`);
 addTicker(`💸 Sold ${animal.name} for $${salePrice}${breakdown.length > 0 ? ` (${breakdown.join(', ')})` : ''}`);
 closeAnimalInfo(); updateUI(); renderExhibits(); renderHouses();
-}
-function openUpgradeMenu(exhibitId) {
+}function openUpgradeMenu(exhibitId) {
     state.activeUpgradeExhibit = exhibitId;
     const ctx = getExhibitContext(exhibitId);
     if (!ctx) return;
@@ -3215,7 +3214,7 @@ function openUpgradeMenu(exhibitId) {
 
     const categories = {
         shelter: { label: "🏠 Shelters", items: [] },
-        decoration: { label: " Decorations", items: [] },
+        decoration: { label: "🌳 Decorations", items: [] },
         facility: { label: "🍽️ Facilities", items: [] }
     };
 
@@ -3242,54 +3241,9 @@ function openUpgradeMenu(exhibitId) {
 
     box.innerHTML = `
     <div style="display:flex; gap:6px; margin-bottom:12px; flex-wrap:wrap;">
-        ${tabIds.map((id, i) => `
-        <button class="upgrade-tab ${i === 0 ? 'active' : ''}"
-        onclick="switchUpgradeTab('${id}')"
-        style="flex:1; min-width:100px; padding:10px; background:${i === 0 ? 'var(--accent)' : 'var(--card)'}; color:${i === 0 ? '#000' : 'var(--text)'}; border:1px solid #243042; border-radius:8px; font-weight:600; cursor:pointer;">
-        ${categories[id].label}
-        <span style="display:block; font-size:0.75rem; opacity:0.8;">${categories[id].items.length} items</span>
-        </button>
-        `).join('')}
-    </div>
-    <div id="upgradeListContainer"></div>
-    `;
-    
-    window._upgradeCategories = categories;
-    window._currentExhibit = exhibit;
-    switchUpgradeTab(tabIds[0]);
-    document.getElementById("upgradeModal").classList.add("active");
-}
-    const categories = {
-shelter: { label: "🏠 Shelters", items: [] },
-decoration: { label: "🌳 Decorations", items: [] },
-facility: { label: "🍽️ Facilities", items: [] }
-};
-allUpgrades.forEach(up => {
-const type = up.type || "decoration"; 
-if (categories[type]) categories[type].items.push(up);
-else categories.decoration.items.push(up);
-});
-const tabIds = Object.keys(categories);
-box.innerHTML = `
-<div style="display:flex; gap:6px; margin-bottom:12px; flex-wrap:wrap;">
-${tabIds.map((id, i) => `
-<button class="upgrade-tab ${i === 0 ? 'active' : ''}"
-onclick="switchUpgradeTab('${id}')"
-style="flex:1; min-width:100px; padding:10px; background:${i === 0 ? 'var(--accent)' : 'var(--card)'}; color:${i === 0 ? '#000' : 'var(--text)'}; border:1px solid #243042; border-radius:8px; font-weight:600; cursor:pointer;">
-${categories[id].label}
-<span style="display:block; font-size:0.75rem; opacity:0.8;">${categories[id].items.length} items</span>
-</button>
-`).join('')}
-</div>
-<div id="upgradeListContainer"></div>
-`;
-window._upgradeCategories = categories;
-window._currentExhibit = exhibit;
-switchUpgradeTab(tabIds[0]);
-document.getElementById("upgradeModal").classList.add("active");
-}
-    }
-function switchUpgradeTab(type) {
+        ${tabIds.map((id, i) =>
+
+    function switchUpgradeTab(type) {
 const container = document.getElementById("upgradeListContainer");
 const categories = window._upgradeCategories;
 const exhibit = window._currentExhibit;
