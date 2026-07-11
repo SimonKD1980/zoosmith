@@ -813,34 +813,154 @@ transform: scale(1.05);
         font-size: 1.4rem; 
     }
     
-    /* EXHIBIT CARDS - Full width */
-    .exhibitCard { 
-        width: 100%;
-        margin-bottom: 12px;
-    }
-    
-    .exhibit-header { 
-        padding: 14px; 
-    }
-    
-    .exhibit-header h3 { 
-        font-size: 1.05rem; 
-    }
-    
-    .exhibit-body { 
-        padding: 12px; 
-    }
-    
-    /* ANIMAL TAGS - Larger touch targets */
-    .animalTag { 
-        font-size: 0.85rem; 
-        padding: 10px 14px; 
-        min-height: 40px; 
-        display: inline-flex; 
-        align-items: center;
-        margin: 3px;
-    }
-    
+   /* ==========================================================================
+   ️ NEW EXHIBIT CARD DESIGN
+   ========================================================================== */
+.exhibitCard { 
+    position: relative; 
+    width: 100%; 
+    background: linear-gradient(145deg, #1e293b, #0f172a); 
+    border-radius: 16px; 
+    border: 1px solid #334155; 
+    overflow: hidden; 
+    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1); 
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+    display: flex;
+    flex-direction: column;
+}
+.exhibitCard:hover { 
+    transform: translateY(-6px); 
+    border-color: var(--accent); 
+    box-shadow: 0 20px 25px -5px rgba(34, 197, 94, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.5); 
+}
+.exhibit-header { 
+    padding: 16px; 
+    background: linear-gradient(135deg, rgba(34, 197, 94, 0.15), rgba(15, 23, 42, 0.8)); 
+    border-bottom: 1px solid #334155; 
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 10px;
+}
+.exhibit-header h3 { 
+    margin: 0; 
+    font-size: 1.15rem; 
+    font-weight: 800; 
+    color: #fff; 
+    letter-spacing: -0.5px;
+}
+.exhibit-name { 
+    cursor: pointer; 
+    transition: color 0.2s; 
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.exhibit-name:hover { color: var(--gold); }
+.exhibit-subtitle { 
+    font-size: 0.75rem; 
+    color: var(--muted); 
+    margin-top: 4px; 
+    font-weight: 500;
+}
+.exhibit-status-badge {
+    font-size: 0.7rem;
+    padding: 4px 8px;
+    border-radius: 20px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+}
+.status-building { background: rgba(245, 158, 11, 0.2); color: var(--warn); border: 1px solid rgba(245, 158, 11, 0.3); }
+.status-built { background: rgba(34, 197, 94, 0.2); color: var(--accent); border: 1px solid rgba(34, 197, 94, 0.3); }
+
+.exhibit-body { 
+    padding: 16px; 
+    display: flex; 
+    flex-direction: column; 
+    gap: 12px; 
+    flex: 1;
+}
+
+/* Mini Stats Grid */
+.exhibit-stats-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+}
+.mini-stat {
+    background: rgba(11, 18, 32, 0.6);
+    border: 1px solid #334155;
+    border-radius: 10px;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.mini-stat.full-width { grid-column: 1 / -1; }
+.mini-stat-label { font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; }
+.mini-stat-value { font-size: 1rem; font-weight: 800; color: var(--text); display: flex; align-items: center; gap: 4px; }
+
+/* Progress Bars */
+.progress-track { width: 100%; height: 6px; background: #0b1220; border-radius: 3px; overflow: hidden; margin-top: 4px; }
+.progress-fill { height: 100%; transition: width 0.4s ease; }
+.fill-happiness { background: linear-gradient(90deg, #ef4444, #f59e0b, #22c55e); }
+.fill-fence { background: linear-gradient(90deg, #ef4444, #f59e0b, #22c55e); }
+.fill-build { background: linear-gradient(90deg, var(--warn), var(--accent)); }
+
+/* Animal Chips */
+.animalList { 
+    display: flex; 
+    flex-wrap: wrap; 
+    gap: 6px; 
+    margin-top: 4px;
+    max-height: 120px;
+    overflow-y: auto;
+    padding-right: 4px;
+}
+.animalTag { 
+    background: rgba(59, 130, 246, 0.1); 
+    border: 1px solid rgba(59, 130, 246, 0.3); 
+    padding: 6px 10px; 
+    border-radius: 20px; 
+    cursor: pointer; 
+    font-size: 0.8rem; 
+    font-weight: 600;
+    color: #93c5fd;
+    transition: all 0.2s; 
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+.animalTag:hover { 
+    background: rgba(59, 130, 246, 0.2); 
+    border-color: var(--blue); 
+    color: #fff;
+    transform: translateY(-1px);
+}
+.animal-tag-sick { border-color: rgba(239, 68, 68, 0.5); color: #fca5a5; background: rgba(239, 68, 68, 0.1); }
+.animal-tag-pregnant { border-color: rgba(168, 85, 247, 0.5); color: #d8b4fe; background: rgba(168, 85, 247, 0.1); }
+
+/* Action Buttons */
+.exhibit-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 8px;
+    margin-top: auto;
+    padding-top: 12px;
+    border-top: 1px solid #334155;
+}
+.exhibit-actions button {
+    padding: 10px 8px;
+    font-size: 0.8rem;
+    border-radius: 8px;
+    min-height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+}
     /* MODALS - Full screen on mobile */
     .modal-content { 
         width: 98%; 
@@ -2468,73 +2588,133 @@ updateUI(); renderSupplies();
 } catch (e) { console.error("buyFood error:", e); showToast("Error buying food.", "error"); }
 }
 function renderExhibits() {
-if (state.uiMode === "move") return;
-const box = document.getElementById("exhibits"); box.innerHTML = "";
-const ids = Object.keys(state.exhibits);
-if (ids.length === 0) { box.innerHTML = '<div style="text-align:center; padding:40px; color:var(--muted); grid-column: 1 / -1;"><h2>🏞 No Exhibits Yet</h2><p>Click "Build Exhibit" to get started!</p></div>'; return; }
-ids.forEach((id) => {
-const group = state.exhibits[id]; 
-if (!group.id) group.id = id; // Ensure ID exists
-const isBuilt = !!state.builtEnclosures[id]; const isBuilding = group.buildDaysRemaining > 0;
-const happiness = getExhibitHappiness(group); const upgradeCount = group.upgrades?.length || 0;
-const sizeInfo = EXHIBIT_SIZES[group.size] || EXHIBIT_SIZES.small;
-const dailyFoodCost = group.animals.reduce((sum, a) => sum + getActualFoodCost(a), 0); const dailyExhibitCost = 5 + dailyFoodCost;
-const fenceCondition = group.fenceCondition ?? 100;
-const fenceColor = fenceCondition >= 70 ? 'var(--accent)' : fenceCondition >= 50 ? 'var(--warn)' : fenceCondition >= 30 ? 'var(--danger)' : '#dc2626';
-const fenceEmoji = fenceCondition >= 70 ? '✅' : fenceCondition >= 50 ? '⚠️' : fenceCondition >= 30 ? '🔶' : '🔴';
-const div = document.createElement("div"); div.className = "exhibitCard";
-let statusBadge = "";
-if (isBuilding) { const progress = ((sizeInfo.buildDays - group.buildDaysRemaining) / sizeInfo.buildDays) * 100; statusBadge = `<div style="font-size:0.8rem; margin-top:4px; color: var(--warn);">🏗 Building... ${group.buildDaysRemaining} day${group.buildDaysRemaining !== 1 ? 's' : ''} left</div><div class="happiness-bar" style="margin-top:6px;"><div class="happiness-fill" style="width:${progress}%; background: linear-gradient(90deg, var(--warn), var(--accent));"></div></div>`; }
-else if (isBuilt) statusBadge = `<div style="font-size:0.8rem; opacity:0.8; margin-top:4px;">✅ Built (${sizeInfo.label})</div>`;
-else statusBadge = `<div style="font-size:0.8rem; opacity:0.8; margin-top:4px;">⚠️ Not Built</div>`;
-const pregnantCount = group.animals.filter(a => a.isPregnant).length;
-const sickAnimals = group.animals.filter(a => (a.health ?? 100) < 40);
-const criticalAnimals = group.animals.filter(a => (a.health ?? 100) < 20);
-let healthWarningHTML = '';
-if (criticalAnimals.length > 0) healthWarningHTML = `<div style="padding: 8px; background: rgba(220, 38, 38, 0.2); border: 1px solid var(--danger); border-radius: 8px; color: var(--danger); font-weight: 700; text-align: center; margin: 6px 0;">💀 ${criticalAnimals.length} animal${criticalAnimals.length > 1 ? 's' : ''} in CRITICAL condition!</div>`;
-else if (sickAnimals.length > 0) healthWarningHTML = `<div style="padding: 8px; background: rgba(245, 158, 11, 0.15); border: 1px solid var(--warn); border-radius: 8px; color: var(--warn); font-weight: 700; text-align: center; margin: 6px 0;">🤒 ${sickAnimals.length} animal${sickAnimals.length > 1 ? 's' : ''} sick - hire keepers!</div>`;
-else if (isUnderstaffed() && group.animals.length > 0) healthWarningHTML = `<div style="padding: 6px; background: rgba(245, 158, 11, 0.1); border-radius: 8px; color: var(--warn); font-size: 0.8rem; text-align: center; margin: 6px 0;">⚠️ Health declining - no keepers</div>`;
-const animalList = group.animals.length > 0 ? group.animals.map((a, i) => {
-const stage = getLifeStage(a); const pregnantTag = a.isPregnant ? '🤰 ' : ''; const sickTag = a.sick ? '🤒 ' : '';
-const health = a.health ?? 100; const healthEmoji = health >= 80 ? '' : health >= 50 ? ' 💛' : health >= 20 ? ' 🧡' : ' ❤️‍🩹';
-return `<span class="animalTag" data-exhibit="${group.id}" data-index="${i}" title="Age: ${getAnimalAgeDisplay(a)} | Health: ${Math.round(health)}%">${sickTag}${pregnantTag}${stage.emoji} ${a.name}${healthEmoji}</span>`;
-}).join("") : "<em style='color:var(--muted)'>No animals yet</em>";
-const exhibitType = data.exhibitTypes[group.type] || data.exhibitTypes.terrestrial || { emoji: '🏞️', name: 'Standard Exhibit' };
-div.innerHTML = `
-<div class="exhibit-header">
-<h3 class="exhibit-name" onclick="renameExhibit('${group.id}')" title="Click to rename">${exhibitType.emoji} ${group.name} <span style="font-size: 0.7rem; opacity: 0.6; margin-left: 6px;">️</span></h3>
-<div style="font-size:0.75rem; opacity:0.7; margin-top:2px;">${sizeInfo.emoji} ${sizeInfo.label} • ${exhibitType.name}</div>
-${statusBadge}
-</div>
-<div class="exhibit-body">
-<div class="exhibit-stat"><span>🐾 Animals</span><strong>${group.animals.length}</strong></div>
-<div class="exhibit-stat"><span>😊 Happiness</span><strong style="color:${happiness >= 80 ? 'var(--accent)' : happiness >= 50 ? 'var(--warn)' : 'var(--danger)'}">${happiness}%</strong></div>
-<div class="exhibit-stat"><span>${fenceEmoji} Fence Condition</span><strong style="color: ${fenceColor};">${Math.round(fenceCondition)}%</strong></div>
-<div class="happiness-bar" style="margin-bottom: 8px;"><div style="height: 100%; width: ${fenceCondition}%; background: ${fenceColor}; transition: width 0.3s;"></div></div>
-${pregnantCount > 0 ? `<div class="exhibit-stat"><span>🤰 Pregnant</span><strong style="color: var(--purple);">${pregnantCount}</strong></div>` : ''}
-<div class="happiness-bar"><div class="happiness-fill" style="width:${happiness}%"></div></div>
-<div class="exhibit-stat"><span>🍖 Daily Food</span><strong style="color: var(--warn);">$${dailyFoodCost}</strong></div>
-<div class="exhibit-stat"><span>🧾 Total Upkeep</span><strong style="color: var(--danger);">$${dailyExhibitCost}/day</strong></div>
-<div class="exhibit-stat"><span>🏗 Upgrades</span><strong>${upgradeCount}</strong></div>
-${healthWarningHTML}
-<div class="animalList">${animalList}</div>
-${!isBuilding ? `<div style="display:flex; gap:6px; margin-top:8px;">
-<button class="secondary-btn" style="flex:1; padding:8px; font-size:0.85rem;">🏗 Upgrades</button>
-<button class="secondary-btn" style="flex:1; padding:8px; font-size:0.85rem; background: linear-gradient(135deg, #f59e0b, #d97706); color: white;" onclick="repairFence('${group.id}')">🔧 Repair</button>
-<button class="danger-btn" style="flex:1; padding:8px; font-size:0.85rem;">🗑 Remove</button>
-</div>` : `<div style="margin-top:8px; padding:10px; background: rgba(245, 158, 11, 0.1); border-radius: 8px; text-align:center; color: var(--warn); font-size:0.85rem;">⏳ Cannot modify while under construction</div>`}
-</div>`;
-if (!isBuilding) {
-div.querySelectorAll(".danger-btn")[0].onclick = () => {
-if (group.animals.length > 0) return showToast("Cannot remove exhibit with animals inside!", "error");
-const refund = Math.floor(sizeInfo.cost * 0.5); state.money += refund; showFloatingMoney(refund);
-delete state.exhibits[id]; delete state.builtEnclosures[id];
-addTicker(`💰 Demolished ${group.name} (refunded $${refund})`); updateUI(); renderExhibits();
-};
-div.querySelectorAll(".secondary-btn")[0].onclick = () => openUpgradeMenu(group.id);
+    if (state.uiMode === "move") return;
+    const box = document.getElementById("exhibits"); 
+    box.innerHTML = "";
+    const ids = Object.keys(state.exhibits);
+    
+    if (ids.length === 0) { 
+        box.innerHTML = '<div style="text-align:center; padding:60px 20px; color:var(--muted); grid-column: 1 / -1;"><div style="font-size: 4rem; margin-bottom: 15px;">🏞️</div><h2>No Exhibits Yet</h2><p style="margin-bottom: 20px;">Click the 🏗️ button to build your first enclosure!</p></div>'; 
+        return; 
+    }
+    
+    ids.forEach((id) => {
+        const group = state.exhibits[id];
+        if (!group.id) group.id = id; 
+        const isBuilding = group.buildDaysRemaining > 0;
+        const happiness = getExhibitHappiness(group); 
+        const upgradeCount = group.upgrades?.length || 0;
+        const sizeInfo = EXHIBIT_SIZES[group.size] || EXHIBIT_SIZES.small;
+        const dailyFoodCost = group.animals.reduce((sum, a) => sum + getActualFoodCost(a), 0); 
+        const dailyExhibitCost = 5 + dailyFoodCost;
+        const fenceCondition = group.fenceCondition ?? 100;
+        
+        const fenceColor = fenceCondition >= 70 ? 'var(--accent)' : fenceCondition >= 50 ? 'var(--warn)' : 'var(--danger)';
+        const exhibitType = data.exhibitTypes[group.type] || data.exhibitTypes.terrestrial || { emoji: '🏞️', name: 'Standard Exhibit' };
+        
+        // Status Badge Logic
+        let statusBadgeHTML = '';
+        if (isBuilding) { 
+            const progress = ((sizeInfo.buildDays - group.buildDaysRemaining) / sizeInfo.buildDays) * 100; 
+            statusBadgeHTML = `<div class="exhibit-status-badge status-building">🏗 Building</div>
+            <div class="progress-track" style="margin-top:8px;"><div class="progress-fill fill-build" style="width:${progress}%"></div></div>
+            <div style="font-size:0.75rem; color:var(--warn); margin-top:4px; text-align:center;">${group.buildDaysRemaining} day${group.buildDaysRemaining !== 1 ? 's' : ''} left</div>`; 
+        } else { 
+            statusBadgeHTML = `<div class="exhibit-status-badge status-built">✅ Built</div>`; 
+        }
+
+        // Warnings
+        const pregnantCount = group.animals.filter(a => a.isPregnant).length;
+        const sickAnimals = group.animals.filter(a => (a.health ?? 100) < 40);
+        let healthWarningHTML = '';
+        if (sickAnimals.length > 0) healthWarningHTML = `<div style="padding: 8px; background: rgba(239, 68, 68, 0.15); border: 1px solid var(--danger); border-radius: 8px; color: #fca5a5; font-weight: 700; font-size: 0.85rem; text-align: center;"><span style="font-size:1rem; margin-right:4px;"></span>${sickAnimals.length} animal${sickAnimals.length > 1 ? 's' : ''} need medical attention!</div>`;
+        else if (isUnderstaffed() && group.animals.length > 0) healthWarningHTML = `<div style="padding: 8px; background: rgba(245, 158, 11, 0.15); border: 1px solid var(--warn); border-radius: 8px; color: #fcd34d; font-size: 0.85rem; text-align: center;">⚠️ Understaffed - Health declining</div>`;
+
+        // Animal Chips
+        const animalList = group.animals.length > 0 ? group.animals.map((a, i) => {
+            const stage = getLifeStage(a); 
+            const pregnantTag = a.isPregnant ? '🤰' : ''; 
+            const sickTag = a.sick ? '🤒' : '';
+            const health = a.health ?? 100; 
+            const tagClass = a.sick ? 'animal-tag-sick' : a.isPregnant ? 'animal-tag-pregnant' : '';
+            return `<span class="animalTag ${tagClass}" data-exhibit="${group.id}" data-index="${i}" title="Age: ${getAnimalAgeDisplay(a)} | Health: ${Math.round(health)}%">${stage.emoji} ${a.name} ${sickTag}${pregnantTag}</span>`;
+        }).join("") : "<em style='color:var(--muted); font-size:0.85rem;'>No animals yet. Visit the shop!</em>";
+
+        // Build the Card
+        const div = document.createElement("div"); 
+        div.className = "exhibitCard";
+        div.innerHTML = `
+            <div class="exhibit-header">
+                <div style="flex:1;">
+                    <h3 class="exhibit-name" onclick="renameExhibit('${group.id}')" title="Click to rename">
+                        ${exhibitType.emoji} ${group.name} <span style="font-size: 0.7rem; opacity: 0.5; margin-left: 4px;">✏️</span>
+                    </h3>
+                    <div class="exhibit-subtitle">${sizeInfo.emoji} ${sizeInfo.label} • ${exhibitType.name}</div>
+                </div>
+                <div style="display:flex; flex-direction:column; align-items:flex-end; gap:4px;">
+                    ${statusBadgeHTML}
+                </div>
+            </div>
+            
+            <div class="exhibit-body">
+                ${healthWarningHTML}
+                
+                <div class="exhibit-stats-grid">
+                    <div class="mini-stat">
+                        <div class="mini-stat-label"> Animals</div>
+                        <div class="mini-stat-value">${group.animals.length} <span style="font-size:0.7rem; color:var(--muted); font-weight:400;">/ ${sizeInfo.label === 'Small' ? 10 : sizeInfo.label === 'Medium' ? 20 : 30}</span></div>
+                    </div>
+                    <div class="mini-stat">
+                        <div class="mini-stat-label">😊 Happiness</div>
+                        <div class="mini-stat-value" style="color: ${happiness >= 80 ? 'var(--accent)' : happiness >= 50 ? 'var(--warn)' : 'var(--danger)'}">${happiness}%</div>
+                        <div class="progress-track"><div class="progress-fill fill-happiness" style="width:${happiness}%"></div></div>
+                    </div>
+                    <div class="mini-stat">
+                        <div class="mini-stat-label">🔒 Fence</div>
+                        <div class="mini-stat-value" style="color: ${fenceColor}">${Math.round(fenceCondition)}%</div>
+                        <div class="progress-track"><div class="progress-fill fill-fence" style="width:${fenceCondition}%; background:${fenceColor}"></div></div>
+                    </div>
+                    <div class="mini-stat">
+                        <div class="mini-stat-label">💰 Daily Upkeep</div>
+                        <div class="mini-stat-value" style="color: var(--warn);">$${dailyExhibitCost}</div>
+                        <div style="font-size:0.7rem; color:var(--muted);">Food: $${dailyFoodCost} + Base $5</div>
+                    </div>
+                </div>
+
+                ${pregnantCount > 0 ? `<div style="padding: 8px; background: rgba(168, 85, 247, 0.15); border-radius: 8px; text-align: center; color: #d8b4fe; font-weight: 700; font-size: 0.85rem;">🤰 ${pregnantCount} animal${pregnantCount > 1 ? 's' : ''} expecting!</div>` : ''}
+                
+                <div style="margin-top: 4px;">
+                    <div class="mini-stat-label" style="margin-bottom: 6px;">👥 Residents</div>
+                    <div class="animalList">${animalList}</div>
+                </div>
+
+                ${!isBuilding ? `
+                <div class="exhibit-actions">
+                    <button class="secondary-btn" onclick="openUpgradeMenu('${group.id}')">🏗 Upgrades</button>
+                    <button class="buildBtn" onclick="repairFence('${group.id}')">🔧 Repair</button>
+                    <button class="danger-btn" onclick="demolishExhibit('${group.id}')">🗑 Demolish</button>
+                </div>` : `<div style="margin-top:auto; padding:12px; background: rgba(245, 158, 11, 0.1); border-radius: 8px; text-align:center; color: var(--warn); font-size:0.85rem;">⏳ Cannot modify while under construction</div>`}
+            </div>
+        `;
+        box.appendChild(div);
+    });
 }
-box.appendChild(div);
-});
+
+// Helper function for the new Demolish button
+function demolishExhibit(id) {
+    const group = state.exhibits[id];
+    if (!group) return;
+    if (group.animals.length > 0) return showToast("Cannot demolish exhibit with animals inside!", "error");
+    const sizeInfo = EXHIBIT_SIZES[group.size] || EXHIBIT_SIZES.small;
+    const refund = Math.floor(sizeInfo.cost * 0.5); 
+    state.money += refund; 
+    showFloatingMoney(refund);
+    delete state.exhibits[id]; 
+    delete state.builtEnclosures[id];
+    addTicker(`💰 Demolished ${group.name} (refunded $${refund})`); 
+    updateUI(); 
+    renderExhibits();
+    saveGame();
 }
 function renameExhibit(exhibitId) {
 const ctx = getExhibitContext(exhibitId); if (!ctx) return;
