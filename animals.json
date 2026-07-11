@@ -9,6 +9,7 @@
     "cost": 600,
     "dailyIncome": 30,
     "attractionValue": 3,
+    "dirtiness": 10,
     "minInExhibit": 2,
     "maxInExhibit": 10,
     "breedChance": 0.6,
