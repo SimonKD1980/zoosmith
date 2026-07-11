@@ -1785,13 +1785,7 @@ function importSave() {
 /* --------------------------------------------------------------------------
 🧑‍🌾 5. STAFF & ANIMAL HELPERS
 -------------------------------------------------------------------------- */
-function getKeeperSlots() {
-let total = 0;
-for (const staffId of state.hiredStaff) {
-const staff = data.staff.find(s => s.id === staffId);
-if (staff && staff.keeperSlots) total += staff.keeperSlots;
-} return total;
-}
+
 function getLifeStage(animal) {
 const age = animal.ageDays || 0;
 if (age < 30) return { stage: 'baby', emoji: '🍼', label: 'Baby', incomeMultiplier: 0.5, canBreed: false };
@@ -1813,13 +1807,65 @@ function getAnimalSlotCost(animal) {
 const size = animal.requiredExhibitSize || "small";
 if (size === "large") return 3; if (size === "medium") return 2; return 1;
 }
-function getUsedSlots() {
-let used = 0;
-const allAnimals = getAllAnimals();
-for (const animal of allAnimals) used += getAnimalSlotCost(animal);
-return used;
+
+// --- KEEPER LOGIC ---
+function getKeeperCapacity() {
+    let capacity = 0;
+    state.hiredStaff.forEach(instance => {
+        const staffData = data.staff.find(s => s.id === instance.typeId);
+        // Keepers have 5 slots (or use the JSON value if defined)
+        const slots = staffData?.keeperSlots || 5; 
+        // Only count if they are actually a keeper role
+        if (staffData?.role?.toLowerCase().includes('keeper') || slots > 0) {
+            capacity += slots;
+        }
+    });
+    return capacity;
 }
-function getAvailableSlots() { return getKeeperSlots() - getUsedSlots(); }
+
+function getKeeperDemand() {
+    let demand = 0;
+    const allExhibits = getAllExhibits();
+    for (const { exhibit } of allExhibits) {
+        if (exhibit.buildDaysRemaining > 0) continue; // Don't count building exhibits
+        const size = exhibit.size || 'small';
+        if (size === 'large') demand += 3;
+        else if (size === 'medium') demand += 2;
+        else demand += 1; // small
+    }
+    return demand;
+}
+
+// --- CLEANER LOGIC ---
+function getCleanerCapacity() {
+    let capacity = 0;
+    state.hiredStaff.forEach(instance => {
+        const staffData = data.staff.find(s => s.id === instance.typeId);
+        // Cleaners have 10 slots (or use JSON value)
+        const slots = staffData?.cleanerSlots || 10;
+        if (staffData?.role?.toLowerCase().includes('cleaner') || staffData?.role?.toLowerCase().includes('janitor') || slots > 0) {
+            capacity += slots;
+        }
+    });
+    return capacity;
+}
+
+function getCleanerDemand() {
+    let demand = 0;
+    // Bins = 1 slot, Toilets = 2 slots
+    if (state.amenities['bin'] > 0) demand += (state.amenities['bin'] * 1);
+    if (state.amenities['restroom'] > 0) demand += (state.amenities['restroom'] * 2); // Assuming 'restroom' is the toilet ID
+    // Add other toilet IDs here if you have them (e.g., 'toilet', 'latrine')
+    return demand;
+}
+
+// --- UPDATED UNDERSTAFFED CHECK ---
+function isUnderstaffed() {
+    // You are understaffed if you don't have enough keepers OR cleaners
+    return getKeeperDemand() > getKeeperCapacity() || getCleanerDemand() > getCleanerCapacity();
+}
+    
+    function getAvailableSlots() { return getKeeperSlots() - getUsedSlots(); }
 function isUnderstaffed() { return getUsedSlots() > getKeeperSlots(); }
 function getStaffEffects() {
 const effects = { visitorHappiness: 0, animalHappiness: 0, breedingBonus: 0, cleanPark: 0, cleanExhibits: 0 };
@@ -2972,38 +3018,109 @@ card.querySelector("button").onclick = () => buyFacility(id); grid.appendChild(c
 }
 }
 function renderStaff() {
-const box = document.getElementById("staff"); box.innerHTML = '<div class="grid-layout"></div>'; const grid = box.querySelector('.grid-layout');
-const summary = document.createElement("div"); summary.className = "premium-card"; summary.style.gridColumn = "1 / -1";
-const totalSalary = state.hiredStaff.reduce((sum, id) => { const staff = data.staff.find(s => s.id === id); return sum + (staff?.salary || 0); }, 0);
-const totalSlots = getKeeperSlots(); const usedSlots = getUsedSlots(); const availableSlots = totalSlots - usedSlots;
-summary.innerHTML = `<div class="card-header"><h3>👷 Staff Overview</h3><div class="subtitle">${state.hiredStaff.length} staff members hired • $${totalSalary}/day in salaries</div></div>
-<div class="card-body" style="padding: 12px 16px;"><div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
-<div style="padding: 10px; background: #0b1220; border-radius: 8px; text-align: center;"><div style="font-size: 0.75rem; color: var(--muted); text-transform: uppercase;">Keeper Slots</div><div style="font-size: 1.5rem; font-weight: 800; color: var(--accent);">${totalSlots}</div></div>
-<div style="padding: 10px; background: #0b1220; border-radius: 8px; text-align: center;"><div style="font-size: 0.75rem; color: var(--muted); text-transform: uppercase;">Used</div><div style="font-size: 1.5rem; font-weight: 800; color: ${usedSlots > totalSlots ? 'var(--danger)' : 'var(--blue)'};">${usedSlots}</div></div>
-<div style="padding: 10px; background: #0b1220; border-radius: 8px; text-align: center;"><div style="font-size: 0.75rem; color: var(--muted); text-transform: uppercase;">Available</div><div style="font-size: 1.5rem; font-weight: 800; color: ${availableSlots < 0 ? 'var(--danger)' : 'var(--accent)'};">${availableSlots}</div></div>
-</div>${isUnderstaffed() ? `<div style="margin-top: 10px; padding: 10px; background: rgba(239, 68, 68, 0.15); border-radius: 8px; text-align: center; color: var(--danger); font-weight: 700;">⚠️ UNDERSTAFFED - Animal health is declining! Hire more keepers!</div>` : ''}</div>`;
-grid.appendChild(summary);
-data.staff.forEach(staff => {
-const hiredCount = countStaff(staff.id); const maxStaff = staff.effects?.maxStaff || 99; const isMaxed = hiredCount >= maxStaff;
-const card = document.createElement("div"); card.className = "premium-card"; let effectsHTML = '';
-if (staff.effects) {
-const effectLabels = { visitorHappiness: { icon: '😊', label: 'Visitor Happiness', color: 'blue' }, animalHappiness: { icon: '🐾', label: 'Animal Happiness', color: 'green' }, breedingBonus: { icon: '🍼', label: 'Breeding Success', color: 'purple' }, cleanPark: { icon: '🏞', label: 'Park Cleanliness', color: 'warn' }, cleanExhibits: { icon: '✨', label: 'Exhibit Cleanliness', color: 'warn' } };
-for (const effect in staff.effects) {
-if (effect === 'maxStaff') continue; const info = effectLabels[effect];
-if (info) { let value = staff.effects[effect]; let displayValue = effect === 'breedingBonus' ? `+${(value * 100).toFixed(0)}%` : `+${value}`; effectsHTML += `<div class="stat-badge ${info.color}">${info.icon} ${displayValue} ${info.label}</div>`; }
+    const box = document.getElementById("staff");
+    if (!box) return;
+    box.innerHTML = '<div class="grid-layout"></div>';
+    const grid = box.querySelector('.grid-layout');
+
+    const summary = document.createElement("div");
+    summary.className = "premium-card";
+    summary.style.gridColumn = "1 / -1";
+
+    // ✅ NEW: Calculate Keeper & Cleaner Capacity vs Demand
+    const keeperCapacity = getKeeperCapacity();
+    const keeperDemand = getKeeperDemand();
+    const keeperAvailable = keeperCapacity - keeperDemand;
+
+    const cleanerCapacity = getCleanerCapacity();
+    const cleanerDemand = getCleanerDemand();
+    const cleanerAvailable = cleanerCapacity - cleanerDemand;
+
+    // Calculate total daily salary (adapted for object structure)
+    const totalSalary = state.hiredStaff.reduce((sum, staffInstance) => {
+        const staffData = data.staff.find(s => s.id === staffInstance.typeId);
+        return sum + (staffData?.salary || 0);
+    }, 0);
+
+    summary.innerHTML = `
+        <div class="card-header">
+            <h3>👷 Staff Overview</h3>
+            <div class="subtitle">${state.hiredStaff.length} staff members hired • $${totalSalary}/day in salaries</div>
+        </div>
+        <div class="card-body" style="padding: 12px 16px;">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
+                <div style="padding: 10px; background: #0b1220; border-radius: 8px; text-align: center;">
+                    <div style="font-size: 0.75rem; color: var(--muted); text-transform: uppercase;">🧤 Keeper Slots</div>
+                    <div style="font-size: 1.2rem; font-weight: 800; color: var(--accent);">${keeperCapacity} / ${keeperDemand} Used</div>
+                    <div style="font-size: 0.8rem; color: ${keeperAvailable < 0 ? 'var(--danger)' : 'var(--muted)'};">${keeperAvailable} available</div>
+                </div>
+                <div style="padding: 10px; background: #0b1220; border-radius: 8px; text-align: center;">
+                    <div style="font-size: 0.75rem; color: var(--muted); text-transform: uppercase;">🧹 Cleaner Slots</div>
+                    <div style="font-size: 1.2rem; font-weight: 800; color: var(--blue);">${cleanerCapacity} / ${cleanerDemand} Used</div>
+                    <div style="font-size: 0.8rem; color: ${cleanerAvailable < 0 ? 'var(--danger)' : 'var(--muted)'};">${cleanerAvailable} available</div>
+                </div>
+            </div>
+            ${isUnderstaffed() ? `<div style="padding: 10px; background: rgba(239, 68, 68, 0.15); border-radius: 8px; text-align: center; color: var(--danger); font-weight: 700;">⚠️ UNDERSTAFFED - Assign staff to exhibits and amenities!</div>` : ''}
+        </div>
+    `;
+    grid.appendChild(summary);
+
+    // ✅ Render individual staff cards (adapted for object-based hiring)
+    data.staff.forEach(staff => {
+        const hiredInstances = state.hiredStaff.filter(s => s.typeId === staff.id);
+        const hiredCount = hiredInstances.length;
+        const maxStaff = staff.effects?.maxStaff || 99;
+        const isMaxed = hiredCount >= maxStaff;
+
+        const card = document.createElement("div");
+        card.className = "premium-card";
+
+        let effectsHTML = '';
+        if (staff.effects) {
+            const effects = Object.entries(staff.effects)
+                .filter(([key]) => !['maxStaff', 'maintenanceLevel', 'keeperSlots', 'cleanerSlots'].includes(key))
+                .map(([key, val]) => {
+                    const label = key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
+                    return `<span style="background: rgba(34, 197, 94, 0.1); color: var(--accent); padding: 3px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: 600;">${label}: +${val}</span>`;
+                }).join('');
+            if (effects) effectsHTML = `<div style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px;">${effects}</div>`;
+        }
+
+        card.innerHTML = `
+            <div class="card-header">
+                <span class="staff-icon" style="font-size: 2rem;">${staff.icon || '👤'}</span>
+                <div>
+                    <h3>${staff.name}</h3>
+                    <div class="subtitle">${staff.role || 'Staff'} • Hired: ${hiredCount}/${maxStaff}</div>
+                </div>
+            </div>
+            <div class="card-body">
+                <p class="card-desc">${staff.description || 'A valuable addition to your team.'}</p>
+                ${effectsHTML}
+                <div class="card-price">$${staff.cost.toLocaleString()} (hire) • $${staff.salary || 0}/day</div>
+                <div style="display: flex; gap: 8px; margin-top: 10px;">
+                    <button class="primary-btn" style="flex: 1;" ${isMaxed ? 'disabled' : ''}>${isMaxed ? 'Max Hired' : 'Hire'}</button>
+                    <button class="danger-btn" style="flex: 1;" ${hiredCount === 0 ? 'disabled' : ''}>${hiredCount === 0 ? 'None Hired' : 'Fire One'}</button>
+                </div>
+            </div>
+        `;
+
+        // ✅ Attach click handlers using the new object structure
+        if (!isMaxed) {
+            card.querySelector(".primary-btn").onclick = () => hireStaff(staff.id);
+        }
+        if (hiredCount > 0) {
+            card.querySelector(".danger-btn").onclick = () => {
+                // Fires the oldest instance of this staff type
+                const instanceToFire = hiredInstances[0];
+                fireStaff(instanceToFire.uid);
+            };
+        }
+
+        grid.appendChild(card);
+    });
 }
-}
-card.innerHTML = `<div class="card-header"><span class="staff-icon">${staff.icon}</span><h3>${staff.name}</h3><span class="role-badge">${staff.role}</span></div>
-<div class="card-body"><p class="card-desc">${staff.description}</p>
-${effectsHTML ? `<div style="display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0;">${effectsHTML}</div>` : ''}
-<div class="salary-highlight">💰 $${staff.salary}/day</div><div class="card-price" style="font-size:1.2rem;">Hire Cost: $${staff.cost.toLocaleString()}</div>
-<div style="margin: 10px 0; padding: 8px; background: #0b1220; border-radius: 8px; text-align: center;"><div style="font-size: 0.85rem; color: var(--muted);">Hired: ${hiredCount} / ${maxStaff}</div></div>
-<button class="primary-btn" ${isMaxed ? 'disabled' : ''}>${isMaxed ? '✓ Max Hired' : hiredCount > 0 ? `Hire Another ($${staff.cost.toLocaleString()})` : 'Hire Staff'}</button>
-${hiredCount > 0 ? `<button class="danger-btn" style="margin-top: 8px; width: 100%;" onclick="fireStaff('${staff.id}')">🔥 Fire ${staff.name} (${hiredCount} hired)</button><div style="margin-top: 6px; font-size: 0.75rem; color: var(--muted); text-align: center;">💰 Severance refund: $${Math.floor(staff.cost * 0.2).toLocaleString()}</div>` : ''}</div>`;
-const btn = card.querySelector("button"); if (!isMaxed) btn.onclick = () => hireStaff(staff.id); grid.appendChild(card);
-});
-}
-function renderResearch() {
+    function renderResearch() {
 const box = document.getElementById("research"); if (!box) return;
 if (!data.researchProjects || Object.keys(data.researchProjects).length === 0) { box.innerHTML = '<div style="text-align:center; padding:40px; color:var(--muted);">🔬 Loading research data...</div>'; return; }
 const animals = data.animals || []; const tiers = ['basic', 'advanced', 'exotic', 'legendary'];
@@ -3366,28 +3483,56 @@ if (!state.amenities[amenityId]) state.amenities[amenityId] = 0; state.amenities
 addTicker(`🏪 Built ${amenity.name}`); updateUI(); renderAmenities(); renderVisitors();
 }
 function hireStaff(staffId) {
-const staff = data.staff.find(s => s.id === staffId); if (!staff) return;
-const hiredCount = countStaff(staffId); const maxStaff = staff.effects?.maxStaff || 99;
-if (hiredCount >= maxStaff) return showToast(`Maximum ${staff.name}s hired!`, "warn");
-if (state.money < staff.cost) return showToast("Not enough money!", "error");
-state.money -= staff.cost; showFloatingMoney(-staff.cost); state.hiredStaff.push(staffId);
-if (staff.effects?.maintenanceLevel) { state.maintenanceLevel = Math.max(state.maintenanceLevel, staff.effects.maintenanceLevel); state.maintenanceWorkers++; }
-addTicker(`👷 Hired ${staff.name}`); updateUI(); renderStaff(); renderExhibits(); renderHouses();
+    const staff = data.staff.find(s => s.id === staffId); 
+    if (!staff) return;
+    
+    // Check limits based on type (Keeper or Cleaner)
+    const isKeeper = staff.role?.toLowerCase().includes('keeper');
+    const isCleaner = staff.role?.toLowerCase().includes('cleaner') || staff.role?.toLowerCase().includes('janitor');
+    
+    // Optional: You can add max hire limits here if you want, otherwise unlimited
+    if (state.money < staff.cost) return showToast("Not enough money!", "error");
+    
+    state.money -= staff.cost; 
+    showFloatingMoney(-staff.cost);
+    
+    // Create a unique instance of the staff member
+    const newStaffInstance = {
+        uid: 'staff_' + Date.now() + Math.random().toString(36).substr(2, 5), // Unique ID
+        typeId: staffId,
+        assignments: [] // This will hold the IDs of exhibits or amenities they cover
+    };
+    
+    state.hiredStaff.push(newStaffInstance);
+    addTicker(`👷 Hired ${staff.name}`); 
+    updateUI(); 
+    renderStaff(); 
+    renderExhibits(); // Refresh to show staffing status
 }
-function fireStaff(staffId) {
-const staff = data.staff.find(s => s.id === staffId); if (!staff) return;
-const hiredCount = countStaff(staffId); if (hiredCount === 0) return showToast(`No ${staff.name}s to fire!`, "error");
-const refundAmount = Math.floor(staff.cost * 0.2);
-if (!confirm(`Fire ${staff.name}?
-You'll receive a small severance refund of $${refundAmount}.`)) return;
-const index = state.hiredStaff.indexOf(staffId); if (index === -1) return;
-state.hiredStaff.splice(index, 1); state.money += refundAmount; showFloatingMoney(refundAmount);
-if (staff.effects?.maintenanceLevel) {
-state.maintenanceWorkers = Math.max(0, state.maintenanceWorkers - 1); let highestLevel = 0;
-for (const id of state.hiredStaff) { const s = data.staff.find(x => x.id === id); if (s?.effects?.maintenanceLevel) highestLevel = Math.max(highestLevel, s.effects.maintenanceLevel); }
-state.maintenanceLevel = highestLevel;
+
+function fireStaff(uid) {
+    // Find the specific instance by UID, not just the type ID
+    const index = state.hiredStaff.findIndex(s => s.uid === uid);
+    if (index === -1) return showToast("Staff member not found!", "error");
+    
+    const staffInstance = state.hiredStaff[index];
+    const staffData = data.staff.find(s => s.id === staffInstance.typeId);
+    if (!staffData) return;
+
+    const refundAmount = Math.floor(staffData.cost * 0.2);
+    if (!confirm(`Fire ${staffData.name}? You'll receive a severance refund of $${refundAmount}.`)) return;
+    
+    state.hiredStaff.splice(index, 1); 
+    state.money += refundAmount; 
+    showFloatingMoney(refundAmount);
+    
+    addTicker(`👋 Fired ${staffData.name} (severance: $${refundAmount})`); 
+    updateUI(); 
+    renderStaff(); 
+    renderExhibits();
+    saveGame();
 }
-addTicker(`👋 Fired ${staff.name} (severance: $${refundAmount})`); showToast(`${staff.name} has been let go.`, "warn");
+    addTicker(`👋 Fired ${staff.name} (severance: $${refundAmount})`); showToast(`${staff.name} has been let go.`, "warn");
 updateUI(); renderStaff(); saveGame();
 }
 function renderMoveSelection() {
@@ -3945,6 +4090,15 @@ const save = profile.state;
 if (!save) return;
 try {
 Object.assign(state, save);
+// Migration: Convert old string-based staff list to object-based list
+if (state.hiredStaff.length > 0 && typeof state.hiredStaff[0] === 'string') {
+    console.log("Migrating staff data to new format...");
+    state.hiredStaff = state.hiredStaff.map(id => ({
+        uid: 'migrated_' + Date.now() + Math.random(),
+        typeId: id,
+        assignments: []
+    }));
+}    
 state.moveState = { active: false, fromExhibit: null, animalIndex: null };
 state.uiMode = "normal"; state.pendingAnimal = null; state.activeUpgradeExhibit = null;
 state.daysSinceNewAnimal ??= 0; state.dailyVisitors ??= 0;
