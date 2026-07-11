@@ -2040,12 +2040,16 @@ if (!houseType) return showToast("Invalid house type!", "error");
 if (houseType.unlockResearch && !isResearchComplete(houseType.unlockResearch)) {
 return showToast(`🔒 ${houseType.name} requires research!`, "error");
 }
-    house.exhibits[exhibitId] = {
-        id: exhibitId, name: `${sizeInfo.label} Exhibit`, size: size, 
-        animals: [], upgrades: [], buildDaysRemaining: sizeInfo.buildDays, 
-        fenceCondition: 100,
-        cleanliness: 100 // 👈 ADD THIS
-    };
+house.exhibits[exhibitId] = {
+    id: exhibitId,
+    name: `${sizeInfo.label} Exhibit`,
+    size: size,
+    animals: [],
+    upgrades: [],
+    buildDaysRemaining: sizeInfo.buildDays,
+    fenceCondition: 100,
+    cleanliness: 100 // 👈 ADD THIS
+};
     
     if (state.money < houseType.cost) return showToast("Not enough money!", "error");
 state.money -= houseType.cost;
@@ -2442,7 +2446,7 @@ state.daysSinceNewAnimal = 0; addTicker(`🤰 ${mother.name} is pregnant! Baby d
 }
 }
 function getExhibitHappiness(exhibit) {
-    if (!exhibit || !exhibit.animals?.length) return 0;
+    if (!exhibit || !exhibit.animals?.length) return 0; 
     let totalHappiness = 0;
     const upgrades = exhibit.upgrades || [];
     const understaffed = isUnderstaffed();
@@ -2456,40 +2460,26 @@ function getExhibitHappiness(exhibit) {
         const count = exhibit.animals.filter(a => a.id === animal.id).length;
         
         // 1. Amount of animals (Herd Size)
-        if (count < animal.minInExhibit) {
-            // Severely penalized if below minimum (lonely)
-            happiness = (count / animal.minInExhibit) * 30; 
-        } else if (count > animal.maxInExhibit) {
-            // Penalized for overcrowding
-            happiness -= (count - animal.maxInExhibit) * 15;
-        } else {
-            // Bonus for being in a proper herd size
-            happiness += 20;
-        }
+        if (count < animal.minInExhibit) happiness = (count / animal.minInExhibit) * 30; 
+        else if (count > animal.maxInExhibit) happiness -= (count - animal.maxInExhibit) * 15;
+        else happiness += 20;
 
         // 2. Health
         const health = animal.health ?? 100;
-        happiness += (health / 10); // Adds up to 10 points for perfect health
+        happiness += (health / 10); 
 
         // 3. Food
-        if (animal.wasHungry) {
-            happiness -= 30; // Massive penalty for being hungry
-            delete animal.wasHungry;
-        }
+        if (animal.wasHungry) { happiness -= 30; delete animal.wasHungry; }
 
-        // 4. Staffing (Understaffed penalty)
-        if (understaffed) {
-            happiness -= 20; // Heavy penalty for no keepers
-        }
+        // 4. Staffing
+        if (understaffed) happiness -= 20; 
 
         // 5. Exhibit Cleanliness (NEW!)
         if (cleanliness < 50) {
-            // Lose up to 25 happiness points if the exhibit is filthy
-            happiness -= (50 - cleanliness) * 0.5; 
+            happiness -= (50 - cleanliness) * 0.5; // Lose up to 25 happiness if filthy
         }
 
         // 6. Shelter, Decorations, Facilities
-        // Preferred items (Rewards for having them, penalties for missing them)
         toArray(animal.preferredShelter).forEach(pref => {
             if (upgrades.includes(pref)) happiness += 15;
             else happiness -= 10; 
@@ -2503,7 +2493,7 @@ function getExhibitHappiness(exhibit) {
             else happiness -= 3;
         });
 
-        // Disliked items (Heavy penalties)
+        // Disliked items
         toArray(animal.dislikedShelter).forEach(pref => { if (upgrades.includes(pref)) happiness -= 20; });
         toArray(animal.dislikedDecorations).forEach(pref => { if (upgrades.includes(pref)) happiness -= 10; });
         toArray(animal.dislikedFacilities).forEach(pref => { if (upgrades.includes(pref)) happiness -= 10; });
@@ -2512,15 +2502,12 @@ function getExhibitHappiness(exhibit) {
     });
 
     let avgHappiness = Math.round(totalHappiness / exhibit.animals.length);
-    
-    // Apply staff cleanliness and general animal happiness bonuses
     avgHappiness += staffEffects.cleanExhibits * 0.5;
     avgHappiness += staffEffects.animalHappiness;
 
-    // Clamp between 0 and 100
     return Math.max(0, Math.min(100, avgHappiness));
 }
-    function processDailyMaintenance() {
+function processDailyMaintenance() {
 for (const id in state.exhibits) {
 const ex = state.exhibits[id];
 if (ex.buildDaysRemaining > 0) { ex.buildDaysRemaining--; if (ex.buildDaysRemaining === 0) { state.builtEnclosures[id] = true; addTicker(`✅ ${ex.name} is now complete!`); showToast(`${ex.name} finished building! 🎉`, "info"); } }
@@ -2551,6 +2538,30 @@ let maintenanceCost = 0;
 for (const id in data.amenities) { const count = state.amenities[id] || 0; const amenity = data.amenities[id]; if (count > 0 && amenity.maintenanceCost > 0) maintenanceCost += count * amenity.maintenanceCost; }
 state.maintenance.dailyMaintenanceCost = maintenanceCost; state.money -= maintenanceCost;
 if (maintenanceCost > 0) addTicker(`🧹 Daily maintenance: -$${maintenanceCost}`);
+}
+    function processExhibitCleanliness() {
+    const staffEffects = getStaffEffects();
+    const cleaningPower = staffEffects.cleanExhibits || 0; // How much staff cleans per day
+    const allExhibits = getAllExhibits();
+    
+    for (const { exhibit } of allExhibits) {
+        if (exhibit.buildDaysRemaining > 0) continue; // Skip if under construction
+        
+        // Initialize if missing (safety check for old saves)
+        if (exhibit.cleanliness === undefined) exhibit.cleanliness = 100;
+        
+        // 1. Animals make it dirty (2% dirt per animal per day)
+        const dirtAmount = exhibit.animals.length * 2;
+        exhibit.cleanliness -= dirtAmount;
+        
+        // 2. Staff cleans it
+        if (cleaningPower > 0) {
+            exhibit.cleanliness += cleaningPower;
+        }
+        
+        // 3. Clamp between 0 and 100
+        exhibit.cleanliness = Math.max(0, Math.min(100, exhibit.cleanliness));
+    }
 }
 function processFenceDegradation() {
 const allExhibits = getAllExhibits();
@@ -3469,8 +3480,7 @@ if (exhibitType.unlockResearch && !isResearchComplete(exhibitType.unlockResearch
     state.money -= info.cost; showFloatingMoney(-info.cost);
     const id = "exhibit_" + Date.now();
     const exhibitCount = Object.keys(state.exhibits).length + 1;
-    state.exhibits[id] = { id: id, name: `${exhibitType.name} ${exhibitCount}`, size: size, type: type, animals: [], upgrades: [], buildDaysRemaining: info.buildDays, fenceCondition: 100 };addTicker(`🏗 Started building ${exhibitType.emoji} ${info.label} ${exhibitType.name} (ready in ${info.buildDays} days)`);
-updateUI(); renderExhibits();
+    state.exhibits[id] = { id: id, name: `${exhibitType.name} ${exhibitCount}`, size: size, type: type, animals: [], upgrades: [], buildDaysRemaining: info.buildDays, fenceCondition: 100, cleanliness: 100 }; // 👈 ADD cleanliness: 100updateUI(); renderExhibits();
 }
 
 /* --------------------------------------------------------------------------
@@ -3681,7 +3691,7 @@ function processExhibitCleanliness() {
 function advanceDay() {
 if (state.activeEvent) { showToast("Resolve the current event before ending the day!", "warn"); return; }
 const startMoney = state.money;
-consumeDailyFood(); processAnimalHealth(); processDayIncome(); processAnimalIncome(); processUpkeep(); processDailyMaintenance(); processFenceDegradation();  processExhibitCleanliness();
+consumeDailyFood(); processAnimalHealth(); processDayIncome(); processAnimalIncome(); processUpkeep(); processDailyMaintenance(); processFenceDegradation();  processExhibitCleanliness(); processExhibitCleanliness();
 
 if (state.recentDeathPenalty > 0) state.recentDeathPenalty = Math.max(0, state.recentDeathPenalty - 5);
 
