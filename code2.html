@@ -1722,14 +1722,30 @@ function closeSettingsModal() {
 
 function resetZoo() {
     if (!confirm("Are you sure you want to reset your CURRENT zoo? This cannot be undone.")) return;
+    
+    // Clear the current profile
+    const profiles = getProfiles();
+    const activeId = getActiveProfileId();
+    if (profiles[activeId]) {
+        delete profiles[activeId];
+        saveProfiles(profiles);
+    }
+    
+    // Create a brand new zoo
+    const newId = 'zoo_' + Date.now();
+    setActiveProfileId(newId);
     resetStateToDefault();
-    state.zooName = "Reset Zoo";
+    state.zooName = "My New Zoo";
+    state.tutorialStep = 1;
+    state.tutorialSkipped = false;
+    
+    // Save and refresh
     saveGame();
+    loadGame(); // This ensures all state properties are properly initialized
     refreshAllUI();
     closeSettingsModal();
     showToast("Current zoo has been reset! 🔄", "info");
 }
-
 function exportSave() {
     const profiles = getProfiles();
     const activeId = getActiveProfileId();
