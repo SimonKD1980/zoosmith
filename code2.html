@@ -3467,23 +3467,36 @@ modal.classList.add("active");
 function selectExhibitType(typeId) { currentExhibitType = typeId; document.getElementById("buildExhibitBtn").onclick(); }
 function closeBuildModal() { document.getElementById("buildModal").classList.remove("active"); document.getElementById("buildModal").querySelector('.modal-content').style.maxWidth = '400px'; }
 function buildExhibit(size, type = 'terrestrial') {
-const info = EXHIBIT_SIZES[size]; const exhibitType = data.exhibitTypes[type];
-if (!exhibitType) return showToast("Invalid exhibit type!", "error");
-if (exhibitType.unlockResearch && !isResearchComplete(exhibitType.unlockResearch)) return showToast(`🔒 ${exhibitType.name} requires research!`, "error");
-    state.exhibits[id] = { 
-        id: id, name: `${exhibitType.name} ${exhibitCount}`, size: size, type: type, 
-        animals: [], upgrades: [], buildDaysRemaining: info.buildDays, 
-        fenceCondition: 100, 
-        cleanliness: 100 // 👈 ADD THIS
-    };
+    const info = EXHIBIT_SIZES[size]; 
+    const exhibitType = data.exhibitTypes[type];
+    
+    if (!exhibitType) return showToast("Invalid exhibit type!", "error");
+    if (exhibitType.unlockResearch && !isResearchComplete(exhibitType.unlockResearch)) return showToast(`🔒 ${exhibitType.name} requires research!`, "error");
     if (state.money < info.cost) return showToast("Not enough money!", "error");
-    state.money -= info.cost; showFloatingMoney(-info.cost);
+    
+    state.money -= info.cost; 
+    showFloatingMoney(-info.cost);
+    
+    // ✅ CRITICAL: 'id' MUST be declared here, BEFORE it is used below!
     const id = "exhibit_" + Date.now();
     const exhibitCount = Object.keys(state.exhibits).length + 1;
-    state.exhibits[id] = { id: id, name: `${exhibitType.name} ${exhibitCount}`, size: size, type: type, animals: [], upgrades: [], buildDaysRemaining: info.buildDays, fenceCondition: 100, cleanliness: 100 }; // 👈 ADD cleanliness: 100updateUI(); renderExhibits();
-}
-
-/* --------------------------------------------------------------------------
+    
+    state.exhibits[id] = { 
+        id: id, 
+        name: `${exhibitType.name} ${exhibitCount}`, 
+        size: size, 
+        type: type, 
+        animals: [], 
+        upgrades: [], 
+        buildDaysRemaining: info.buildDays, 
+        fenceCondition: 100,
+        cleanliness: 100 // ✅ Added for the new cleanliness system
+    };
+    
+    addTicker(`🏗 Started building ${exhibitType.emoji} ${info.label} ${exhibitType.name} (ready in ${info.buildDays} days)`);
+    updateUI(); 
+    renderExhibits();
+}/* --------------------------------------------------------------------------
 🎲 14. EVENTS & LEADERBOARD
 -------------------------------------------------------------------------- */
 const RANDOM_EVENTS = [
