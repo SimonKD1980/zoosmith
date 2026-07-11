@@ -2435,50 +2435,75 @@ state.daysSinceNewAnimal = 0; addTicker(`🤰 ${mother.name} is pregnant! Baby d
 }
 }
 function getExhibitHappiness(exhibit) {
-    if (!exhibit || !exhibit.animals?.length) return 0; 
-    let total = 0;
-    
+    if (!exhibit || !exhibit.animals?.length) return 0;
+    let totalHappiness = 0;
+    const upgrades = exhibit.upgrades || [];
+    const understaffed = isUnderstaffed();
+    const staffEffects = getStaffEffects();
+
     exhibit.animals.forEach(animal => {
-        let happiness = 100; 
+        let happiness = 30; // Base happiness (Starts low, must earn up to 100)
         const count = exhibit.animals.filter(a => a.id === animal.id).length;
         
-        // Herd size checks
-        if (count < animal.minInExhibit) happiness = (count / animal.minInExhibit) * 100;
-        if (count > animal.maxInExhibit) happiness = Math.max(0, 100 - ((count - animal.maxInExhibit) * 20));
-        
-        const upgrades = exhibit.upgrades || [];
-        
-        // ✅ FIXED: Now subtracts happiness if preferred items are MISSING
-        toArray(animal.preferredShelter).forEach(pref => { 
-            if (upgrades.includes(pref)) happiness += 10; 
-            else happiness -= 15; // Penalty for missing shelter
+        // 1. Amount of animals (Herd Size)
+        if (count < animal.minInExhibit) {
+            // Severely penalized if below minimum (lonely)
+            happiness = (count / animal.minInExhibit) * 30; 
+        } else if (count > animal.maxInExhibit) {
+            // Penalized for overcrowding
+            happiness -= (count - animal.maxInExhibit) * 15;
+        } else {
+            // Bonus for being in a proper herd size
+            happiness += 20;
+        }
+
+        // 2. Health
+        const health = animal.health ?? 100;
+        happiness += (health / 10); // Adds up to 10 points for perfect health
+
+        // 3. Food
+        if (animal.wasHungry) {
+            happiness -= 30; // Massive penalty for being hungry
+            delete animal.wasHungry;
+        }
+
+        // 4. Clean Exhibit / Staffing
+        if (understaffed) {
+            happiness -= 20; // Heavy penalty for no keepers
+        }
+
+        // 5. Shelter, Decorations, Facilities
+        // Preferred items (Rewards for having them, penalties for missing them)
+        toArray(animal.preferredShelter).forEach(pref => {
+            if (upgrades.includes(pref)) happiness += 15;
+            else happiness -= 10; 
         });
-        toArray(animal.preferredDecorations).forEach(pref => { 
-            if (upgrades.includes(pref)) happiness += 5; 
-            else happiness -= 5; // Penalty for missing decoration
+        toArray(animal.preferredDecorations).forEach(pref => {
+            if (upgrades.includes(pref)) happiness += 5;
+            else happiness -= 3;
         });
-        toArray(animal.preferredFacilities).forEach(pref => { 
-            if (upgrades.includes(pref)) happiness += 5; 
-            else happiness -= 5; // Penalty for missing facility
+        toArray(animal.preferredFacilities).forEach(pref => {
+            if (upgrades.includes(pref)) happiness += 5;
+            else happiness -= 3;
         });
-        
+
         // Disliked items (Heavy penalties)
         toArray(animal.dislikedShelter).forEach(pref => { if (upgrades.includes(pref)) happiness -= 20; });
-        toArray(animal.dislikedDecorations).forEach(pref => { if (upgrades.includes(pref)) happiness -= 15; });
-        toArray(animal.dislikedFacilities).forEach(pref => { if (upgrades.includes(pref)) happiness -= 15; });
-        
-        // Health & Staffing
-        if (animal.wasHungry) { happiness -= 30; delete animal.wasHungry; }
-        if (isUnderstaffed()) happiness -= 20; 
-        
-        total += happiness;
+        toArray(animal.dislikedDecorations).forEach(pref => { if (upgrades.includes(pref)) happiness -= 10; });
+        toArray(animal.dislikedFacilities).forEach(pref => { if (upgrades.includes(pref)) happiness -= 10; });
+
+        totalHappiness += happiness;
     });
+
+    let avgHappiness = Math.round(totalHappiness / exhibit.animals.length);
     
-    let avgHappiness = Math.round(total / exhibit.animals.length);
-    const staffEffects = getStaffEffects();
-    return Math.max(0, Math.min(100, avgHappiness + staffEffects.animalHappiness + staffEffects.cleanExhibits * 0.5));
-}
-    
+    // Apply staff cleanliness and general animal happiness bonuses
+    avgHappiness += staffEffects.cleanExhibits * 0.5;
+    avgHappiness += staffEffects.animalHappiness;
+
+    // Clamp between 0 and 100
+    return Math.max(0, Math.min(100, avgHappiness));
+}    
 function processDailyMaintenance() {
 for (const id in state.exhibits) {
 const ex = state.exhibits[id];
