@@ -2435,25 +2435,50 @@ state.daysSinceNewAnimal = 0; addTicker(`🤰 ${mother.name} is pregnant! Baby d
 }
 }
 function getExhibitHappiness(exhibit) {
-if (!exhibit || !exhibit.animals?.length) return 0; let total = 0;
-exhibit.animals.forEach(animal => {
-let happiness = 100; const count = exhibit.animals.filter(a => a.id === animal.id).length;
-if (count < animal.minInExhibit) happiness = (count / animal.minInExhibit) * 100;
-if (count > animal.maxInExhibit) happiness = Math.max(0, 100 - ((count - animal.maxInExhibit) * 20));
-const upgrades = exhibit.upgrades || [];
-toArray(animal.preferredShelter).forEach(pref => { if (upgrades.includes(pref)) happiness += 10; });
-toArray(animal.preferredDecorations).forEach(pref => { if (upgrades.includes(pref)) happiness += 5; });
-toArray(animal.preferredFacilities).forEach(pref => { if (upgrades.includes(pref)) happiness += 5; });
-toArray(animal.dislikedShelter).forEach(pref => { if (upgrades.includes(pref)) happiness -= 15; });
-toArray(animal.dislikedDecorations).forEach(pref => { if (upgrades.includes(pref)) happiness -= 10; });
-toArray(animal.dislikedFacilities).forEach(pref => { if (upgrades.includes(pref)) happiness -= 10; });
-if (animal.wasHungry) { happiness -= 30; delete animal.wasHungry; }
-if (isUnderstaffed()) happiness -= 20; total += happiness;
-});
-let avgHappiness = Math.round(total / exhibit.animals.length);
-const staffEffects = getStaffEffects();
-return Math.min(100, avgHappiness + staffEffects.animalHappiness + staffEffects.cleanExhibits * 0.5);
+    if (!exhibit || !exhibit.animals?.length) return 0; 
+    let total = 0;
+    
+    exhibit.animals.forEach(animal => {
+        let happiness = 100; 
+        const count = exhibit.animals.filter(a => a.id === animal.id).length;
+        
+        // Herd size checks
+        if (count < animal.minInExhibit) happiness = (count / animal.minInExhibit) * 100;
+        if (count > animal.maxInExhibit) happiness = Math.max(0, 100 - ((count - animal.maxInExhibit) * 20));
+        
+        const upgrades = exhibit.upgrades || [];
+        
+        // ✅ FIXED: Now subtracts happiness if preferred items are MISSING
+        toArray(animal.preferredShelter).forEach(pref => { 
+            if (upgrades.includes(pref)) happiness += 10; 
+            else happiness -= 15; // Penalty for missing shelter
+        });
+        toArray(animal.preferredDecorations).forEach(pref => { 
+            if (upgrades.includes(pref)) happiness += 5; 
+            else happiness -= 5; // Penalty for missing decoration
+        });
+        toArray(animal.preferredFacilities).forEach(pref => { 
+            if (upgrades.includes(pref)) happiness += 5; 
+            else happiness -= 5; // Penalty for missing facility
+        });
+        
+        // Disliked items (Heavy penalties)
+        toArray(animal.dislikedShelter).forEach(pref => { if (upgrades.includes(pref)) happiness -= 20; });
+        toArray(animal.dislikedDecorations).forEach(pref => { if (upgrades.includes(pref)) happiness -= 15; });
+        toArray(animal.dislikedFacilities).forEach(pref => { if (upgrades.includes(pref)) happiness -= 15; });
+        
+        // Health & Staffing
+        if (animal.wasHungry) { happiness -= 30; delete animal.wasHungry; }
+        if (isUnderstaffed()) happiness -= 20; 
+        
+        total += happiness;
+    });
+    
+    let avgHappiness = Math.round(total / exhibit.animals.length);
+    const staffEffects = getStaffEffects();
+    return Math.max(0, Math.min(100, avgHappiness + staffEffects.animalHappiness + staffEffects.cleanExhibits * 0.5));
 }
+    
 function processDailyMaintenance() {
 for (const id in state.exhibits) {
 const ex = state.exhibits[id];
@@ -3277,7 +3302,7 @@ if (hiredCount >= maxStaff) return showToast(`Maximum ${staff.name}s hired!`, "w
 if (state.money < staff.cost) return showToast("Not enough money!", "error");
 state.money -= staff.cost; showFloatingMoney(-staff.cost); state.hiredStaff.push(staffId);
 if (staff.effects?.maintenanceLevel) { state.maintenanceLevel = Math.max(state.maintenanceLevel, staff.effects.maintenanceLevel); state.maintenanceWorkers++; }
-addTicker(`👷 Hired ${staff.name}`); updateUI(); renderStaff();
+addTicker(`👷 Hired ${staff.name}`); updateUI(); renderStaff(); renderExhibits(); renderHouses();
 }
 function fireStaff(staffId) {
 const staff = data.staff.find(s => s.id === staffId); if (!staff) return;
