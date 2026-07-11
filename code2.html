@@ -3704,7 +3704,15 @@ function processExhibitCleanliness() {
 function advanceDay() {
 if (state.activeEvent) { showToast("Resolve the current event before ending the day!", "warn"); return; }
 const startMoney = state.money;
-consumeDailyFood(); processAnimalHealth(); processDayIncome(); processAnimalIncome(); processUpkeep(); processDailyMaintenance(); processFenceDegradation();  processExhibitCleanliness(); processExhibitCleanliness();
+    consumeDailyFood(); 
+    processAnimalHealth(); 
+    processDayIncome(); 
+    processAnimalIncome(); 
+    processUpkeep(); 
+    processDailyMaintenance(); 
+    processFenceDegradation(); 
+    processExhibitCleanliness(); 
+
 
 if (state.recentDeathPenalty > 0) state.recentDeathPenalty = Math.max(0, state.recentDeathPenalty - 5);
 
