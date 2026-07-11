@@ -3184,19 +3184,82 @@ addTicker(`💸 Sold ${animal.name} for $${salePrice}${breakdown.length > 0 ? ` 
 closeAnimalInfo(); updateUI(); renderExhibits(); renderHouses();
 }
 function openUpgradeMenu(exhibitId) {
-state.activeUpgradeExhibit = exhibitId;
-const ctx = getExhibitContext(exhibitId);
-if (!ctx) return;
-const exhibit = ctx.exhibit;
-const box = document.getElementById("upgradeOptions");
-box.innerHTML = "";
-const allUpgrades = Object.values(data.upgrades);
-if (allUpgrades.length === 0) {
-box.innerHTML = "<p>No upgrades available.</p>";
-document.getElementById("upgradeModal").classList.add("active");
-return;
+    state.activeUpgradeExhibit = exhibitId;
+    const ctx = getExhibitContext(exhibitId);
+    if (!ctx) return;
+    const exhibit = ctx.exhibit;
+    const box = document.getElementById("upgradeOptions");
+    box.innerHTML = "";
+
+    // 1. Find all currently unlocked animals
+    const unlockedAnimals = data.animals.filter(animal => {
+        const achievementMet = !animal.unlock || state.achievements[animal.unlock];
+        const researchMet = !animal.researchRequired || isResearchComplete(animal.researchRequired);
+        return achievementMet && researchMet;
+    });
+
+    // 2. Collect all upgrade IDs that are preferred by these unlocked animals
+    const relevantUpgradeIds = new Set();
+    unlockedAnimals.forEach(animal => {
+        toArray(animal.preferredShelter).forEach(id => relevantUpgradeIds.add(id));
+        toArray(animal.preferredDecorations).forEach(id => relevantUpgradeIds.add(id));
+        toArray(animal.preferredFacilities).forEach(id => relevantUpgradeIds.add(id));
+    });
+
+    const allUpgrades = Object.values(data.upgrades);
+    if (allUpgrades.length === 0) {
+        box.innerHTML = "<p>No upgrades available.</p>";
+        document.getElementById("upgradeModal").classList.add("active");
+        return;
+    }
+
+    const categories = {
+        shelter: { label: "🏠 Shelters", items: [] },
+        decoration: { label: " Decorations", items: [] },
+        facility: { label: "🍽️ Facilities", items: [] }
+    };
+
+    // 3. Only add upgrades if they are relevant to an unlocked animal OR if you already own them
+    allUpgrades.forEach(up => {
+        const isRelevant = relevantUpgradeIds.has(up.id);
+        const isOwned = exhibit.upgrades.includes(up.id);
+
+        if (isRelevant || isOwned) {
+            const type = up.type || "decoration";
+            if (categories[type]) categories[type].items.push(up);
+            else categories.decoration.items.push(up);
+        }
+    });
+
+    const tabIds = Object.keys(categories);
+    
+    // If all categories are empty (no relevant upgrades and no owned upgrades)
+    if (tabIds.every(id => categories[id].items.length === 0)) {
+        box.innerHTML = "<p style='text-align:center; padding:20px; color:var(--muted);'>No upgrades available for your unlocked animals.</p>";
+        document.getElementById("upgradeModal").classList.add("active");
+        return;
+    }
+
+    box.innerHTML = `
+    <div style="display:flex; gap:6px; margin-bottom:12px; flex-wrap:wrap;">
+        ${tabIds.map((id, i) => `
+        <button class="upgrade-tab ${i === 0 ? 'active' : ''}"
+        onclick="switchUpgradeTab('${id}')"
+        style="flex:1; min-width:100px; padding:10px; background:${i === 0 ? 'var(--accent)' : 'var(--card)'}; color:${i === 0 ? '#000' : 'var(--text)'}; border:1px solid #243042; border-radius:8px; font-weight:600; cursor:pointer;">
+        ${categories[id].label}
+        <span style="display:block; font-size:0.75rem; opacity:0.8;">${categories[id].items.length} items</span>
+        </button>
+        `).join('')}
+    </div>
+    <div id="upgradeListContainer"></div>
+    `;
+    
+    window._upgradeCategories = categories;
+    window._currentExhibit = exhibit;
+    switchUpgradeTab(tabIds[0]);
+    document.getElementById("upgradeModal").classList.add("active");
 }
-const categories = {
+    const categories = {
 shelter: { label: "🏠 Shelters", items: [] },
 decoration: { label: "🌳 Decorations", items: [] },
 facility: { label: "🍽️ Facilities", items: [] }
