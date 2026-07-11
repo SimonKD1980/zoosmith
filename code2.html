@@ -3481,16 +3481,10 @@ if (state.money < amenity.cost) return showToast("Not enough money!", "error");
 state.money -= amenity.cost; showFloatingMoney(-amenity.cost);
 if (!state.amenities[amenityId]) state.amenities[amenityId] = 0; state.amenities[amenityId]++;
 addTicker(`🏪 Built ${amenity.name}`); updateUI(); renderAmenities(); renderVisitors();
-}
-function hireStaff(staffId) {
+}function hireStaff(staffId) {
     const staff = data.staff.find(s => s.id === staffId); 
     if (!staff) return;
     
-    // Check limits based on type (Keeper or Cleaner)
-    const isKeeper = staff.role?.toLowerCase().includes('keeper');
-    const isCleaner = staff.role?.toLowerCase().includes('cleaner') || staff.role?.toLowerCase().includes('janitor');
-    
-    // Optional: You can add max hire limits here if you want, otherwise unlimited
     if (state.money < staff.cost) return showToast("Not enough money!", "error");
     
     state.money -= staff.cost; 
@@ -3498,20 +3492,21 @@ function hireStaff(staffId) {
     
     // Create a unique instance of the staff member
     const newStaffInstance = {
-        uid: 'staff_' + Date.now() + Math.random().toString(36).substr(2, 5), // Unique ID
+        uid: 'staff_' + Date.now() + Math.random().toString(36).substr(2, 5),
         typeId: staffId,
-        assignments: [] // This will hold the IDs of exhibits or amenities they cover
+        assignments: [] 
     };
     
     state.hiredStaff.push(newStaffInstance);
     addTicker(`👷 Hired ${staff.name}`); 
     updateUI(); 
     renderStaff(); 
-    renderExhibits(); // Refresh to show staffing status
+    renderExhibits(); 
+    renderHouses(); // Added to ensure house exhibits update staffing status too
 }
 
 function fireStaff(uid) {
-    // Find the specific instance by UID, not just the type ID
+    // Find the specific instance by UID
     const index = state.hiredStaff.findIndex(s => s.uid === uid);
     if (index === -1) return showToast("Staff member not found!", "error");
     
@@ -3530,11 +3525,10 @@ function fireStaff(uid) {
     updateUI(); 
     renderStaff(); 
     renderExhibits();
+    renderHouses();
     saveGame();
 }
-    addTicker(`👋 Fired ${staff.name} (severance: $${refundAmount})`); showToast(`${staff.name} has been let go.`, "warn");
-updateUI(); renderStaff(); saveGame();
-}
+// ✅ STOP HERE. Do not add any more lines after this closing brace!
 function renderMoveSelection() {
 const box = document.getElementById("exhibits"); 
 const ctx = getExhibitContext(state.moveState.fromExhibit);
