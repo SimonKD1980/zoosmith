@@ -2040,7 +2040,14 @@ if (!houseType) return showToast("Invalid house type!", "error");
 if (houseType.unlockResearch && !isResearchComplete(houseType.unlockResearch)) {
 return showToast(`🔒 ${houseType.name} requires research!`, "error");
 }
-if (state.money < houseType.cost) return showToast("Not enough money!", "error");
+    house.exhibits[exhibitId] = {
+        id: exhibitId, name: `${sizeInfo.label} Exhibit`, size: size, 
+        animals: [], upgrades: [], buildDaysRemaining: sizeInfo.buildDays, 
+        fenceCondition: 100,
+        cleanliness: 100 // 👈 ADD THIS
+    };
+    
+    if (state.money < houseType.cost) return showToast("Not enough money!", "error");
 state.money -= houseType.cost;
 showFloatingMoney(-houseType.cost);
 const id = typeId + "_" + Date.now();
@@ -2440,6 +2447,9 @@ function getExhibitHappiness(exhibit) {
     const upgrades = exhibit.upgrades || [];
     const understaffed = isUnderstaffed();
     const staffEffects = getStaffEffects();
+    
+    // Get exhibit cleanliness once (defaults to 100 if missing from old saves)
+    const cleanliness = exhibit.cleanliness ?? 100;
 
     exhibit.animals.forEach(animal => {
         let happiness = 30; // Base happiness (Starts low, must earn up to 100)
@@ -2467,12 +2477,18 @@ function getExhibitHappiness(exhibit) {
             delete animal.wasHungry;
         }
 
-        // 4. Clean Exhibit / Staffing
+        // 4. Staffing (Understaffed penalty)
         if (understaffed) {
             happiness -= 20; // Heavy penalty for no keepers
         }
 
-        // 5. Shelter, Decorations, Facilities
+        // 5. Exhibit Cleanliness (NEW!)
+        if (cleanliness < 50) {
+            // Lose up to 25 happiness points if the exhibit is filthy
+            happiness -= (50 - cleanliness) * 0.5; 
+        }
+
+        // 6. Shelter, Decorations, Facilities
         // Preferred items (Rewards for having them, penalties for missing them)
         toArray(animal.preferredShelter).forEach(pref => {
             if (upgrades.includes(pref)) happiness += 15;
@@ -2503,8 +2519,8 @@ function getExhibitHappiness(exhibit) {
 
     // Clamp between 0 and 100
     return Math.max(0, Math.min(100, avgHappiness));
-}    
-function processDailyMaintenance() {
+}
+    function processDailyMaintenance() {
 for (const id in state.exhibits) {
 const ex = state.exhibits[id];
 if (ex.buildDaysRemaining > 0) { ex.buildDaysRemaining--; if (ex.buildDaysRemaining === 0) { state.builtEnclosures[id] = true; addTicker(`✅ ${ex.name} is now complete!`); showToast(`${ex.name} finished building! 🎉`, "info"); } }
@@ -3461,7 +3477,13 @@ function buildExhibit(size, type = 'terrestrial') {
 const info = EXHIBIT_SIZES[size]; const exhibitType = data.exhibitTypes[type];
 if (!exhibitType) return showToast("Invalid exhibit type!", "error");
 if (exhibitType.unlockResearch && !isResearchComplete(exhibitType.unlockResearch)) return showToast(`🔒 ${exhibitType.name} requires research!`, "error");
-if (state.money < info.cost) return showToast("Not enough money!", "error");
+    state.exhibits[id] = { 
+        id: id, name: `${exhibitType.name} ${exhibitCount}`, size: size, type: type, 
+        animals: [], upgrades: [], buildDaysRemaining: info.buildDays, 
+        fenceCondition: 100, 
+        cleanliness: 100 // 👈 ADD THIS
+    };
+    if (state.money < info.cost) return showToast("Not enough money!", "error");
     state.money -= info.cost; showFloatingMoney(-info.cost);
     const id = "exhibit_" + Date.now();
     const exhibitCount = Object.keys(state.exhibits).length + 1;
@@ -3648,10 +3670,36 @@ function showMonthlyReport() {
     state.monthlyIncomeTracker = 0; // Reset tracker for the new month
     renderReports();
 }
+
+function processExhibitCleanliness() {
+    const staffEffects = getStaffEffects();
+    const cleaningPower = staffEffects.cleanExhibits || 0; // How much staff cleans per day
+
+    const allExhibits = getAllExhibits();
+    for (const { exhibit } of allExhibits) {
+        if (exhibit.buildDaysRemaining > 0) continue;
+
+        // 1. Initialize if missing (safety check)
+        if (exhibit.cleanliness === undefined) exhibit.cleanliness = 100;
+
+        // 2. Animals make it dirty (2% dirt per animal per day)
+        const dirtAmount = exhibit.animals.length * 2;
+        exhibit.cleanliness -= dirtAmount;
+
+        // 3. Staff cleans it
+        if (cleaningPower > 0) {
+            exhibit.cleanliness += cleaningPower;
+        }
+
+        // 4. Clamp between 0 and 100
+        exhibit.cleanliness = Math.max(0, Math.min(100, exhibit.cleanliness));
+    }
+}
+    
 function advanceDay() {
 if (state.activeEvent) { showToast("Resolve the current event before ending the day!", "warn"); return; }
 const startMoney = state.money;
-consumeDailyFood(); processAnimalHealth(); processDayIncome(); processAnimalIncome(); processUpkeep(); processDailyMaintenance(); processFenceDegradation();
+consumeDailyFood(); processAnimalHealth(); processDayIncome(); processAnimalIncome(); processUpkeep(); processDailyMaintenance(); processFenceDegradation();  processExhibitCleanliness();
 
 if (state.recentDeathPenalty > 0) state.recentDeathPenalty = Math.max(0, state.recentDeathPenalty - 5);
 
