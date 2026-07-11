@@ -2541,25 +2541,26 @@ if (maintenanceCost > 0) addTicker(`🧹 Daily maintenance: -$${maintenanceCost}
 }
     function processExhibitCleanliness() {
     const staffEffects = getStaffEffects();
-    const cleaningPower = staffEffects.cleanExhibits || 0; // How much staff cleans per day
+    const cleaningPower = staffEffects.cleanExhibits || 0; 
     const allExhibits = getAllExhibits();
     
     for (const { exhibit } of allExhibits) {
-        if (exhibit.buildDaysRemaining > 0) continue; // Skip if under construction
-        
-        // Initialize if missing (safety check for old saves)
+        if (exhibit.buildDaysRemaining > 0) continue; 
         if (exhibit.cleanliness === undefined) exhibit.cleanliness = 100;
         
-        // 1. Animals make it dirty (2% dirt per animal per day)
-        const dirtAmount = exhibit.animals.length * 2;
+        // ✅ NEW: Calculate dirt based on the specific animal's JSON data
+        let dirtAmount = 0;
+        exhibit.animals.forEach(animalInstance => {
+            // Look up the base animal data from the JSON file using the ID
+            const baseAnimal = data.animals.find(a => a.id === animalInstance.id);
+            // Use the JSON dirtiness value, or default to 2 if it's missing
+            const dirtLevel = baseAnimal ? (baseAnimal.dirtiness || 2) : 2;
+            dirtAmount += dirtLevel;
+        });
+        
         exhibit.cleanliness -= dirtAmount;
         
-        // 2. Staff cleans it
-        if (cleaningPower > 0) {
-            exhibit.cleanliness += cleaningPower;
-        }
-        
-        // 3. Clamp between 0 and 100
+        if (cleaningPower > 0) exhibit.cleanliness += cleaningPower;
         exhibit.cleanliness = Math.max(0, Math.min(100, exhibit.cleanliness));
     }
 }
