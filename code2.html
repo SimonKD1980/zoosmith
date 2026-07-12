@@ -10,7 +10,7 @@
         <meta charset="UTF-8">
         <meta name="viewport"
               content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-        <title>ZooSmith V0.7.0</title>
+        <title>ZooSmith V0.8.0</title>
         <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
         <script type="module">
             import {
@@ -3165,11 +3165,16 @@ Rewritten for stability, unified exhibit handling, and bug fixes.
                 return "hay";
             }
 
-            function getActualFoodCost(animal) {
-                const foodType = getDietFoodType(animal.diet);
-                const units = animal.isPregnant ? 2 : 1;
-                return FOOD_TYPES[foodType].costPerUnit * units;
-            }
+function getActualFoodCost(animal) {
+    const foodType = getDietFoodType(animal.diet);
+    // ✅ Use JSON value, fallback to 1 for older save files
+    const baseAmount = animal.foodAmount || 1; 
+    
+    // ✅ If pregnant, they eat double their BASE amount
+    const units = animal.isPregnant ? baseAmount * 2 : baseAmount; 
+    
+    return FOOD_TYPES[foodType].costPerUnit * units;
+}
 
             const TIER_INFO = {
                 basic: {
@@ -4491,8 +4496,13 @@ ${!unlocked ? '🔒 Locked' : !canAfford ? '💰 Need Funds' : 'Build House'}
                     meat: 0,
                     produce: 0
                 };
-                allAnimals.forEach(animal => consumption[getDietFoodType(animal.diet)] += animal.isPregnant ? 2 : 1);
 
+allAnimals.forEach(animal => {
+    const baseAmount = animal.foodAmount || 1;
+    const amount = animal.isPregnant ? baseAmount * 2 : baseAmount;
+    consumption[getDietFoodType(animal.diet)] += amount;
+});
+                
                 for (const foodType in consumption) {
                     const needed = consumption[foodType];
                     const available = state.food[foodType] || 0;
@@ -4812,11 +4822,12 @@ ${!unlocked ? '🔒 Locked' : !canAfford ? '💰 Need Funds' : 'Build House'}
                     meat: 0,
                     produce: 0
                 };
-                const allAnimals = getAllAnimals();
-                allAnimals.forEach(animal => {
-                    consumption[getDietFoodType(animal.diet)] += animal.isPregnant ? 2 : 1;
-                    animalCounts[getDietFoodType(animal.diet)]++;
-                });
+                const allAnimals = getAllAnimals();allAnimals.forEach(animal => {
+    const baseAmount = animal.foodAmount || 1;
+    const amount = animal.isPregnant ? baseAmount * 2 : baseAmount;
+    consumption[getDietFoodType(animal.diet)] += amount;
+    animalCounts[getDietFoodType(animal.diet)]++;
+});
                 let cardsHTML = '';
                 for (const foodType in FOOD_TYPES) {
                     const food = FOOD_TYPES[foodType];
