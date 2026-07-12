@@ -1891,12 +1891,23 @@ function isUnderstaffed() {
 }
 function getAvailableSlots() { return getKeeperCapacity() - getKeeperDemand(); }
 function getStaffEffects() {
-const effects = { visitorHappiness: 0, animalHappiness: 0, breedingBonus: 0, cleanPark: 0, cleanExhibits: 0 };
-for (const staffId of state.hiredStaff) {
-const staff = data.staff.find(s => s.id === staffId);
-if (staff && staff.effects) for (const effect in staff.effects) if (effect !== 'maxStaff' && effects[effect] !== undefined) effects[effect] += staff.effects[effect];
-} return effects;
+    const effects = { visitorHappiness: 0, animalHappiness: 0, breedingBonus: 0, cleanPark: 0, cleanExhibits: 0 };
+    
+    // ✅ Updated for V0.7.0 object-based hiring
+    state.hiredStaff.forEach(staffInstance => {
+        const staff = data.staff.find(s => s.id === staffInstance.typeId);
+        if (staff && staff.effects) {
+            for (const effect in staff.effects) {
+                if (effect !== 'maxStaff' && effect !== 'keeperSlots' && effect !== 'cleanerSlots' && effects[effect] !== undefined) {
+                    effects[effect] += staff.effects[effect];
+                }
+            }
+        }
+    });
+    
+    return effects;
 }
+
 function countStaff(staffId) { return state.hiredStaff.filter(id => id === staffId).length; }
 function getGameStats() {
 const allAnimals = getAllAnimals(); const species = new Set(allAnimals.map(a => a.id));
@@ -2599,26 +2610,37 @@ if (maintenanceCost > 0) addTicker(`🧹 Daily maintenance: -$${maintenanceCost}
 }
     function processExhibitCleanliness() {
     const staffEffects = getStaffEffects();
-    const cleaningPower = staffEffects.cleanExhibits || 0; 
+    const janitorCleaningPower = staffEffects.cleanExhibits || 0; // Global deep cleaning from janitors
     const allExhibits = getAllExhibits();
     
     for (const { exhibit } of allExhibits) {
-        if (exhibit.buildDaysRemaining > 0) continue; 
+        if (exhibit.buildDaysRemaining > 0) continue;
         if (exhibit.cleanliness === undefined) exhibit.cleanliness = 100;
         
-        // ✅ NEW: Calculate dirt based on the specific animal's JSON data
+        // 1. Animals make it dirty (based on JSON dirtiness value)
         let dirtAmount = 0;
         exhibit.animals.forEach(animalInstance => {
-            // Look up the base animal data from the JSON file using the ID
             const baseAnimal = data.animals.find(a => a.id === animalInstance.id);
-            // Use the JSON dirtiness value, or default to 2 if it's missing
             const dirtLevel = baseAnimal ? (baseAnimal.dirtiness || 2) : 2;
             dirtAmount += dirtLevel;
         });
-        
         exhibit.cleanliness -= dirtAmount;
         
-        if (cleaningPower > 0) exhibit.cleanliness += cleaningPower;
+        // 2. ✅ NEW: Keepers assigned to THIS exhibit clean it (+2 per keeper)
+        const assignedKeepers = state.hiredStaff.filter(s => 
+            s.assignments && 
+            s.assignments.includes(exhibit.id) && 
+            isKeeperRole(s.typeId)
+        );
+        const keeperCleaningBonus = assignedKeepers.length * 2;
+        exhibit.cleanliness += keeperCleaningBonus;
+        
+        // 3. Janitors' global deep cleaning power
+        if (janitorCleaningPower > 0) {
+            exhibit.cleanliness += janitorCleaningPower;
+        }
+        
+        // 4. Clamp between 0 and 100
         exhibit.cleanliness = Math.max(0, Math.min(100, exhibit.cleanliness));
     }
 }
@@ -2743,6 +2765,10 @@ function renderExhibits() {
 
         // ✅ NEW: Cleanliness Variables
         const cleanliness = group.cleanliness ?? 100;
+        const assignedKeepersForExhibit = state.hiredStaff.filter(s => 
+    s.assignments && s.assignments.includes(group.id) && isKeeperRole(s.typeId)
+);
+const keeperCleaningBonus = assignedKeepersForExhibit.length * 2;
         const cleanlinessColor = cleanliness >= 70 ? 'var(--accent)' : cleanliness >= 50 ? 'var(--warn)' : cleanliness >= 30 ? 'var(--danger)' : '#dc2626';
         const cleanlinessEmoji = cleanliness >= 70 ? '✨' : cleanliness >= 50 ? '🧹' : cleanliness >= 30 ? '⚠️' : '🦠';
 
@@ -2803,6 +2829,7 @@ const assignBtnHTML = `<button class="secondary-btn" style="width:100%; margin-t
             
             <!-- ✅ NEW: Cleanliness Stat & Bar -->
             <div class="exhibit-stat"><span>${cleanlinessEmoji} Cleanliness</span><strong style="color: ${cleanlinessColor};">${Math.round(cleanliness)}%</strong></div>
+${keeperCleaningBonus > 0 ? `<div style="font-size:0.7rem; color:var(--blue); text-align:center; margin-top:-4px;">🧤 Keepers cleaning +${keeperCleaningBonus}/day</div>` : ''}
             <div class="happiness-bar" style="margin-bottom: 8px;"><div style="height: 100%; width: ${cleanliness}%; background: ${cleanlinessColor}; transition: width 0.3s;"></div></div>
             
             ${pregnantCount > 0 ? `<div class="exhibit-stat"><span>🤰 Pregnant</span><strong style="color: var(--purple);">${pregnantCount}</strong></div>` : ''}
