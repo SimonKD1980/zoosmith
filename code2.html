@@ -2816,22 +2816,27 @@ ${cleanlinessWarningHTML}
 ${assignmentHTML}
 ${assignBtnHTML}
 <div class="animalList">${animalList}</div>
+
+<!-- ✅ INJECT THE KEEPER BUTTON HERE -->
+${assignBtnHTML}
+
 ${!isBuilding ? `<div style="display:flex; gap:6px; margin-top:8px;">
-                <button class="secondary-btn" style="flex:1; padding:8px; font-size:0.85rem;">🏗 Upgrades</button>
-                <button class="secondary-btn" style="flex:1; padding:8px; font-size:0.85rem; background: linear-gradient(135deg, #f59e0b, #d97706); color: white;" onclick="repairFence('${group.id}')">🔧 Repair</button>
-                <button class="danger-btn" style="flex:1; padding:8px; font-size:0.85rem;">🗑 Remove</button>
-            </div>` : `<div style="margin-top:8px; padding:10px; background: rgba(245, 158, 11, 0.1); border-radius: 8px; text-align:center; color: var(--warn); font-size:0.85rem;">⏳ Cannot modify while under construction</div>`}
-        </div>`;
-        
-        if (!isBuilding) {
-            div.querySelectorAll(".danger-btn")[0].onclick = () => {
-                if (group.animals.length > 0) return showToast("Cannot remove exhibit with animals inside!", "error");
-                const refund = Math.floor(sizeInfo.cost * 0.5); state.money += refund; showFloatingMoney(refund);
-                delete state.exhibits[id]; delete state.builtEnclosures[id];
-                addTicker(`💰 Demolished ${group.name} (refunded $${refund})`); updateUI(); renderExhibits();
-            };
-            div.querySelectorAll(".secondary-btn")[0].onclick = () => openUpgradeMenu(group.id);
-        }
+    <!-- ✅ ADD INLINE ONCLICK SO IT DOESN'T GET HIJACKED -->
+    <button class="secondary-btn" style="flex:1; padding:8px; font-size:0.85rem;" onclick="openUpgradeMenu('${group.id}')">🏗 Upgrades</button>
+    <button class="secondary-btn" style="flex:1; padding:8px; font-size:0.85rem; background: linear-gradient(135deg, #f59e0b, #d97706); color: white;" onclick="repairFence('${group.id}')">🔧 Repair</button>
+    <button class="danger-btn" style="flex:1; padding:8px; font-size:0.85rem;">🗑 Remove</button>
+</div>` : `<div style="margin-top:8px; padding:10px; background: rgba(245, 158, 11, 0.1); border-radius: 8px; text-align:center; color: var(--warn); font-size:0.85rem;"> Cannot modify while under construction</div>`}
+</div>`;
+
+if (!isBuilding) {
+    div.querySelectorAll(".danger-btn")[0].onclick = () => {
+        if (group.animals.length > 0) return showToast("Cannot remove exhibit with animals inside!", "error");
+        const refund = Math.floor(sizeInfo.cost * 0.5); state.money += refund; showFloatingMoney(refund);
+        delete state.exhibits[id]; delete state.builtEnclosures[id];
+        addTicker(`💰 Demolished ${group.name} (refunded $${refund})`); updateUI(); renderExhibits();
+    };
+    //  DELETED THE BROKEN .secondary-btn[0] LISTENER
+}
         box.appendChild(div);
     });
 }
