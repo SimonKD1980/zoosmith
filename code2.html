@@ -1385,6 +1385,196 @@ button:focus, .animalTag:focus, .category-tab:focus {
     }
 }
 
+/* ==========================================================================
+🏆 LEADERBOARD STYLES
+========================================================================== */
+.leaderboard-tabs {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+    position: relative;
+    z-index: 2;
+}
+.leaderboard-tab {
+    flex: 1;
+    min-width: 100px;
+    padding: 10px 14px;
+    background: var(--card);
+    color: var(--text);
+    border: 1px solid #243042;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.85rem;
+    transition: all 0.2s;
+}
+.leaderboard-tab:hover {
+    border-color: var(--accent);
+    transform: translateY(-1px);
+}
+.leaderboard-tab.active {
+    background: var(--accent);
+    color: #000;
+    border-color: var(--accent);
+    font-weight: 700;
+}
+
+.leaderboard-table {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: 12px;
+}
+.leaderboard-row {
+    display: grid;
+    grid-template-columns: 60px 1fr 110px;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 16px;
+    background: var(--card);
+    border: 1px solid #243042;
+    border-radius: 10px;
+    transition: all 0.2s;
+}
+.leaderboard-row:hover {
+    border-color: var(--accent);
+    transform: translateX(2px);
+}
+.leaderboard-row.header {
+    background: rgba(11, 18, 32, 0.8);
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--muted);
+    font-weight: 700;
+    cursor: default;
+}
+.leaderboard-row.header:hover {
+    transform: none;
+    border-color: #243042;
+}
+.leaderboard-row.you {
+    border-color: var(--gold);
+    background: linear-gradient(135deg, rgba(251, 191, 36, 0.15), var(--card));
+    box-shadow: 0 0 15px rgba(251, 191, 36, 0.2);
+}
+.leaderboard-row.top1 {
+    border-color: #ffd700;
+    background: linear-gradient(135deg, rgba(255, 215, 0, 0.15), var(--card));
+}
+.leaderboard-row.top2 {
+    border-color: #c0c0c0;
+    background: linear-gradient(135deg, rgba(192, 192, 192, 0.1), var(--card));
+}
+.leaderboard-row.top3 {
+    border-color: #cd7f32;
+    background: linear-gradient(135deg, rgba(205, 127, 50, 0.1), var(--card));
+}
+
+.rank-badge {
+    font-size: 1.5rem;
+    font-weight: 800;
+    text-align: center;
+    color: var(--muted);
+}
+.rank-badge.rank-1 { color: #ffd700; text-shadow: 0 0 10px rgba(255, 215, 0, 0.5); }
+.rank-badge.rank-2 { color: #c0c0c0; }
+.rank-badge.rank-3 { color: #cd7f32; }
+
+.player-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    overflow: hidden;
+}
+.player-name {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.player-zoo {
+    font-size: 0.75rem;
+    color: var(--muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.player-score {
+    font-size: 1.1rem;
+    font-weight: 800;
+    color: var(--accent);
+    text-align: right;
+    white-space: nowrap;
+}
+
+.your-rank-card {
+    background: linear-gradient(135deg, rgba(251, 191, 36, 0.2), rgba(251, 191, 36, 0.05));
+    border: 2px solid var(--gold);
+    border-radius: 12px;
+    padding: 16px;
+    text-align: center;
+    margin-bottom: 16px;
+    position: relative;
+    z-index: 2;
+}
+.your-rank-card h3 {
+    margin: 0 0 8px 0;
+    color: var(--gold);
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+.your-rank-number {
+    font-size: 2.5rem;
+    font-weight: 900;
+    color: var(--gold);
+    text-shadow: 0 0 15px rgba(251, 191, 36, 0.4);
+}
+
+.name-prompt {
+    background: var(--card);
+    border: 2px solid var(--accent);
+    border-radius: 12px;
+    padding: 24px;
+    text-align: center;
+    margin-bottom: 20px;
+    position: relative;
+    z-index: 2;
+}
+.name-prompt h3 {
+    margin: 0 0 8px 0;
+    color: var(--accent);
+}
+.name-prompt input {
+    width: 100%;
+    max-width: 300px;
+    padding: 12px;
+    margin: 12px 0;
+    background: #0b1220;
+    color: var(--text);
+    border: 1px solid #243042;
+    border-radius: 8px;
+    font-size: 1rem;
+    text-align: center;
+}
+.name-prompt input:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.2);
+}
+
+.leaderboard-loading {
+    text-align: center;
+    padding: 40px;
+    color: var(--muted);
+    font-size: 1rem;
+}
+    
 </style>
 <header>
 <div id="ticker">Welcome to your zoo...</div>
