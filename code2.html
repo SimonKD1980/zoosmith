@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>ZooSmith V0.6.0</title>
+<title>ZooSmith V0.7.0</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
@@ -1891,7 +1891,6 @@ function isUnderstaffed() {
 }
     
     function getAvailableSlots() { return getKeeperSlots() - getUsedSlots(); }
-function isUnderstaffed() { return getUsedSlots() > getKeeperSlots(); }
 function getStaffEffects() {
 const effects = { visitorHappiness: 0, animalHappiness: 0, breedingBonus: 0, cleanPark: 0, cleanExhibits: 0 };
 for (const staffId of state.hiredStaff) {
@@ -2111,18 +2110,7 @@ if (!houseType) return showToast("Invalid house type!", "error");
 if (houseType.unlockResearch && !isResearchComplete(houseType.unlockResearch)) {
 return showToast(`🔒 ${houseType.name} requires research!`, "error");
 }
-house.exhibits[exhibitId] = {
-    id: exhibitId,
-    name: `${sizeInfo.label} Exhibit`,
-    size: size,
-    animals: [],
-    upgrades: [],
-    buildDaysRemaining: sizeInfo.buildDays,
-    fenceCondition: 100,
-    cleanliness: 100 // 👈 ADD THIS
-};
-    
-    if (state.money < houseType.cost) return showToast("Not enough money!", "error");
+        if (state.money < houseType.cost) return showToast("Not enough money!", "error");
 state.money -= houseType.cost;
 showFloatingMoney(-houseType.cost);
 const id = typeId + "_" + Date.now();
@@ -4032,7 +4020,6 @@ const startMoney = state.money;
     processDailyMaintenance(); 
     processFenceDegradation(); 
     processExhibitCleanliness(); 
-
 
 if (state.recentDeathPenalty > 0) state.recentDeathPenalty = Math.max(0, state.recentDeathPenalty - 5);
 
