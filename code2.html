@@ -3241,7 +3241,7 @@ state.pendingAnimal = animal; modal.classList.add("active");
 function closeBuyModal() { document.getElementById("buyModal").classList.remove("active"); state.pendingAnimal = null; }
 document.getElementById("confirmBuyBtn").onclick = () => {
 const exhibitId = document.getElementById("exhibitSelect").value; const gender = document.getElementById("genderSelect").value; const animal = state.pendingAnimal;
-if (!exhibitId || !animal) return;
+
 if (state.money < animal.cost) return showToast("Not enough money!", "error");
 
 const ctx = getExhibitContext(exhibitId);
