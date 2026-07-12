@@ -110,6 +110,48 @@
     "animalHappiness": 10,
     "maxStaff": 2
   }
+},
+{
+  "id": "junior_cleaner",
+  "name": "Junior Cleaner",
+  "role": "Cleaner",
+  "icon": "🧹",
+  "cost": 300,
+  "salary": 30,
+  "cleanerSlots": 10,
+  "effects": {
+    "cleanExhibits": 3,
+    "cleanPark": 2
+  },
+  "description": "A hardworking cleaner who keeps your zoo sparkling."
+},
+{
+  "id": "senior_cleaner",
+  "name": "Senior Cleaner",
+  "role": "Cleaner",
+  "icon": "🧼",
+  "cost": 800,
+  "salary": 70,
+  "cleanerSlots": 10,
+  "effects": {
+    "cleanExhibits": 6,
+    "cleanPark": 4
+  },
+  "description": "An experienced cleaner who handles the toughest messes."
+},
+{
+  "id": "head_janitor",
+  "name": "Head Janitor",
+  "role": "Cleaner",
+  "icon": "✨",
+  "cost": 1500,
+  "salary": 120,
+  "cleanerSlots": 10,
+  "effects": {
+    "cleanExhibits": 10,
+    "cleanPark": 8
+  },
+  "description": "The ultimate cleaning expert. Your zoo will shine!"
 }
     
 ]
