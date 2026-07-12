@@ -1503,6 +1503,15 @@ button:focus, .animalTag:focus, .category-tab:focus {
 <button onclick="closeUpgradeModal()" class="removeBtn">Close</button>
 </div>
 </div>
+<!-- Staff Assignment Modal -->
+<div id="assignStaffModal" class="modal" onclick="if(event.target === this) closeAssignStaffModal()">
+    <div class="modal-content" style="max-width: 500px;">
+        <h3 id="assignModalTitle" style="margin-top: 0;">Assign Staff</h3>
+        <p id="assignModalDesc" style="color: var(--muted); font-size: 0.9rem; margin-bottom: 15px;"></p>
+        <div id="assignModalList" style="display: flex; flex-direction: column; gap: 10px; max-height: 300px; overflow-y: auto;"></div>
+        <button class="secondary-btn" onclick="closeAssignStaffModal()" style="margin-top: 15px;">Close</button>
+    </div>
+</div>
 <div id="ratingModal" class="modal">
 <div class="modal-content" style="max-width: 550px;">
 <div id="ratingModalContent"></div>
@@ -2775,7 +2784,23 @@ function renderExhibits() {
         }).join("") : "<em style='color:var(--muted)'>No animals yet</em>";
         
         const exhibitType = data.exhibitTypes[group.type] || data.exhibitTypes.terrestrial || { emoji: '🏞️', name: 'Standard Exhibit' };
-        
+        // --- ADD THIS BLOCK INSIDE renderExhibits() ---
+const assignedKeepers = state.hiredStaff.filter(s => s.assignments && s.assignments.includes(group.id));
+const keeperSlotsNeeded = group.size === 'large' ? 3 : group.size === 'medium' ? 2 : 1;
+let assignmentHTML = '';
+if (assignedKeepers.length > 0) {
+    assignmentHTML = `<div style="margin-top:8px; padding:8px; background:rgba(59, 130, 246, 0.1); border-radius:8px; border:1px solid rgba(59, 130, 246, 0.3);">
+        <div style="font-size:0.75rem; color:var(--blue); font-weight:700; margin-bottom:4px;">🧤 Assigned Keepers (${assignedKeepers.length})</div>
+        <div style="display:flex; flex-wrap:wrap; gap:4px;">
+            ${assignedKeepers.map(s => {
+                const sData = data.staff.find(x => x.id === s.typeId);
+                return `<span style="font-size:0.75rem; background:#0b1220; padding:3px 8px; border-radius:12px; color:var(--text);">${sData?.icon || '👤'} ${sData?.name || 'Keeper'}</span>`;
+            }).join('')}
+        </div>
+    </div>`;
+}
+const assignBtnHTML = `<button class="secondary-btn" style="width:100%; margin-top:8px; padding:8px; font-size:0.85rem;" onclick="openAssignStaffModal('${group.id}', 'exhibit')">🧑‍🌾 Manage Keepers (${keeperSlotsNeeded} slots needed)</button>`;
+// ----------------------------------------------
         div.innerHTML = `
         <div class="exhibit-header">
             <h3 class="exhibit-name" onclick="renameExhibit('${group.id}')" title="Click to rename">${exhibitType.emoji} ${group.name} <span style="font-size: 0.7rem; opacity: 0.6; margin-left: 6px;">️</span></h3>
@@ -2988,7 +3013,28 @@ if (amenity.capacity > 0) statsHTML += `<div class="stat-badge blue">👥 Capaci
 if (amenity.maxCustomers > 0) statsHTML += `<div class="stat-badge warn">📊 Max ${amenity.maxCustomers}/day</div>`;
 if (amenity.maintenanceCost > 0) statsHTML += `<div class="stat-badge danger">🧹 $${amenity.maintenanceCost}/day upkeep</div>`;
 card.innerHTML = `<div class="card-header"><span class="facility-icon">${amenity.icon}</span><h3>${amenity.name}</h3><div class="subtitle">${count} built</div></div><div class="card-body"><p class="card-desc">${amenity.description}</p><div style="display: flex; flex-wrap: wrap; gap: 6px;">${statsHTML}</div><div class="card-price">$${amenity.cost.toLocaleString()}</div><button class="primary-btn" onclick="buyAmenity('${id}')">Build ${amenity.name}</button></div>`;
-grid.appendChild(card);
+// --- ADD THIS INSIDE renderAmenities() loop ---
+const demand = (id === 'restroom' || id === 'toilet') ? 2 : 1;
+const assignedCleaners = state.hiredStaff.filter(s => s.assignments && s.assignments.includes(id));
+if (assignedCleaners.length > 0 || count > 0) {
+    const assignBtn = document.createElement('button');
+    assignBtn.className = 'secondary-btn';
+    assignBtn.style.marginTop = '10px';
+    assignBtn.style.fontSize = '0.85rem';
+    assignBtn.textContent = `🧹 Manage Cleaners (${demand} slot${demand>1?'s':''}/unit)`;
+    assignBtn.onclick = () => openAssignStaffModal(id, 'amenity');
+    card.querySelector('.card-body').appendChild(assignBtn);
+    
+    if (assignedCleaners.length > 0) {
+        const status = document.createElement('div');
+        status.style.cssText = 'font-size:0.75rem; color:var(--blue); margin-top:6px; text-align:center;';
+        status.textContent = `✅ ${assignedCleaners.length} cleaner${assignedCleaners.length>1?'s':''} assigned`;
+        card.querySelector('.card-body').appendChild(status);
+    }
+}
+// ----------------------------------------------
+    
+    grid.appendChild(card);
 }
 }
 function renderAchievements() {
@@ -3544,6 +3590,124 @@ function fireStaff(uid) {
     renderHouses();
     saveGame();
 }
+
+/* ==========================================================================
+🧑‍🌾 STAFF ALLOCATION UI (Phase 2)
+========================================================================== */
+function isKeeperRole(typeId) {
+    const s = data.staff.find(x => x.id === typeId);
+    return s && (s.role?.toLowerCase().includes('keeper') || s.keeperSlots);
+}
+function isCleanerRole(typeId) {
+    const s = data.staff.find(x => x.id === typeId);
+    return s && (s.role?.toLowerCase().includes('cleaner') || s.role?.toLowerCase().includes('janitor') || s.cleanerSlots);
+}
+
+function getTargetDemand(targetId, targetType) {
+    if (targetType === 'exhibit') {
+        const ex = state.exhibits[targetId];
+        if (!ex) return 0;
+        return ex.size === 'large' ? 3 : ex.size === 'medium' ? 2 : 1;
+    } else if (targetType === 'amenity') {
+        return (targetId === 'restroom' || targetId === 'toilet') ? 2 : 1;
+    }
+    return 0;
+}
+
+function getFreeSlots(staffInstance) {
+    const staffData = data.staff.find(s => s.id === staffInstance.typeId);
+    if (!staffData) return 0;
+    const totalSlots = isKeeperRole(staffInstance.typeId) ? (staffData.keeperSlots || 5) : (staffData.cleanerSlots || 10);
+    const usedSlots = (staffInstance.assignments || []).reduce((sum, targetId) => {
+        if (state.exhibits[targetId]) return sum + getTargetDemand(targetId, 'exhibit');
+        if (state.amenities[targetId] !== undefined) return sum + getTargetDemand(targetId, 'amenity');
+        return sum;
+    }, 0);
+    return Math.max(0, totalSlots - usedSlots);
+}
+
+function openAssignStaffModal(targetId, targetType) {
+    const demand = getTargetDemand(targetId, targetType);
+    const isKeeper = targetType === 'exhibit';
+    const title = isKeeper ? `Assign Keeper to Exhibit` : `Assign Cleaner to ${targetId}`;
+    
+    document.getElementById('assignModalTitle').textContent = title;
+    document.getElementById('assignModalDesc').textContent = `This assignment requires ${demand} slot${demand > 1 ? 's' : ''}. Select a staff member with enough free capacity.`;
+    
+    const list = document.getElementById('assignModalList');
+    list.innerHTML = '';
+    
+    const availableStaff = state.hiredStaff.filter(s => {
+        if (isKeeper && !isKeeperRole(s.typeId)) return false;
+        if (!isKeeper && !isCleanerRole(s.typeId)) return false;
+        return getFreeSlots(s) >= demand;
+    });
+
+    if (availableStaff.length === 0) {
+        list.innerHTML = `<div style="text-align:center; padding:20px; color:var(--muted);">No staff available with enough free slots!<br><small>Hire more staff or unassign them from other areas.</small></div>`;
+    } else {
+        availableStaff.forEach(s => {
+            const staffData = data.staff.find(x => x.id === s.typeId);
+            const free = getFreeSlots(s);
+            const btn = document.createElement('button');
+            btn.className = 'primary-btn';
+            btn.style.display = 'flex';
+            btn.style.justifyContent = 'space-between';
+            btn.style.alignItems = 'center';
+            btn.innerHTML = `<span>${staffData.icon} ${staffData.name}</span><span style="font-size:0.8rem; opacity:0.8;">${free} slots free</span>`;
+            btn.onclick = () => assignStaffToTarget(s.uid, targetId, targetType);
+            list.appendChild(btn);
+        });
+    }
+    
+    // Show currently assigned staff
+    const assignedStaff = state.hiredStaff.filter(s => s.assignments && s.assignments.includes(targetId));
+    if (assignedStaff.length > 0) {
+        const header = document.createElement('div');
+        header.style.cssText = 'font-size:0.8rem; color:var(--muted); text-transform:uppercase; margin-top:15px; margin-bottom:5px;';
+        header.textContent = 'Currently Assigned:';
+        list.appendChild(header);
+        
+        assignedStaff.forEach(s => {
+            const staffData = data.staff.find(x => x.id === s.typeId);
+            const btn = document.createElement('button');
+            btn.className = 'danger-btn';
+            btn.style.marginBottom = '5px';
+            btn.textContent = `❌ Remove ${staffData.name}`;
+            btn.onclick = () => { unassignStaffFromTarget(s.uid, targetId); openAssignStaffModal(targetId, targetType); renderExhibits(); renderAmenities(); };
+            list.appendChild(btn);
+        });
+    }
+
+    document.getElementById('assignStaffModal').classList.add('active');
+}
+
+function assignStaffToTarget(staffUid, targetId, targetType) {
+    const staff = state.hiredStaff.find(s => s.uid === staffUid);
+    if (!staff) return;
+    if (!staff.assignments) staff.assignments = [];
+    if (!staff.assignments.includes(targetId)) {
+        staff.assignments.push(targetId);
+        showToast(`✅ Assigned ${data.staff.find(s=>s.id===staff.typeId).name}!`, "info");
+    }
+    closeAssignStaffModal();
+    renderExhibits();
+    renderAmenities();
+    renderStaff();
+    saveGame();
+}
+
+function unassignStaffFromTarget(staffUid, targetId) {
+    const staff = state.hiredStaff.find(s => s.uid === staffUid);
+    if (!staff || !staff.assignments) return;
+    staff.assignments = staff.assignments.filter(id => id !== targetId);
+    showToast(`Staff unassigned.`, "info");
+}
+
+function closeAssignStaffModal() {
+    document.getElementById('assignStaffModal').classList.remove('active');
+}
+    
 // ✅ STOP HERE. Do not add any more lines after this closing brace!
 function renderMoveSelection() {
 const box = document.getElementById("exhibits"); 
