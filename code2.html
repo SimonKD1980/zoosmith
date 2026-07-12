@@ -2811,11 +2811,12 @@ const assignBtnHTML = `<button class="secondary-btn" style="width:100%; margin-t
             <div class="exhibit-stat"><span>🧾 Total Upkeep</span><strong style="color: var(--danger);">$${dailyExhibitCost}/day</strong></div>
             <div class="exhibit-stat"><span>🏗 Upgrades</span><strong>${upgradeCount}</strong></div>
             
-            ${healthWarningHTML}
-            ${cleanlinessWarningHTML}
-            
-            <div class="animalList">${animalList}</div>
-            ${!isBuilding ? `<div style="display:flex; gap:6px; margin-top:8px;">
+${healthWarningHTML}
+${cleanlinessWarningHTML}
+${assignmentHTML}
+${assignBtnHTML}
+<div class="animalList">${animalList}</div>
+${!isBuilding ? `<div style="display:flex; gap:6px; margin-top:8px;">
                 <button class="secondary-btn" style="flex:1; padding:8px; font-size:0.85rem;">🏗 Upgrades</button>
                 <button class="secondary-btn" style="flex:1; padding:8px; font-size:0.85rem; background: linear-gradient(135deg, #f59e0b, #d97706); color: white;" onclick="repairFence('${group.id}')">🔧 Repair</button>
                 <button class="danger-btn" style="flex:1; padding:8px; font-size:0.85rem;">🗑 Remove</button>
