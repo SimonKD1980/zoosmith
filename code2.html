@@ -1889,8 +1889,7 @@ function isUnderstaffed() {
     // You are understaffed if you don't have enough keepers OR cleaners
     return getKeeperDemand() > getKeeperCapacity() || getCleanerDemand() > getCleanerCapacity();
 }
-    
-    function getAvailableSlots() { return getKeeperSlots() - getUsedSlots(); }
+function getAvailableSlots() { return getKeeperCapacity() - getKeeperDemand(); }
 function getStaffEffects() {
 const effects = { visitorHappiness: 0, animalHappiness: 0, breedingBonus: 0, cleanPark: 0, cleanExhibits: 0 };
 for (const staffId of state.hiredStaff) {
@@ -4146,9 +4145,9 @@ if (noveltyEl) {
     else { const decayFactor = Math.min(1, state.daysSinceNewAnimal / 10); noveltyEl.textContent = Math.round((1 - decayFactor) * 100) + "%"; }
 }
 
-const usedSlots = getUsedSlots(); const totalSlots = getKeeperSlots();
+const usedSlots = getKeeperDemand(); const totalSlots = getKeeperCapacity();
 const staffingEl = document.getElementById("staffSlots"); const statusEl = document.getElementById("staffingStatus");
-if (staffingEl && statusEl) {
+    if (staffingEl && statusEl) {
 staffingEl.textContent = `${usedSlots}/${totalSlots}`;
 if (totalSlots === 0 && usedSlots > 0) { statusEl.style.color = "var(--danger)"; statusEl.title = "No keepers hired! Animals are unhappy!"; }
 else if (usedSlots > totalSlots) { statusEl.style.color = "var(--danger)"; statusEl.title = "Understaffed! Hire more keepers!"; }
