@@ -3517,12 +3517,11 @@ function renameAnimal(exhibitId, animalIndex) {
     saveGame();
 }
             function getNextAnimalName(speciesName) {
-                if (!state.animalCounters[speciesName]) state.animalCounters[speciesName] = 1;
-                const suggestedName = getNextAnimalName(animal.name);
-const name = prompt(`🐾 Name your new ${animal.name}!`, suggestedName)?.trim() || suggestedName;
-                state.animalCounters[speciesName]++;
-                return name;
-            }
+    if (!state.animalCounters[speciesName]) state.animalCounters[speciesName] = 1;
+    const suggestedName = `${speciesName} ${state.animalCounters[speciesName]}`;
+    state.animalCounters[speciesName]++;
+    return suggestedName;
+}
 
             function pickVariation(animal) {
                 if (!animal.variations || animal.variations.length === 0) return null;
@@ -4975,7 +4974,7 @@ ${isEmpty ? `<div style="padding: 8px; background: rgba(239, 68, 68, 0.15); bord
                 }
             }
 
-            function renderExhibits() {
+    function renderExhibits() {
     if (state.uiMode === "move") return;
     const box = document.getElementById("exhibits");
     box.innerHTML = "";
@@ -4987,7 +4986,7 @@ ${isEmpty ? `<div style="padding: 8px; background: rgba(239, 68, 68, 0.15); bord
 
     ids.forEach((id) => {
         const group = state.exhibits[id];
-        if (!group.id) group.id = id; // Ensure ID exists
+        if (!group.id) group.id = id;
         const isBuilt = !!state.builtEnclosures[id];
         const isBuilding = group.buildDaysRemaining > 0;
         const happiness = getExhibitHappiness(group);
@@ -5000,11 +4999,8 @@ ${isEmpty ? `<div style="padding: 8px; background: rgba(239, 68, 68, 0.15); bord
         const fenceColor = fenceCondition >= 70 ? 'var(--accent)' : fenceCondition >= 50 ? 'var(--warn)' : fenceCondition >= 30 ? 'var(--danger)' : '#dc2626';
         const fenceEmoji = fenceCondition >= 70 ? '✅' : fenceCondition >= 50 ? '⚠️' : fenceCondition >= 30 ? '🔶' : '🔴';
 
-        // ✅ NEW: Cleanliness Variables
         const cleanliness = group.cleanliness ?? 100;
-        const assignedKeepersForExhibit = state.hiredStaff.filter(s =>
-            s.assignments && s.assignments.includes(group.id) && isKeeperRole(s.typeId)
-        );
+        const assignedKeepersForExhibit = state.hiredStaff.filter(s => s.assignments && s.assignments.includes(group.id) && isKeeperRole(s.typeId));
         const keeperCleaningBonus = assignedKeepersForExhibit.length * 2;
         const cleanlinessColor = cleanliness >= 70 ? 'var(--accent)' : cleanliness >= 50 ? 'var(--warn)' : cleanliness >= 30 ? 'var(--danger)' : '#dc2626';
         const cleanlinessEmoji = cleanliness >= 70 ? '✨' : cleanliness >= 50 ? '🧹' : cleanliness >= 30 ? '⚠️' : '🦠';
@@ -5026,11 +5022,9 @@ ${isEmpty ? `<div style="padding: 8px; background: rgba(239, 68, 68, 0.15); bord
         else if (sickAnimals.length > 0) healthWarningHTML = `<div style="padding: 8px; background: rgba(245, 158, 11, 0.15); border: 1px solid var(--warn); border-radius: 8px; color: var(--warn); font-weight: 700; text-align: center; margin: 6px 0;">🤒 ${sickAnimals.length} animal${sickAnimals.length > 1 ? 's' : ''} sick - hire keepers!</div>`;
         else if (isUnderstaffed() && group.animals.length > 0) healthWarningHTML = `<div style="padding: 6px; background: rgba(245, 158, 11, 0.1); border-radius: 8px; color: var(--warn); font-size: 0.8rem; text-align: center; margin: 6px 0;">⚠️ Health declining - no keepers</div>`;
 
-        // ✅ NEW: Cleanliness Warning
         let cleanlinessWarningHTML = '';
         if (cleanliness < 50) cleanlinessWarningHTML = `<div style="padding: 8px; background: rgba(239, 68, 68, 0.15); border: 1px solid var(--danger); border-radius: 8px; color: #fca5a5; font-weight: 700; font-size: 0.85rem; text-align: center; margin: 6px 0;">🦠 Exhibit is dirty - Happiness declining!</div>`;
 
-        // ✅ FIXED: Clean animal list generation with animations
         const animalList = group.animals.length > 0 ? group.animals.map((a, i) => {
             const stage = getLifeStage(a);
             const pregnantTag = a.isPregnant ? '🤰 ' : '';
@@ -5039,28 +5033,17 @@ ${isEmpty ? `<div style="padding: 8px; background: rgba(239, 68, 68, 0.15); bord
             const healthEmoji = health >= 80 ? '' : health >= 50 ? ' 💛' : health >= 20 ? ' 🧡' : ' ❤️‍🩹';
             const animClass = getAnimalAnimClass(a, happiness);
             
-return `<span class="animalTag" data-exhibit="${group.id}" data-index="${i}" 
-    title="Age: ${getAnimalAgeDisplay(a)} | Health: ${Math.round(health)}%"
-    style="position: relative;">
-    <span class="${animClass}">${sickTag}${pregnantTag}${stage.emoji}</span> 
-    ${a.name}${healthEmoji}
-    <span onclick="event.stopPropagation(); renameAnimal('${group.id}', ${i})" 
-          style="margin-left: 4px; cursor: pointer; opacity: 0.4; font-size: 0.7rem; 
-                 transition: opacity 0.2s;"
-          onmouseover="this.style.opacity='1'" 
-          onmouseout="this.style.opacity='0.4'"
-          title="Rename">✏️</span>
-</span>`;
+            return `<span class="animalTag" data-exhibit="${group.id}" data-index="${i}" title="Age: ${getAnimalAgeDisplay(a)} | Health: ${Math.round(health)}%">
+                <span class="${animClass}">${sickTag}${pregnantTag}${stage.emoji}</span> ${a.name}${healthEmoji}
+            </span>`;
         }).join("") : "<em style='color:var(--muted)'>No animals yet</em>";
 
-        // ✅ NEW: Generate top thoughts for the exhibit card
         let exhibitThoughtsHTML = '';
         let allThoughts = [];
         group.animals.forEach(a => {
             const thoughts = generateAnimalThoughts(a, group);
             thoughts.forEach(t => allThoughts.push({ ...t, animalName: a.name }));
         });
-
         const priority = { critical: 1, problem: 2, want: 3, info: 4, happy: 5 };
         allThoughts.sort((a, b) => priority[a.type] - priority[b.type]);
         const topThoughts = allThoughts.slice(0, 2);
@@ -5078,11 +5061,7 @@ return `<span class="animalTag" data-exhibit="${group.id}" data-index="${i}"
             </div>`;
         }
                         
-        const exhibitType = data.exhibitTypes[group.type] || data.exhibitTypes.terrestrial || {
-            emoji: '🏞️',
-            name: 'Standard Exhibit'
-        };
-        
+        const exhibitType = data.exhibitTypes[group.type] || data.exhibitTypes.terrestrial || { emoji: '🏞️', name: 'Standard Exhibit' };
         const assignedKeepers = state.hiredStaff.filter(s => s.assignments && s.assignments.includes(group.id));
         const keeperSlotsNeeded = group.size === 'large' ? 3 : group.size === 'medium' ? 2 : 1;
         let assignmentHTML = '';
@@ -5099,7 +5078,7 @@ return `<span class="animalTag" data-exhibit="${group.id}" data-index="${i}"
         }
         const assignBtnHTML = `<button class="secondary-btn" style="width:100%; margin-top:8px; padding:8px; font-size:0.85rem;" onclick="openAssignStaffModal('${group.id}', 'exhibit')">🧑‍🌾 Manage Keepers (${keeperSlotsNeeded} slots needed)</button>`;
         
-        // ✅ FIXED: Properly closed template literal with all UI elements restored
+        // ✅ FULLY RESTORED TEMPLATE LITERAL
         div.innerHTML = `
             <div class="exhibit-header">
                 <h3 class="exhibit-name" onclick="renameExhibit('${group.id}')" title="Click to rename">${exhibitType.emoji} ${group.name} <span style="font-size: 0.7rem; opacity: 0.6; margin-left: 6px;">️</span></h3>
@@ -5109,27 +5088,22 @@ return `<span class="animalTag" data-exhibit="${group.id}" data-index="${i}"
             <div class="exhibit-body">
                 <div class="exhibit-stat"><span>🐾 Animals</span><strong>${group.animals.length}</strong></div>
                 <div class="exhibit-stat"><span>😊 Happiness</span><strong style="color:${happiness >= 80 ? 'var(--accent)' : happiness >= 50 ? 'var(--warn)' : 'var(--danger)'}">${happiness}%</strong></div>
-                
                 <div class="exhibit-stat"><span>${fenceEmoji} Fence Condition</span><strong style="color: ${fenceColor};">${Math.round(fenceCondition)}%</strong></div>
                 <div class="happiness-bar" style="margin-bottom: 8px;"><div style="height: 100%; width: ${fenceCondition}%; background: ${fenceColor}; transition: width 0.3s;"></div></div>
-                
                 <div class="exhibit-stat"><span>${cleanlinessEmoji} Cleanliness</span><strong style="color: ${cleanlinessColor};">${Math.round(cleanliness)}%</strong></div>
                 ${keeperCleaningBonus > 0 ? `<div style="font-size:0.7rem; color:var(--blue); text-align:center; margin-top:-4px;">🧤 Keepers cleaning +${keeperCleaningBonus}/day</div>` : ''}
                 <div class="happiness-bar" style="margin-bottom: 8px;"><div style="height: 100%; width: ${cleanliness}%; background: ${cleanlinessColor}; transition: width 0.3s;"></div></div>
-                
                 ${pregnantCount > 0 ? `<div class="exhibit-stat"><span>🤰 Pregnant</span><strong style="color: var(--purple);">${pregnantCount}</strong></div>` : ''}
                 <div class="happiness-bar"><div class="happiness-fill" style="width:${happiness}%"></div></div>
                 <div class="exhibit-stat"><span>🍖 Daily Food</span><strong style="color: var(--warn);">$${dailyFoodCost}</strong></div>
                 <div class="exhibit-stat"><span>🧾 Total Upkeep</span><strong style="color: var(--danger);">$${dailyExhibitCost}/day</strong></div>
                 <div class="exhibit-stat"><span>🏗 Upgrades</span><strong>${upgradeCount}</strong></div>
-                
                 ${healthWarningHTML}
                 ${cleanlinessWarningHTML}
                 ${assignmentHTML}
                 <div class="animalList">${animalList}</div>
                 ${exhibitThoughtsHTML}
                 ${assignBtnHTML}
-
                 ${!isBuilding ? `<div style="display:flex; gap:6px; margin-top:8px;">
                     <button class="secondary-btn" style="flex:1; padding:8px; font-size:0.85rem;" onclick="openUpgradeMenu('${group.id}')">🏗 Upgrades</button>
                     <button class="secondary-btn" style="flex:1; padding:8px; font-size:0.85rem; background: linear-gradient(135deg, #f59e0b, #d97706); color: white;" onclick="repairFence('${group.id}')">🔧 Repair</button>
@@ -5139,7 +5113,8 @@ return `<span class="animalTag" data-exhibit="${group.id}" data-index="${i}"
 
         box.appendChild(div);
     });
-}function demolishExhibit(id) {
+}}
+            function demolishExhibit(id) {
                 const group = state.exhibits[id];
                 if (!group) return;
                 if (group.animals.length > 0) return showToast("Cannot demolish exhibit with animals inside!", "error");
