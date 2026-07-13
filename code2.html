@@ -4951,182 +4951,148 @@ ${isEmpty ? `<div style="padding: 8px; background: rgba(239, 68, 68, 0.15); bord
             }
 
             function renderExhibits() {
-                if (state.uiMode === "move") return;
-                const box = document.getElementById("exhibits");
-                box.innerHTML = "";
-                const ids = Object.keys(state.exhibits);
-                if (ids.length === 0) {
-                    box.innerHTML = '<div style="text-align:center; padding:40px; color:var(--muted); grid-column: 1 / -1;"><h2>🏞 No Exhibits Yet</h2><p>Click "Build Exhibit" to get started!</p></div>';
-                    return;
-                }
+    if (state.uiMode === "move") return;
+    const box = document.getElementById("exhibits");
+    box.innerHTML = "";
+    const ids = Object.keys(state.exhibits);
+    if (ids.length === 0) {
+        box.innerHTML = '<div style="text-align:center; padding:40px; color:var(--muted); grid-column: 1 / -1;"><h2>🏞 No Exhibits Yet</h2><p>Click "Build Exhibit" to get started!</p></div>';
+        return;
+    }
 
-                ids.forEach((id) => {
-                    const group = state.exhibits[id];
-                    if (!group.id) group.id = id; // Ensure ID exists
-                    const isBuilt = !!state.builtEnclosures[id];
-                    const isBuilding = group.buildDaysRemaining > 0;
-                    const happiness = getExhibitHappiness(group);
-                    const upgradeCount = group.upgrades?.length || 0;
-                    const sizeInfo = EXHIBIT_SIZES[group.size] || EXHIBIT_SIZES.small;
-                    const dailyFoodCost = group.animals.reduce((sum, a) => sum + getActualFoodCost(a), 0);
-                    const dailyExhibitCost = 5 + dailyFoodCost;
+    ids.forEach((id) => {
+        const group = state.exhibits[id];
+        if (!group.id) group.id = id; // Ensure ID exists
+        const isBuilt = !!state.builtEnclosures[id];
+        const isBuilding = group.buildDaysRemaining > 0;
+        const happiness = getExhibitHappiness(group);
+        const upgradeCount = group.upgrades?.length || 0;
+        const sizeInfo = EXHIBIT_SIZES[group.size] || EXHIBIT_SIZES.small;
+        const dailyFoodCost = group.animals.reduce((sum, a) => sum + getActualFoodCost(a), 0);
+        const dailyExhibitCost = 5 + dailyFoodCost;
 
-                    const fenceCondition = group.fenceCondition ?? 100;
-                    const fenceColor = fenceCondition >= 70 ? 'var(--accent)' : fenceCondition >= 50 ? 'var(--warn)' : fenceCondition >= 30 ? 'var(--danger)' : '#dc2626';
-                    const fenceEmoji = fenceCondition >= 70 ? '✅' : fenceCondition >= 50 ? '⚠️' : fenceCondition >= 30 ? '🔶' : '🔴';
+        const fenceCondition = group.fenceCondition ?? 100;
+        const fenceColor = fenceCondition >= 70 ? 'var(--accent)' : fenceCondition >= 50 ? 'var(--warn)' : fenceCondition >= 30 ? 'var(--danger)' : '#dc2626';
+        const fenceEmoji = fenceCondition >= 70 ? '✅' : fenceCondition >= 50 ? '⚠️' : fenceCondition >= 30 ? '🔶' : '🔴';
 
-                    // ✅ NEW: Cleanliness Variables
-                    const cleanliness = group.cleanliness ?? 100;
-                    const assignedKeepersForExhibit = state.hiredStaff.filter(s =>
-                        s.assignments && s.assignments.includes(group.id) && isKeeperRole(s.typeId)
-                    );
-                    const keeperCleaningBonus = assignedKeepersForExhibit.length * 2;
-                    const cleanlinessColor = cleanliness >= 70 ? 'var(--accent)' : cleanliness >= 50 ? 'var(--warn)' : cleanliness >= 30 ? 'var(--danger)' : '#dc2626';
-                    const cleanlinessEmoji = cleanliness >= 70 ? '✨' : cleanliness >= 50 ? '🧹' : cleanliness >= 30 ? '⚠️' : '🦠';
+        // ✅ NEW: Cleanliness Variables
+        const cleanliness = group.cleanliness ?? 100;
+        const assignedKeepersForExhibit = state.hiredStaff.filter(s =>
+            s.assignments && s.assignments.includes(group.id) && isKeeperRole(s.typeId)
+        );
+        const keeperCleaningBonus = assignedKeepersForExhibit.length * 2;
+        const cleanlinessColor = cleanliness >= 70 ? 'var(--accent)' : cleanliness >= 50 ? 'var(--warn)' : cleanliness >= 30 ? 'var(--danger)' : '#dc2626';
+        const cleanlinessEmoji = cleanliness >= 70 ? '✨' : cleanliness >= 50 ? '🧹' : cleanliness >= 30 ? '⚠️' : '🦠';
 
-                    const div = document.createElement("div");
-                    div.className = "exhibitCard";
-                    let statusBadge = "";
-                    if (isBuilding) {
-                        const progress = ((sizeInfo.buildDays - group.buildDaysRemaining) / sizeInfo.buildDays) * 100;
-                        statusBadge = `<div style="font-size:0.8rem; margin-top:4px; color: var(--warn);">🏗 Building... ${group.buildDaysRemaining} day${group.buildDaysRemaining !== 1 ? 's' : ''} left</div><div class="happiness-bar" style="margin-top:6px;"><div class="happiness-fill" style="width:${progress}%; background: linear-gradient(90deg, var(--warn), var(--accent));"></div></div>`;
-                    } else if (isBuilt) statusBadge = `<div style="font-size:0.8rem; opacity:0.8; margin-top:4px;">✅ Built (${sizeInfo.label})</div>`;
-                    else statusBadge = `<div style="font-size:0.8rem; opacity:0.8; margin-top:4px;">⚠️ Not Built</div>`;
+        const div = document.createElement("div");
+        div.className = "exhibitCard";
+        let statusBadge = "";
+        if (isBuilding) {
+            const progress = ((sizeInfo.buildDays - group.buildDaysRemaining) / sizeInfo.buildDays) * 100;
+            statusBadge = `<div style="font-size:0.8rem; margin-top:4px; color: var(--warn);">🏗 Building... ${group.buildDaysRemaining} day${group.buildDaysRemaining !== 1 ? 's' : ''} left</div><div class="happiness-bar" style="margin-top:6px;"><div class="happiness-fill" style="width:${progress}%; background: linear-gradient(90deg, var(--warn), var(--accent));"></div></div>`;
+        } else if (isBuilt) statusBadge = `<div style="font-size:0.8rem; opacity:0.8; margin-top:4px;">✅ Built (${sizeInfo.label})</div>`;
+        else statusBadge = `<div style="font-size:0.8rem; opacity:0.8; margin-top:4px;">⚠️ Not Built</div>`;
 
-                    const pregnantCount = group.animals.filter(a => a.isPregnant).length;
-                    const sickAnimals = group.animals.filter(a => (a.health ?? 100) < 40);
-                    const criticalAnimals = group.animals.filter(a => (a.health ?? 100) < 20);
-                    let healthWarningHTML = '';
-                    if (criticalAnimals.length > 0) healthWarningHTML = `<div style="padding: 8px; background: rgba(220, 38, 38, 0.2); border: 1px solid var(--danger); border-radius: 8px; color: var(--danger); font-weight: 700; text-align: center; margin: 6px 0;">💀 ${criticalAnimals.length} animal${criticalAnimals.length > 1 ? 's' : ''} in CRITICAL condition!</div>`;
-                    else if (sickAnimals.length > 0) healthWarningHTML = `<div style="padding: 8px; background: rgba(245, 158, 11, 0.15); border: 1px solid var(--warn); border-radius: 8px; color: var(--warn); font-weight: 700; text-align: center; margin: 6px 0;">🤒 ${sickAnimals.length} animal${sickAnimals.length > 1 ? 's' : ''} sick - hire keepers!</div>`;
-                    else if (isUnderstaffed() && group.animals.length > 0) healthWarningHTML = `<div style="padding: 6px; background: rgba(245, 158, 11, 0.1); border-radius: 8px; color: var(--warn); font-size: 0.8rem; text-align: center; margin: 6px 0;">⚠️ Health declining - no keepers</div>`;
+        const pregnantCount = group.animals.filter(a => a.isPregnant).length;
+        const sickAnimals = group.animals.filter(a => (a.health ?? 100) < 40);
+        const criticalAnimals = group.animals.filter(a => (a.health ?? 100) < 20);
+        let healthWarningHTML = '';
+        if (criticalAnimals.length > 0) healthWarningHTML = `<div style="padding: 8px; background: rgba(220, 38, 38, 0.2); border: 1px solid var(--danger); border-radius: 8px; color: var(--danger); font-weight: 700; text-align: center; margin: 6px 0;">💀 ${criticalAnimals.length} animal${criticalAnimals.length > 1 ? 's' : ''} in CRITICAL condition!</div>`;
+        else if (sickAnimals.length > 0) healthWarningHTML = `<div style="padding: 8px; background: rgba(245, 158, 11, 0.15); border: 1px solid var(--warn); border-radius: 8px; color: var(--warn); font-weight: 700; text-align: center; margin: 6px 0;">🤒 ${sickAnimals.length} animal${sickAnimals.length > 1 ? 's' : ''} sick - hire keepers!</div>`;
+        else if (isUnderstaffed() && group.animals.length > 0) healthWarningHTML = `<div style="padding: 6px; background: rgba(245, 158, 11, 0.1); border-radius: 8px; color: var(--warn); font-size: 0.8rem; text-align: center; margin: 6px 0;">⚠️ Health declining - no keepers</div>`;
 
-                    // ✅ NEW: Cleanliness Warning
-                    let cleanlinessWarningHTML = '';
-                    if (cleanliness < 50) cleanlinessWarningHTML = `<div style="padding: 8px; background: rgba(239, 68, 68, 0.15); border: 1px solid var(--danger); border-radius: 8px; color: #fca5a5; font-weight: 700; font-size: 0.85rem; text-align: center; margin: 6px 0;">🦠 Exhibit is dirty - Happiness declining!</div>`;
+        // ✅ NEW: Cleanliness Warning
+        let cleanlinessWarningHTML = '';
+        if (cleanliness < 50) cleanlinessWarningHTML = `<div style="padding: 8px; background: rgba(239, 68, 68, 0.15); border: 1px solid var(--danger); border-radius: 8px; color: #fca5a5; font-weight: 700; font-size: 0.85rem; text-align: center; margin: 6px 0;">🦠 Exhibit is dirty - Happiness declining!</div>`;
 
-                    const animalList = group.animals.length > 0 ? group.animals.map((a, i) => {
-const animalList = group.animals.length > 0 ? group.animals.map((a, i) => {
-    const stage = getLifeStage(a);
-    const pregnantTag = a.isPregnant ? '🤰 ' : '';
-    const sickTag = a.sick ? '🤒 ' : '';
-    const health = a.health ?? 100;
-    const healthEmoji = health >= 80 ? '' : health >= 50 ? ' 💛' : health >= 20 ? ' 🧡' : ' ❤️‍🩹';
-    
-    // ✅ NEW: Get animation class
-    const animClass = getAnimalAnimClass(a, happiness);
-    
-    return `<span class="animalTag" data-exhibit="${group.id}" data-index="${i}" title="Age: ${getAnimalAgeDisplay(a)} | Health: ${Math.round(health)}%">
-        <span class="${animClass}">${sickTag}${pregnantTag}${stage.emoji}</span> ${a.name}${healthEmoji}
-    </span>`;
-}).join("") : "<em style='color:var(--muted)'>No animals yet</em>";
+        // ✅ FIXED: Removed the duplicate declaration line here
+        const animalList = group.animals.length > 0 ? group.animals.map((a, i) => {
+            const stage = getLifeStage(a);
+            const pregnantTag = a.isPregnant ? '🤰 ' : '';
+            const sickTag = a.sick ? '🤒 ' : '';
+            const health = a.health ?? 100;
+            const healthEmoji = health >= 80 ? '' : health >= 50 ? ' 💛' : health >= 20 ? ' 🧡' : ' ❤️‍🩹';
+            
+            // ✅ NEW: Get animation class
+            const animClass = getAnimalAnimClass(a, happiness);
+            
+            return `<span class="animalTag" data-exhibit="${group.id}" data-index="${i}" title="Age: ${getAnimalAgeDisplay(a)} | Health: ${Math.round(health)}%">
+                <span class="${animClass}">${sickTag}${pregnantTag}${stage.emoji}</span> ${a.name}${healthEmoji}
+            </span>`;
+        }).join("") : "<em style='color:var(--muted)'>No animals yet</em>";
 
-                        // ✅ NEW: Generate top thoughts for the exhibit card
-let exhibitThoughtsHTML = '';
-let allThoughts = [];
-group.animals.forEach(a => {
-    const thoughts = generateAnimalThoughts(a, group);
-    thoughts.forEach(t => allThoughts.push({ ...t, animalName: a.name }));
-});
+        // ✅ NEW: Generate top thoughts for the exhibit card
+        let exhibitThoughtsHTML = '';
+        let allThoughts = [];
+        group.animals.forEach(a => {
+            const thoughts = generateAnimalThoughts(a, group);
+            thoughts.forEach(t => allThoughts.push({ ...t, animalName: a.name }));
+        });
 
-// Sort by priority: critical > problem > want > info > happy
-const priority = { critical: 1, problem: 2, want: 3, info: 4, happy: 5 };
-allThoughts.sort((a, b) => priority[a.type] - priority[b.type]);
-const topThoughts = allThoughts.slice(0, 2); // Show top 2 most urgent thoughts
+        // Sort by priority: critical > problem > want > info > happy
+        const priority = { critical: 1, problem: 2, want: 3, info: 4, happy: 5 };
+        allThoughts.sort((a, b) => priority[a.type] - priority[b.type]);
+        const topThoughts = allThoughts.slice(0, 2); // Show top 2 most urgent thoughts
 
-if (topThoughts.length > 0) {
-    exhibitThoughtsHTML = `
-    <div style="margin-top: 10px; padding: 10px; background: rgba(11, 18, 32, 0.6); border-radius: 10px; border: 1px solid #334155;">
-        <div style="font-size: 0.75rem; color: var(--muted); text-transform: uppercase; margin-bottom: 6px; font-weight: 700;">💭 Exhibit Thoughts</div>
-        ${topThoughts.map(t => `
-            <div class="thought-bubble ${t.type}" style="margin-bottom: 4px; padding: 6px 10px; font-size: 0.8rem;">
-                <span class="thought-icon" style="font-size: 1rem;">${t.icon}</span>
-                <span class="thought-text" style="font-size: 0.8rem;"><strong>${t.animalName}:</strong> ${t.text}</span>
-            </div>
-        `).join('')}
-    </div>`;
-}
+        if (topThoughts.length > 0) {
+            exhibitThoughtsHTML = `
+            <div style="margin-top: 10px; padding: 10px; background: rgba(11, 18, 32, 0.6); border-radius: 10px; border: 1px solid #334155;">
+                <div style="font-size: 0.75rem; color: var(--muted); text-transform: uppercase; margin-bottom: 6px; font-weight: 700;">💭 Exhibit Thoughts</div>
+                ${topThoughts.map(t => `
+                    <div class="thought-bubble ${t.type}" style="margin-bottom: 4px; padding: 6px 10px; font-size: 0.8rem;">
+                        <span class="thought-icon" style="font-size: 1rem;">${t.icon}</span>
+                        <span class="thought-text" style="font-size: 0.8rem;"><strong>${t.animalName}:</strong> ${t.text}</span>
+                    </div>
+                `).join('')}
+            </div>`;
+        }
                         
-                    const exhibitType = data.exhibitTypes[group.type] || data.exhibitTypes.terrestrial || {
-                        emoji: '🏞️',
-                        name: 'Standard Exhibit'
-                    };
-                    // --- ADD THIS BLOCK INSIDE renderExhibits() ---
-                    const assignedKeepers = state.hiredStaff.filter(s => s.assignments && s.assignments.includes(group.id));
-                    const keeperSlotsNeeded = group.size === 'large' ? 3 : group.size === 'medium' ? 2 : 1;
-                    let assignmentHTML = '';
-                    if (assignedKeepers.length > 0) {
-                        assignmentHTML = `<div style="margin-top:8px; padding:8px; background:rgba(59, 130, 246, 0.1); border-radius:8px; border:1px solid rgba(59, 130, 246, 0.3);">
-        <div style="font-size:0.75rem; color:var(--blue); font-weight:700; margin-bottom:4px;">🧤 Assigned Keepers (${assignedKeepers.length})</div>
-        <div style="display:flex; flex-wrap:wrap; gap:4px;">
-            ${assignedKeepers.map(s => {
-                const sData = data.staff.find(x => x.id === s.typeId);
-                return `<span style="font-size:0.75rem; background:#0b1220; padding:3px 8px; border-radius:12px; color:var(--text);">${sData?.icon || '👤'} ${sData?.name || 'Keeper'}</span>`;
-            }).join('')}
-        </div>
-    </div>`;
-                    }
-                    const assignBtnHTML = `<button class="secondary-btn" style="width:100%; margin-top:8px; padding:8px; font-size:0.85rem;" onclick="openAssignStaffModal('${group.id}', 'exhibit')">🧑‍🌾 Manage Keepers (${keeperSlotsNeeded} slots needed)</button>`;
-                    // ----------------------------------------------
-                    div.innerHTML = `
-        <div class="exhibit-header">
-            <h3 class="exhibit-name" onclick="renameExhibit('${group.id}')" title="Click to rename">${exhibitType.emoji} ${group.name} <span style="font-size: 0.7rem; opacity: 0.6; margin-left: 6px;">️</span></h3>
-            <div style="font-size:0.75rem; opacity:0.7; margin-top:2px;">${sizeInfo.emoji} ${sizeInfo.label} • ${exhibitType.name}</div>
-            ${statusBadge}
-        </div>
-        <div class="exhibit-body">
-            <div class="exhibit-stat"><span>🐾 Animals</span><strong>${group.animals.length}</strong></div>
-            <div class="exhibit-stat"><span>😊 Happiness</span><strong style="color:${happiness >= 80 ? 'var(--accent)' : happiness >= 50 ? 'var(--warn)' : 'var(--danger)'}">${happiness}%</strong></div>
-            
-            <div class="exhibit-stat"><span>${fenceEmoji} Fence Condition</span><strong style="color: ${fenceColor};">${Math.round(fenceCondition)}%</strong></div>
-            <div class="happiness-bar" style="margin-bottom: 8px;"><div style="height: 100%; width: ${fenceCondition}%; background: ${fenceColor}; transition: width 0.3s;"></div></div>
-            
-            <!-- ✅ NEW: Cleanliness Stat & Bar -->
-            <div class="exhibit-stat"><span>${cleanlinessEmoji} Cleanliness</span><strong style="color: ${cleanlinessColor};">${Math.round(cleanliness)}%</strong></div>
-${keeperCleaningBonus > 0 ? `<div style="font-size:0.7rem; color:var(--blue); text-align:center; margin-top:-4px;">🧤 Keepers cleaning +${keeperCleaningBonus}/day</div>` : ''}
-            <div class="happiness-bar" style="margin-bottom: 8px;"><div style="height: 100%; width: ${cleanliness}%; background: ${cleanlinessColor}; transition: width 0.3s;"></div></div>
-            
-            ${pregnantCount > 0 ? `<div class="exhibit-stat"><span>🤰 Pregnant</span><strong style="color: var(--purple);">${pregnantCount}</strong></div>` : ''}
-            <div class="happiness-bar"><div class="happiness-fill" style="width:${happiness}%"></div></div>
-            <div class="exhibit-stat"><span>🍖 Daily Food</span><strong style="color: var(--warn);">$${dailyFoodCost}</strong></div>
-            <div class="exhibit-stat"><span>🧾 Total Upkeep</span><strong style="color: var(--danger);">$${dailyExhibitCost}/day</strong></div>
-            <div class="exhibit-stat"><span>🏗 Upgrades</span><strong>${upgradeCount}</strong></div>
-            
-${healthWarningHTML}
-${cleanlinessWarningHTML}
-${assignmentHTML}
-${assignBtnHTML}
-<div class="animalList">${animalList}</div>
-${exhibitThoughtsHTML}
-<!-- ✅ INJECT THE KEEPER BUTTON HERE -->
-${assignBtnHTML}
-
-${!isBuilding ? `<div style="display:flex; gap:6px; margin-top:8px;">
-    <!-- ✅ ADD INLINE ONCLICK SO IT DOESN'T GET HIJACKED -->
-    <button class="secondary-btn" style="flex:1; padding:8px; font-size:0.85rem;" onclick="openUpgradeMenu('${group.id}')">🏗 Upgrades</button>
-    <button class="secondary-btn" style="flex:1; padding:8px; font-size:0.85rem; background: linear-gradient(135deg, #f59e0b, #d97706); color: white;" onclick="repairFence('${group.id}')">🔧 Repair</button>
-    <button class="danger-btn" style="flex:1; padding:8px; font-size:0.85rem;">🗑 Remove</button>
-</div>` : `<div style="margin-top:8px; padding:10px; background: rgba(245, 158, 11, 0.1); border-radius: 8px; text-align:center; color: var(--warn); font-size:0.85rem;"> Cannot modify while under construction</div>`}
-</div>`;
-
-                    if (!isBuilding) {
-                        div.querySelectorAll(".danger-btn")[0].onclick = () => {
-                            if (group.animals.length > 0) return showToast("Cannot remove exhibit with animals inside!", "error");
-                            const refund = Math.floor(sizeInfo.cost * 0.5);
-                            state.money += refund;
-                            showFloatingMoney(refund);
-                            delete state.exhibits[id];
-                            delete state.builtEnclosures[id];
-                            addTicker(`💰 Demolished ${group.name} (refunded $${refund})`);
-                            updateUI();
-                            renderExhibits();
-                        };
-                        //  DELETED THE BROKEN .secondary-btn[0] LISTENER
-                    }
-                    box.appendChild(div);
-                });
-            }
-            // Helper function for the new Demolish button
+        const exhibitType = data.exhibitTypes[group.type] || data.exhibitTypes.terrestrial || {
+            emoji: '🏞️',
+            name: 'Standard Exhibit'
+        };
+        
+        // --- ADD THIS BLOCK INSIDE renderExhibits() ---
+        const assignedKeepers = state.hiredStaff.filter(s => s.assignments && s.assignments.includes(group.id));
+        const keeperSlotsNeeded = group.size === 'large' ? 3 : group.size === 'medium' ? 2 : 1;
+        let assignmentHTML = '';
+        if (assignedKeepers.length > 0) {
+            assignmentHTML = `<div style="margin-top:8px; padding:8px; background:rgba(59, 130, 246, 0.1); border-radius:8px; border:1px solid rgba(59, 130, 246, 0.3);">
+                <div style="font-size:0.75rem; color:var(--blue); font-weight:700; margin-bottom:4px;">🧤 Assigned Keepers (${assignedKeepers.length})</div>
+                <div style="display:flex; flex-wrap:wrap; gap:4px;">
+                    ${assignedKeepers.map(s => {
+                        const sData = data.staff.find(x => x.id === s.typeId);
+                        return `<span style="font-size:0.75rem; background:#0b1220; padding:3px 8px; border-radius:12px; color:var(--text);">${sData?.icon || '👤'} ${sData?.name || 'Keeper'}</span>`;
+                    }).join('')}
+                </div>
+            </div>`;
+        }
+        const assignBtnHTML = `<button class="secondary-btn" style="width:100%; margin-top:8px; padding:8px; font-size:0.85rem;" onclick="openAssignStaffModal('${group.id}', 'exhibit')">🧑‍🌾 Manage Keepers (${keeperSlotsNeeded} slots needed)</button>`;
+        // ----------------------------------------------
+        
+        div.innerHTML = `
+            <div class="exhibit-header">
+                <h3 class="exhibit-name" onclick="renameExhibit('${group.id}')" title="Click to rename">${exhibitType.emoji} ${group.name} <span style="font-size: 0.7rem; opacity: 0.6; margin-left: 6px;">️</span></h3>
+                <div style="font-size:0.75rem; opacity:0.7; margin-top:2px;">${sizeInfo.emoji} ${sizeInfo.label} • ${exhibitType.name}</div>
+                ${statusBadge}
+            </div>
+            <div class="exhibit-body">
+                <div class="exhibit-stat"><span>🐾 Animals</span><strong>${group.animals.length}</strong></div>
+                <div class="exhibit-stat"><span>😊 Happiness</span><strong style="color:${happiness >= 80 ? 'var(--accent)' : happiness >= 50 ? 'var(--warn)' : 'var(--danger)'}">${happiness}%</strong></div>
+                
+                <div class="exhibit-stat"><span>${fenceEmoji} Fence Condition</span><strong style="color: ${fenceColor};">${Math.round(fenceCondition)}%</strong></div>
+                <div class="happiness-bar" style="margin-bottom: 8px;"><div style="height: 100%; width: ${fenceCondition}%; background: ${fenceColor}; transition: width 0.3s;"></div></div>
+                
+                <!-- ✅ NEW: Cleanliness Stat & Bar -->
+                <div class="exhibit-stat"><span>${cleanlinessEmoji} Cleanliness</span><strong style="color: ${cleanlinessColor};">${Math.round(cleanliness)}%</strong></div>
+                ${keeperCleaningBonus > 0 ? `<div style="font-size:0.7rem; color:var(--blue); text-align:center; margin-top:-4px;">🧤 Keepers cleaning +${keeperCleaningBonus}/day</div>` : ''}
+                <div class="happiness-bar" style="margin-bottom: 8px;"><div style="height: 100%; width: ${cleanliness}%; background: ${cleanlinessColor}; transition: width 0.3s;"></div></div>
+                
+                ${pregnantCount > 0 ? `<div class="exhibit-stat"><span>🤰 Pregnant</span><strong style="color: var(--purple);">${pregnantCount}</strong></div>` : ''}
+                <div class="happiness-bar"><div class="happiness-fill" style="width:${happiness}%"></div></div>
+                <div class="exhibit-stat"><span>🍖 Daily Food</span><strong style="color: var(--warn);">$${dailyFoodCost}</strong></div>
+                <div class="exhibit-stat"><span>🧾 Total Upkeep</span><strong style="color: var(--danger);">$${dailyExhibitCost}/day</strong></div>
+                <div class="exhibit-stat"><span>🏗 Upgrades</span // Helper function for the new Demolish button
             function demolishExhibit(id) {
                 const group = state.exhibits[id];
                 if (!group) return;
