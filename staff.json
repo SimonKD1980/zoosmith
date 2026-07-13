@@ -8,150 +8,103 @@
         "salary": 50,
         "description": "Experienced animal handler.",
         "keeperSlots": 5,
-        "effects": {
-            "animalHappiness": 5,
-            "cleanExhibits": 10,
-            "maxStaff": 5
-        }
+        "cleanerSlots": 0,
+        "effects": { "animalHappiness": 5, "cleanExhibits": 10, "maxStaff": 5 }
     },
     {
-  "id": "junior_maintenance",
-  "name": "Junior Maintenance Worker",
-  "icon": "🔧",
-  "role": "Maintenance",
-  "description": "Keeps fences and facilities in good condition. Reduces fence degradation by 20%.",
-  "cost": 500,
-  "salary": 50,
-  "keeperSlots": 0,
-  "effects": {
-    "maxStaff": 3,
-    "maintenanceLevel": 1
-  }
-},
-{
-  "id": "senior_maintenance",
-  "name": "Senior Maintenance Worker",
-  "icon": "🛠️",
-  "role": "Maintenance",
-  "description": "Experienced repair specialist. Reduces degradation by 40% and auto-repairs 5% daily.",
-  "cost": 1500,
-  "salary": 100,
-  "keeperSlots": 0,
-  "effects": {
-    "maxStaff": 2,
-    "maintenanceLevel": 2
-  }
-},
-{
-  "id": "chief_maintenance",
-  "name": "Chief Maintenance Officer",
-  "icon": "⚙️",
-  "role": "Maintenance",
-  "description": "Master of all repairs. Reduces degradation by 60% and auto-repairs 10% daily.",
-  "cost": 3000,
-  "salary": 200,
-  "keeperSlots": 0,
-  "effects": {
-    "maxStaff": 1,
-    "maintenanceLevel": 3
-  }
-},
-  {
-    "id": "cleaner_park",
-    "name": "Park Sweeper",
-    "role": "Maintenance",
-    "icon": "🧹",
-    "description": "Keeps the park pathways tidy, empties bins, and keeps visitors happy.",
-    "cost": 500,
-    "salary": 20,
-    "effects": {
-      "cleanPark": 15,
-      "visitorHappiness": 5,
-      "maxStaff": 3
+        "id": "junior_maintenance",
+        "name": "Junior Maintenance Worker",
+        "icon": "🔧",
+        "role": "Maintenance",
+        "description": "Keeps fences in good condition. Reduces degradation by 20%.",
+        "cost": 500,
+        "salary": 50,
+        "keeperSlots": 0,
+        "cleanerSlots": 0,
+        "effects": { "maxStaff": 3, "maintenanceLevel": 1 }
+    },
+    {
+        "id": "senior_maintenance",
+        "name": "Senior Maintenance Worker",
+        "icon": "🛠️",
+        "role": "Maintenance",
+        "description": "Reduces degradation by 40% and auto-repairs 5% daily.",
+        "cost": 1500,
+        "salary": 100,
+        "keeperSlots": 0,
+        "cleanerSlots": 0,
+        "effects": { "maxStaff": 2, "maintenanceLevel": 2 }
+    },
+    {
+        "id": "chief_maintenance",
+        "name": "Chief Maintenance Officer",
+        "icon": "⚙️",
+        "role": "Maintenance",
+        "description": "Reduces degradation by 60% and auto-repairs 10% daily.",
+        "cost": 3000,
+        "salary": 200,
+        "keeperSlots": 0,
+        "cleanerSlots": 0,
+        "effects": { "maxStaff": 1, "maintenanceLevel": 3 }
+    },
+    {
+        "id": "zoo_guide",
+        "name": "Zoo Guide",
+        "role": "Hospitality",
+        "icon": "🗣️",
+        "description": "Entertains guests, boosting visitor happiness.",
+        "cost": 600,
+        "salary": 25,
+        "keeperSlots": 0,
+        "cleanerSlots": 0,
+        "effects": { "visitorHappiness": 15, "maxStaff": 4 }
+    },
+    {
+        "id": "zoologist",
+        "name": "Zoologist",
+        "role": "Specialist",
+        "icon": "🧬",
+        "description": "Significantly increases breeding success rates.",
+        "cost": 3000,
+        "salary": 80,
+        "keeperSlots": 0,
+        "cleanerSlots": 0,
+        "effects": { "breedingBonus": 0.25, "animalHappiness": 10, "maxStaff": 2 }
+    },
+    {
+        "id": "junior_cleaner",
+        "name": "Junior Cleaner",
+        "role": "Cleaner",
+        "icon": "🧹",
+        "cost": 300,
+        "salary": 30,
+        "keeperSlots": 0,
+        "cleanerSlots": 10,
+        "effects": { "cleanExhibits": 3, "cleanPark": 2 },
+        "description": "A hardworking cleaner who keeps your zoo sparkling."
+    },
+    {
+        "id": "senior_cleaner",
+        "name": "Senior Cleaner",
+        "role": "Cleaner",
+        "icon": "🧼",
+        "cost": 800,
+        "salary": 70,
+        "keeperSlots": 0,
+        "cleanerSlots": 18,
+        "effects": { "cleanExhibits": 6, "cleanPark": 4 },
+        "description": "An experienced cleaner who handles the toughest messes."
+    },
+    {
+        "id": "head_janitor",
+        "name": "Head Janitor",
+        "role": "Cleaner",
+        "icon": "✨",
+        "cost": 1500,
+        "salary": 120,
+        "keeperSlots": 0,
+        "cleanerSlots": 30,
+        "effects": { "cleanExhibits": 10, "cleanPark": 8 },
+        "description": "The ultimate cleaning expert. Your zoo will shine!"
     }
-  },
-  {
-    "id": "cleaner_exhibit",
-    "name": "Exhibit Sanitizer",
-    "role": "Specialist",
-    "icon": "✨",
-    "description": "Deep cleans the animal enclosures to keep the animals healthy and boost your Zoo Rating.",
-    "cost": 1500,
-    "salary": 45,
-    "effects": {
-      "cleanExhibits": 20,
-      "animalHappiness": 5,
-      "maxStaff": 2
-    }
-  } ,
-{
-  "id": "zoo_guide",
-  "name": "Zoo Guide",
-  "role": "Hospitality",
-  "icon": "🗣️",
-  "description": "Entertains guests and leads tours, boosting visitor happiness and spending.",
-  "cost": 600,
-  "salary": 25,
-  "effects": {
-    "visitorHappiness": 15,
-    "maxStaff": 4
-  }
-},
-{
-  "id": "zoologist",
-  "name": "Zoologist",
-  "role": "Specialist",
-  "icon": "🧬",
-  "description": "Studies animal behavior to significantly increase breeding success rates.",
-  "cost": 3000,
-  "salary": 80,
-  "effects": {
-    "breedingBonus": 0.25,
-    "animalHappiness": 10,
-    "maxStaff": 2
-  }
-},
-{
-  "id": "junior_cleaner",
-  "name": "Junior Cleaner",
-  "role": "Cleaner",
-  "icon": "🧹",
-  "cost": 300,
-  "salary": 30,
-  "cleanerSlots": 10,
-  "effects": {
-    "cleanExhibits": 3,
-    "cleanPark": 2
-  },
-  "description": "A hardworking cleaner who keeps your zoo sparkling."
-},
-{
-  "id": "senior_cleaner",
-  "name": "Senior Cleaner",
-  "role": "Cleaner",
-  "icon": "🧼",
-  "cost": 800,
-  "salary": 70,
-  "cleanerSlots": 10,
-  "effects": {
-    "cleanExhibits": 6,
-    "cleanPark": 4
-  },
-  "description": "An experienced cleaner who handles the toughest messes."
-},
-{
-  "id": "head_janitor",
-  "name": "Head Janitor",
-  "role": "Cleaner",
-  "icon": "✨",
-  "cost": 1500,
-  "salary": 120,
-  "cleanerSlots": 10,
-  "effects": {
-    "cleanExhibits": 10,
-    "cleanPark": 8
-  },
-  "description": "The ultimate cleaning expert. Your zoo will shine!"
-}
-    
 ]
