@@ -5005,15 +5005,13 @@ ${isEmpty ? `<div style="padding: 8px; background: rgba(239, 68, 68, 0.15); bord
         let cleanlinessWarningHTML = '';
         if (cleanliness < 50) cleanlinessWarningHTML = `<div style="padding: 8px; background: rgba(239, 68, 68, 0.15); border: 1px solid var(--danger); border-radius: 8px; color: #fca5a5; font-weight: 700; font-size: 0.85rem; text-align: center; margin: 6px 0;">🦠 Exhibit is dirty - Happiness declining!</div>`;
 
-        // ✅ FIXED: Removed the duplicate declaration line here
+        // ✅ FIXED: Clean animal list generation with animations
         const animalList = group.animals.length > 0 ? group.animals.map((a, i) => {
             const stage = getLifeStage(a);
             const pregnantTag = a.isPregnant ? '🤰 ' : '';
             const sickTag = a.sick ? '🤒 ' : '';
             const health = a.health ?? 100;
             const healthEmoji = health >= 80 ? '' : health >= 50 ? ' 💛' : health >= 20 ? ' 🧡' : ' ❤️‍🩹';
-            
-            // ✅ NEW: Get animation class
             const animClass = getAnimalAnimClass(a, happiness);
             
             return `<span class="animalTag" data-exhibit="${group.id}" data-index="${i}" title="Age: ${getAnimalAgeDisplay(a)} | Health: ${Math.round(health)}%">
@@ -5029,10 +5027,9 @@ ${isEmpty ? `<div style="padding: 8px; background: rgba(239, 68, 68, 0.15); bord
             thoughts.forEach(t => allThoughts.push({ ...t, animalName: a.name }));
         });
 
-        // Sort by priority: critical > problem > want > info > happy
         const priority = { critical: 1, problem: 2, want: 3, info: 4, happy: 5 };
         allThoughts.sort((a, b) => priority[a.type] - priority[b.type]);
-        const topThoughts = allThoughts.slice(0, 2); // Show top 2 most urgent thoughts
+        const topThoughts = allThoughts.slice(0, 2);
 
         if (topThoughts.length > 0) {
             exhibitThoughtsHTML = `
@@ -5052,7 +5049,6 @@ ${isEmpty ? `<div style="padding: 8px; background: rgba(239, 68, 68, 0.15); bord
             name: 'Standard Exhibit'
         };
         
-        // --- ADD THIS BLOCK INSIDE renderExhibits() ---
         const assignedKeepers = state.hiredStaff.filter(s => s.assignments && s.assignments.includes(group.id));
         const keeperSlotsNeeded = group.size === 'large' ? 3 : group.size === 'medium' ? 2 : 1;
         let assignmentHTML = '';
@@ -5068,8 +5064,8 @@ ${isEmpty ? `<div style="padding: 8px; background: rgba(239, 68, 68, 0.15); bord
             </div>`;
         }
         const assignBtnHTML = `<button class="secondary-btn" style="width:100%; margin-top:8px; padding:8px; font-size:0.85rem;" onclick="openAssignStaffModal('${group.id}', 'exhibit')">🧑‍🌾 Manage Keepers (${keeperSlotsNeeded} slots needed)</button>`;
-        // ----------------------------------------------
         
+        // ✅ FIXED: Properly closed template literal with all UI elements restored
         div.innerHTML = `
             <div class="exhibit-header">
                 <h3 class="exhibit-name" onclick="renameExhibit('${group.id}')" title="Click to rename">${exhibitType.emoji} ${group.name} <span style="font-size: 0.7rem; opacity: 0.6; margin-left: 6px;">️</span></h3>
@@ -5083,7 +5079,6 @@ ${isEmpty ? `<div style="padding: 8px; background: rgba(239, 68, 68, 0.15); bord
                 <div class="exhibit-stat"><span>${fenceEmoji} Fence Condition</span><strong style="color: ${fenceColor};">${Math.round(fenceCondition)}%</strong></div>
                 <div class="happiness-bar" style="margin-bottom: 8px;"><div style="height: 100%; width: ${fenceCondition}%; background: ${fenceColor}; transition: width 0.3s;"></div></div>
                 
-                <!-- ✅ NEW: Cleanliness Stat & Bar -->
                 <div class="exhibit-stat"><span>${cleanlinessEmoji} Cleanliness</span><strong style="color: ${cleanlinessColor};">${Math.round(cleanliness)}%</strong></div>
                 ${keeperCleaningBonus > 0 ? `<div style="font-size:0.7rem; color:var(--blue); text-align:center; margin-top:-4px;">🧤 Keepers cleaning +${keeperCleaningBonus}/day</div>` : ''}
                 <div class="happiness-bar" style="margin-bottom: 8px;"><div style="height: 100%; width: ${cleanliness}%; background: ${cleanlinessColor}; transition: width 0.3s;"></div></div>
@@ -5092,8 +5087,25 @@ ${isEmpty ? `<div style="padding: 8px; background: rgba(239, 68, 68, 0.15); bord
                 <div class="happiness-bar"><div class="happiness-fill" style="width:${happiness}%"></div></div>
                 <div class="exhibit-stat"><span>🍖 Daily Food</span><strong style="color: var(--warn);">$${dailyFoodCost}</strong></div>
                 <div class="exhibit-stat"><span>🧾 Total Upkeep</span><strong style="color: var(--danger);">$${dailyExhibitCost}/day</strong></div>
-                <div class="exhibit-stat"><span>🏗 Upgrades</span // Helper function for the new Demolish button
-            function demolishExhibit(id) {
+                <div class="exhibit-stat"><span>🏗 Upgrades</span><strong>${upgradeCount}</strong></div>
+                
+                ${healthWarningHTML}
+                ${cleanlinessWarningHTML}
+                ${assignmentHTML}
+                <div class="animalList">${animalList}</div>
+                ${exhibitThoughtsHTML}
+                ${assignBtnHTML}
+
+                ${!isBuilding ? `<div style="display:flex; gap:6px; margin-top:8px;">
+                    <button class="secondary-btn" style="flex:1; padding:8px; font-size:0.85rem;" onclick="openUpgradeMenu('${group.id}')">🏗 Upgrades</button>
+                    <button class="secondary-btn" style="flex:1; padding:8px; font-size:0.85rem; background: linear-gradient(135deg, #f59e0b, #d97706); color: white;" onclick="repairFence('${group.id}')">🔧 Repair</button>
+                    <button class="danger-btn" style="flex:1; padding:8px; font-size:0.85rem;" onclick="demolishExhibit('${group.id}')">🗑 Remove</button>
+                </div>` : `<div style="margin-top:8px; padding:10px; background: rgba(245, 158, 11, 0.1); border-radius: 8px; text-align:center; color: var(--warn); font-size:0.85rem;"> Cannot modify while under construction</div>`}
+            </div>`;
+
+        box.appendChild(div);
+    });
+}function demolishExhibit(id) {
                 const group = state.exhibits[id];
                 if (!group) return;
                 if (group.animals.length > 0) return showToast("Cannot demolish exhibit with animals inside!", "error");
