@@ -3514,6 +3514,7 @@ function renameAnimal(exhibitId, animalIndex) {
     showToast(`Renamed to "${trimmed}"!`, "info");
     
     updateUI();
+    
     saveGame();
 }
             function getNextAnimalName(speciesName) {
@@ -7229,66 +7230,81 @@ onclick="sellUpgradeFromModal('${up.id}')">
             }
 
             function updateUI() {
-                const allAnimals = getAllAnimals();
-                document.getElementById("zooNameDisplay").textContent = state.zooName || "My Zoo";
-                document.getElementById("money").textContent = state.money.toLocaleString(undefined, {
-                    maximumFractionDigits: 2
-                });
-                document.getElementById("day").textContent = state.day;
-                document.getElementById("month").textContent = state.month;
-                document.getElementById("year").textContent = state.year;
-                const ticketPriceEl = document.getElementById("ticketPrice");
-                if (ticketPriceEl) {
-                    ticketPriceEl.textContent = state.ticketPrice;
-                }
-                const slider = document.getElementById("ticketPriceSlider");
-                if (slider) slider.value = state.ticketPrice;
-
-                // ✅ SAFE: Only update novelty if the element exists on the current tab
-                const noveltyEl = document.getElementById("novelty");
-                if (noveltyEl) {
-                    if (allAnimals.length === 0) noveltyEl.textContent = "100%";
-                    else {
-                        const decayFactor = Math.min(1, state.daysSinceNewAnimal / 10);
-                        noveltyEl.textContent = Math.round((1 - decayFactor) * 100) + "%";
-                    }
-                }
-
-                const usedSlots = getKeeperDemand();
-                const totalSlots = getKeeperCapacity();
-                const staffingEl = document.getElementById("staffSlots");
-                const statusEl = document.getElementById("staffingStatus");
-                if (staffingEl && statusEl) {
-                    staffingEl.textContent = `${usedSlots}/${totalSlots}`;
-                    if (totalSlots === 0 && usedSlots > 0) {
-                        statusEl.style.color = "var(--danger)";
-                        statusEl.title = "No keepers hired! Animals are unhappy!";
-                    } else if (usedSlots > totalSlots) {
-                        statusEl.style.color = "var(--danger)";
-                        statusEl.title = "Understaffed! Hire more keepers!";
-                    } else if (usedSlots > totalSlots * 0.8) {
-                        statusEl.style.color = "var(--warn)";
-                        statusEl.title = "Getting close to capacity";
-                    } else {
-                        statusEl.style.color = "var(--accent)";
-                        statusEl.title = "Staffing is good";
-                    }
-                }
-                // ... rest of the function stays the same
-                const ratingEl = document.getElementById("zooRating");
-                const tierEl = document.getElementById("zooRatingTier");
-                const badgeEl = document.getElementById("ratingBadge");
-                if (ratingEl && tierEl && badgeEl) {
-                    const tier = getZooRatingTier(state.zooRating || 0);
-                    ratingEl.textContent = state.zooRating || 0;
-                    tierEl.textContent = `(${tier.label})`;
-                    tierEl.style.color = tier.color;
-                    ratingEl.style.color = tier.color;
-                    badgeEl.style.color = tier.color;
-                    badgeEl.style.borderColor = tier.color;
-                }
-            }
-
+    const allAnimals = getAllAnimals();
+    
+    // 1. Update Zoo Name
+    const zooNameEl = document.getElementById("zooNameDisplay");
+    if (zooNameEl) zooNameEl.textContent = state.zooName || "My Zoo";
+    
+    // 2. Update Money
+    const moneyEl = document.getElementById("money");
+    if (moneyEl) {
+        moneyEl.textContent = state.money.toLocaleString(undefined, {
+            maximumFractionDigits: 2
+        });
+    }
+    
+    // 3. Update Date
+    const dayEl = document.getElementById("day");
+    const monthEl = document.getElementById("month");
+    const yearEl = document.getElementById("year");
+    if (dayEl) dayEl.textContent = state.day;
+    if (monthEl) monthEl.textContent = state.month;
+    if (yearEl) yearEl.textContent = state.year;
+    
+    // 4. Update Ticket Price (Visitors Tab)
+    const ticketPriceEl = document.getElementById("ticketPrice");
+    if (ticketPriceEl) ticketPriceEl.textContent = state.ticketPrice;
+    
+    const slider = document.getElementById("ticketPriceSlider");
+    if (slider) slider.value = state.ticketPrice;
+    
+    // 5. Update Zoo Novelty (Visitors Tab)
+    const noveltyEl = document.getElementById("novelty");
+    if (noveltyEl) {
+        if (allAnimals.length === 0) {
+            noveltyEl.textContent = "100%";
+        } else {
+            const decayFactor = Math.min(1, state.daysSinceNewAnimal / 10);
+            noveltyEl.textContent = Math.round((1 - decayFactor) * 100) + "%";
+        }
+    }
+    
+    // 6. Update Staffing Status (Visitors Tab)
+    // ✅ FIXED: Removed reference to non-existent "staffingStatus" element
+    const usedSlots = getKeeperDemand();
+    const totalSlots = getKeeperCapacity();
+    const staffingEl = document.getElementById("staffSlots");
+    
+    if (staffingEl) {
+        staffingEl.textContent = `${usedSlots}/${totalSlots}`;
+        if (totalSlots === 0 && usedSlots > 0) {
+            staffingEl.style.color = "var(--danger)";
+        } else if (usedSlots > totalSlots) {
+            staffingEl.style.color = "var(--danger)";
+        } else if (usedSlots > totalSlots * 0.8) {
+            staffingEl.style.color = "var(--warn)";
+        } else {
+            staffingEl.style.color = "var(--accent)";
+        }
+    }
+    
+    // 7. Update Zoo Rating (Header)
+    const ratingEl = document.getElementById("zooRating");
+    const tierEl = document.getElementById("zooRatingTier");
+    const badgeEl = document.getElementById("ratingBadge");
+    
+    if (ratingEl && tierEl && badgeEl) {
+        const tier = getZooRatingTier(state.zooRating || 0);
+        ratingEl.textContent = state.zooRating || 0;
+        tierEl.textContent = `(${tier.label})`;
+        
+        tierEl.style.color = tier.color;
+        ratingEl.style.color = tier.color;
+        badgeEl.style.color = tier.color;
+        badgeEl.style.borderColor = tier.color;
+    }
+}
             function showSection(section, event) {
                 document.querySelectorAll(".section").forEach(s => s.classList.remove("active"));
                 document.querySelectorAll(".nav button").forEach(b => b.classList.remove("active"));
