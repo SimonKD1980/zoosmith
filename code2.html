@@ -3663,19 +3663,17 @@ function getActualFoodCost(animal) {
             }
 
             // --- KEEPER LOGIC ---
-            function getKeeperCapacity() {
-                let capacity = 0;
-                state.hiredStaff.forEach(instance => {
-                    const staffData = data.staff.find(s => s.id === instance.typeId);
-                    // Keepers have 5 slots (or use the JSON value if defined)
-                    const slots = staffData?.keeperSlots || 5;
-                    // Only count if they are actually a keeper role
-                    if (staffData?.role?.toLowerCase().includes('keeper') || slots > 0) {
-                        capacity += slots;
-                    }
-                });
-                return capacity;
-            }
+function getKeeperCapacity() {
+    let capacity = 0;
+    state.hiredStaff.forEach(instance => {
+        const staffData = data.staff.find(s => s.id === instance.typeId);
+        const slots = staffData?.keeperSlots ?? 0; // ✅ Changed from || 5 to ?? 0
+        if (staffData?.role?.toLowerCase().includes('keeper') || slots > 0) {
+            capacity += slots;
+        }
+    });
+    return capacity;
+}
 
             function getKeeperDemand() {
                 let demand = 0;
@@ -3694,18 +3692,17 @@ function getActualFoodCost(animal) {
             }
 
             // --- CLEANER LOGIC ---
-            function getCleanerCapacity() {
-                let capacity = 0;
-                state.hiredStaff.forEach(instance => {
-                    const staffData = data.staff.find(s => s.id === instance.typeId);
-                    // Cleaners have 10 slots (or use JSON value)
-                    const slots = staffData?.cleanerSlots || 10;
-                    if (staffData?.role?.toLowerCase().includes('cleaner') || staffData?.role?.toLowerCase().includes('janitor') || slots > 0) {
-                        capacity += slots;
-                    }
-                });
-                return capacity;
-            }
+function getCleanerCapacity() {
+    let capacity = 0;
+    state.hiredStaff.forEach(instance => {
+        const staffData = data.staff.find(s => s.id === instance.typeId);
+        const slots = staffData?.cleanerSlots ?? 0; // ✅ Changed from || 10 to ?? 0
+        if (staffData?.role?.toLowerCase().includes('cleaner') || staffData?.role?.toLowerCase().includes('janitor') || slots > 0) {
+            capacity += slots;
+        }
+    });
+    return capacity;
+}
 
             function getCleanerDemand() {
                 let demand = 0;
@@ -3732,7 +3729,8 @@ function getActualFoodCost(animal) {
                     animalHappiness: 0,
                     breedingBonus: 0,
                     cleanPark: 0,
-                    cleanExhibits: 0
+                    cleanExhibits: 0,
+                    maintenanceLevel: 0
                 };
 
                 // ✅ Updated for V0.7.0 object-based hiring
@@ -4732,21 +4730,23 @@ allAnimals.forEach(animal => {
             }
 
             function processFenceDegradation() {
-                const allExhibits = getAllExhibits();
-                for (const {
-                        exhibit
-                    }
-                    of allExhibits) {
-                    if (exhibit.buildDaysRemaining > 0) continue;
-                    let degradation = 0.5 + exhibit.animals.length * 0.2;
-                    exhibit.animals.forEach(animal => {
-                        const size = animal.requiredExhibitSize || "small";
-                        if (size === "large") degradation += 0.3;
-                        else if (size === "medium") degradation += 0.15;
-                    });
-                    degradation *= (1 - state.maintenanceLevel * 0.2);
-                    if (state.maintenanceLevel >= 2) exhibit.fenceCondition = Math.min(100, exhibit.fenceCondition + state.maintenanceLevel * 5);
-                    exhibit.fenceCondition = Math.max(0, exhibit.fenceCondition - degradation);
+    const allExhibits = getAllExhibits();
+    const staffEffects = getStaffEffects();
+    const maintenanceLevel = staffEffects.maintenanceLevel || 0; // ✅ Get from staff
+
+    for (const { exhibit } of allExhibits) {
+        if (exhibit.buildDaysRemaining > 0) continue;
+        let degradation = 0.5 + exhibit.animals.length * 0.2;
+        exhibit.animals.forEach(animal => {
+            const size = animal.requiredExhibitSize || "small";
+            if (size === "large") degradation += 0.3;
+            else if (size === "medium") degradation += 0.15;
+        });
+                    
+      degradation *= (1 - maintenanceLevel * 0.2); 
+        
+        if (maintenanceLevel >= 2) exhibit.fenceCondition = Math.min(100, exhibit.fenceCondition + maintenanceLevel * 5);
+        exhibit.fenceCondition = Math.max(0, exhibit.fenceCondition - degradation);
                     if (exhibit.fenceCondition < 10 && exhibit.animals.length > 0) triggerEscape(exhibit);
                     else if (exhibit.fenceCondition < 30 && Math.random() < 0.3 && exhibit.animals.length > 0) triggerEscape(exhibit);
                     else if (exhibit.fenceCondition < 50 && Math.random() < 0.1 && exhibit.animals.length > 0) triggerEscape(exhibit);
