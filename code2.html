@@ -5222,8 +5222,10 @@ ${animal.category ? `<span class="stat-badge purple">${animal.category}</span>` 
 </div>
 <p class="card-desc">${animal.info}</p>
 <div class="card-price">$${animal.cost.toLocaleString()}<small>📈 Earns $${animal.dailyIncome}/day</small></div>
-<div style="display:flex; gap:6px; flex-wrap:wrap; margin: 6px 0;"><span class="stat-badge warn">🍖 Food: $${FOOD_TYPES[getDietFoodType(animal.diet)].costPerUnit}/day</span><span class="stat-badge green">💰 Net: $${animal.dailyIncome - FOOD_TYPES[getDietFoodType(animal.diet)].costPerUnit}/day</span></div>
-<button class="primary-btn">Add to Zoo</button></div>`;
+<div style="display:flex; gap:6px; flex-wrap:wrap; margin: 6px 0;">
+  <span class="stat-badge warn">🍖 Food: $${getActualFoodCost(animal)}/day</span>
+  <span class="stat-badge green">💰 Net: $${animal.dailyIncome - getActualFoodCost(animal)}/day</span>
+</div><button class="primary-btn">Add to Zoo</button></div>`;
                     card.querySelector(".primary-btn").onclick = () => openBuyModal(animal);
                     grid.appendChild(card);
                 });
