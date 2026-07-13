@@ -2872,7 +2872,35 @@
                 color: var(--muted);
                 font-size: 1rem;
             }
+/* ==========================================================================
+🎬 ANIMAL ANIMATIONS (Visual Magic)
+========================================================================== */
+@keyframes animalPace {
+    0%, 100% { transform: translateX(0) rotate(0deg); }
+    25% { transform: translateX(-3px) rotate(-5deg); }
+    75% { transform: translateX(3px) rotate(5deg); }
+}
+@keyframes animalBounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-4px); }
+}
+@keyframes animalHop {
+    0%, 100% { transform: translateY(0) scale(0.9); }
+    50% { transform: translateY(-6px) scale(1.1); }
+}
 
+.anim-pace { 
+    animation: animalPace 1.5s ease-in-out infinite; 
+    display: inline-block; 
+}
+.anim-bounce { 
+    animation: animalBounce 1s ease-in-out infinite; 
+    display: inline-block; 
+}
+.anim-hop { 
+    animation: animalHop 0.8s ease-in-out infinite; 
+    display: inline-block; 
+}
         </style>
         <header>
             <div id="ticker">Welcome to your zoo...</div>
@@ -3634,7 +3662,21 @@ function getActualFoodCost(animal) {
                     canBreed: true
                 };
             }
-
+function getAnimalAnimClass(animal, exhibitHappiness) {
+    const health = animal.health ?? 100;
+    const age = animal.ageDays || 0;
+    
+    // 1. Babies always hop
+    if (age < 30) return 'anim-hop'; 
+    
+    // 2. Sick or very unhappy animals pace nervously
+    if (health < 40 || exhibitHappiness < 40) return 'anim-pace'; 
+    
+    // 3. Extremely happy and healthy animals bounce
+    if (health >= 90 && exhibitHappiness >= 90) return 'anim-bounce'; 
+    
+    return '';
+}
             function getAnimalAgeDisplay(animal) {
                 const age = animal.ageDays || 0;
                 const years = Math.floor(age / 360);
@@ -4191,14 +4233,17 @@ ${Object.values(house.exhibits).map(ex => `
 <span style="font-size:0.8rem; color:var(--muted);">${ex.upgrades?.length || 0} upgrades</span>
 </div>
 <div class="animalList" style="margin-top:6px;">
-${ex.animals.length > 0 ? ex.animals.map((a, i) => {
-const stage = getLifeStage(a); 
-const pregnantTag = a.isPregnant ? '🤰 ' : ''; 
-const sickTag = a.sick ? '🤒 ' : '';
-const health = a.health ?? 100; 
-const healthEmoji = health >= 80 ? '' : health >= 50 ? ' 💛' : health >= 20 ? ' 🧡' : ' ❤️‍🩹';
-return `<span class="animalTag" data-exhibit="${ex.id}" data-index="${i}" title="Age: ${getAnimalAgeDisplay(a)} | Health: ${Math.round(health)}%">${sickTag}${pregnantTag}${stage.emoji} ${a.name}${healthEmoji}</span>`;
-}).join("") : "<em style='color:var(--muted)'>No animals yet</em>"}
+${ex.animals.map((a, i) => {
+    const stage = getLifeStage(a);
+    const pregnantTag = a.isPregnant ? '🤰 ' : '';
+    const sickTag = a.sick ? '🤒 ' : '';
+    const health = a.health ?? 100;
+    const healthEmoji = health >= 80 ? '' : health >= 50 ? ' 💛' : health >= 20 ? ' 🧡' : ' ❤️‍🩹';
+    // ✅ NEW: Calculate happiness for the house exhibit to pass to animation helper
+    const exHappiness = getExhibitHappiness(ex); 
+    const animClass = getAnimalAnimClass(a, exHappiness);
+    return `<span class="animalTag" data-exhibit="${ex.id}" data-index="${i}" title="Age: ${getAnimalAgeDisplay(a)} | Health: ${Math.round(health)}%"><span class="${animClass}">${sickTag}${pregnantTag}${stage.emoji}</span> ${a.name}${healthEmoji}</span>`;
+}).join("")}
 </div>
 <div style="display:flex; gap:6px; margin-top:8px;">
 <button class="secondary-btn" style="flex:1; padding:6px; font-size:0.8rem;" onclick="openUpgradeMenu('${ex.id}')">🏗 Upgrades</button>
@@ -4380,13 +4425,12 @@ ${!unlocked ? '🔒 Locked' : !canAfford ? '💰 Need Funds' : 'Build House'}
                     if (animalCount > 0) {
                         const uniqueAnimals = [...new Set(exhibit.animals.map(a => a.id))];
                         animalIcons = uniqueAnimals.slice(0, 8).map(animalId => {
-                            const animalData = data.animals.find(a => a.id === animalId);
-                            return `<span class="animal-icon-badge" onclick="event.stopPropagation(); showAnimalOnMap('${animalId}', '${exhibit.id}')" title="${animalData?.name || animalId}">${animalData?.emoji || '🐾'}</span>`;
-                        }).join('');
-                        if (uniqueAnimals.length > 8) {
-                            animalIcons += `<span style="font-size: 0.75rem; color: var(--muted); padding: 3px 6px;">+${uniqueAnimals.length - 8}</span>`;
-                        }
-                    }
+    const animalData = data.animals.find(a => a.id === animalId);
+    const animalInstance = exhibit.animals.find(a => a.id === animalId);
+    // ✅ NEW: Apply animation to map icons
+    const animClass = animalInstance ? getAnimalAnimClass(animalInstance, happiness) : '';
+    return `<span class="animal-icon-badge" onclick="event.stopPropagation(); showAnimalOnMap('${animalId}', '${exhibit.id}')" title="${animalData?.name || animalId}"><span class="${animClass}">${animalData?.emoji || '🐾'}</span></span>`;
+}).join('');
 
                     // Happiness bar color
                     const happinessColor = happiness >= 80 ? 'var(--accent)' : happiness >= 50 ? 'var(--warn)' : 'var(--danger)';
@@ -4961,14 +5005,47 @@ ${isEmpty ? `<div style="padding: 8px; background: rgba(239, 68, 68, 0.15); bord
                     if (cleanliness < 50) cleanlinessWarningHTML = `<div style="padding: 8px; background: rgba(239, 68, 68, 0.15); border: 1px solid var(--danger); border-radius: 8px; color: #fca5a5; font-weight: 700; font-size: 0.85rem; text-align: center; margin: 6px 0;">🦠 Exhibit is dirty - Happiness declining!</div>`;
 
                     const animalList = group.animals.length > 0 ? group.animals.map((a, i) => {
-                        const stage = getLifeStage(a);
-                        const pregnantTag = a.isPregnant ? '🤰 ' : '';
-                        const sickTag = a.sick ? '🤒 ' : '';
-                        const health = a.health ?? 100;
-                        const healthEmoji = health >= 80 ? '' : health >= 50 ? ' 💛' : health >= 20 ? ' 🧡' : ' ❤️‍🩹';
-                        return `<span class="animalTag" data-exhibit="${group.id}" data-index="${i}" title="Age: ${getAnimalAgeDisplay(a)} | Health: ${Math.round(health)}%">${sickTag}${pregnantTag}${stage.emoji} ${a.name}${healthEmoji}</span>`;
-                    }).join("") : "<em style='color:var(--muted)'>No animals yet</em>";
+const animalList = group.animals.length > 0 ? group.animals.map((a, i) => {
+    const stage = getLifeStage(a);
+    const pregnantTag = a.isPregnant ? '🤰 ' : '';
+    const sickTag = a.sick ? '🤒 ' : '';
+    const health = a.health ?? 100;
+    const healthEmoji = health >= 80 ? '' : health >= 50 ? ' 💛' : health >= 20 ? ' 🧡' : ' ❤️‍🩹';
+    
+    // ✅ NEW: Get animation class
+    const animClass = getAnimalAnimClass(a, happiness);
+    
+    return `<span class="animalTag" data-exhibit="${group.id}" data-index="${i}" title="Age: ${getAnimalAgeDisplay(a)} | Health: ${Math.round(health)}%">
+        <span class="${animClass}">${sickTag}${pregnantTag}${stage.emoji}</span> ${a.name}${healthEmoji}
+    </span>`;
+}).join("") : "<em style='color:var(--muted)'>No animals yet</em>";
 
+                        // ✅ NEW: Generate top thoughts for the exhibit card
+let exhibitThoughtsHTML = '';
+let allThoughts = [];
+group.animals.forEach(a => {
+    const thoughts = generateAnimalThoughts(a, group);
+    thoughts.forEach(t => allThoughts.push({ ...t, animalName: a.name }));
+});
+
+// Sort by priority: critical > problem > want > info > happy
+const priority = { critical: 1, problem: 2, want: 3, info: 4, happy: 5 };
+allThoughts.sort((a, b) => priority[a.type] - priority[b.type]);
+const topThoughts = allThoughts.slice(0, 2); // Show top 2 most urgent thoughts
+
+if (topThoughts.length > 0) {
+    exhibitThoughtsHTML = `
+    <div style="margin-top: 10px; padding: 10px; background: rgba(11, 18, 32, 0.6); border-radius: 10px; border: 1px solid #334155;">
+        <div style="font-size: 0.75rem; color: var(--muted); text-transform: uppercase; margin-bottom: 6px; font-weight: 700;">💭 Exhibit Thoughts</div>
+        ${topThoughts.map(t => `
+            <div class="thought-bubble ${t.type}" style="margin-bottom: 4px; padding: 6px 10px; font-size: 0.8rem;">
+                <span class="thought-icon" style="font-size: 1rem;">${t.icon}</span>
+                <span class="thought-text" style="font-size: 0.8rem;"><strong>${t.animalName}:</strong> ${t.text}</span>
+            </div>
+        `).join('')}
+    </div>`;
+}
+                        
                     const exhibitType = data.exhibitTypes[group.type] || data.exhibitTypes.terrestrial || {
                         emoji: '🏞️',
                         name: 'Standard Exhibit'
@@ -5019,7 +5096,7 @@ ${cleanlinessWarningHTML}
 ${assignmentHTML}
 ${assignBtnHTML}
 <div class="animalList">${animalList}</div>
-
+${exhibitThoughtsHTML}
 <!-- ✅ INJECT THE KEEPER BUTTON HERE -->
 ${assignBtnHTML}
 
