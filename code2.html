@@ -3899,21 +3899,37 @@ function getActualFoodCost(animal) {
                 return score;
             }
 
-            function generateVisitors() {
-                const attraction = calculateAttraction();
-                if (attraction <= 0) return 0;
-                const hasRestroom = (state.amenities.restroom || 0) > 0;
-                const hasFood = (state.amenities.food_stand || 0) > 0 || (state.amenities.cafe || 0) > 0 || (state.amenities.restaurant || 0) > 0;
-                let baseVisitors = (hasRestroom && hasFood) ? 5 : (hasRestroom || hasFood) ? 2 : 0;
-                let visitors = baseVisitors + Math.floor(2 * Math.sqrt(attraction));
-                const decayFactor = Math.min(1, state.daysSinceNewAnimal / 20);
-                visitors = Math.floor(visitors * (1 - (decayFactor * 0.4)));
-                const priceImpact = state.ticketPriceImpact || 0;
-                const priceMultiplier = Math.max(0.1, 1 + (priceImpact / 100));
-                visitors = Math.floor(visitors * priceMultiplier);
-                visitors = Math.max(0, Math.floor(visitors * (state.visitorSatisfaction / 100)));
-                return visitors;
-            }
+function generateVisitors() {
+    const attraction = calculateAttraction();
+    if (attraction <= 0) return 0;
+    
+    const hasRestroom = (state.amenities.restroom || 0) > 0;
+    const hasFood = (state.amenities.food_stand || 0) > 0 || (state.amenities.cafe || 0) > 0 || (state.amenities.restaurant || 0) > 0;
+    
+    // ✅ FIX 1: Make amenities mandatory for a healthy baseline of visitors
+    let baseVisitors;
+    if (hasRestroom && hasFood) {
+        baseVisitors = 10; // Good reward for having both
+    } else if (hasRestroom || hasFood) {
+        baseVisitors = 2;  // Penalty for missing one
+    } else {
+        baseVisitors = 0;  // Hard lock: No basic amenities = No visitors
+    }
+    
+    // ✅ FIX 2: Reduce the animal multiplier (changed from 2 to 1.2)
+    // This prevents players from just hoarding animals and ignoring infrastructure
+    let visitors = baseVisitors + Math.floor(1.2 * Math.sqrt(attraction));
+    
+    const decayFactor = Math.min(1, state.daysSinceNewAnimal / 20);
+    visitors = Math.floor(visitors * (1 - (decayFactor * 0.4)));
+    
+    const priceImpact = state.ticketPriceImpact || 0;
+    const priceMultiplier = Math.max(0.1, 1 + (priceImpact / 100));
+    visitors = Math.floor(visitors * priceMultiplier);
+    
+    visitors = Math.max(0, Math.floor(visitors * (state.visitorSatisfaction / 100)));
+    return visitors;
+}
 
             function processVisitorBehavior(visitors) {
                 state.visitorComplaints = [];
@@ -4053,10 +4069,10 @@ function getActualFoodCost(animal) {
                 state.dailyVisitors = visitors;
                 state.money += visitors * state.ticketPrice;
                 let totalCost = 0;
-                for (const id of state.hiredStaff) {
-                    const staff = data.staff.find(s => s.id === id);
-                    if (staff) totalCost += staff.salary;
-                }
+state.hiredStaff.forEach(staffInstance => {
+    const staffData = data.staff.find(s => s.id === staffInstance.typeId);
+    if (staffData) totalCost += staffData.salary;
+});
                 state.money -= totalCost;
                 processVisitorBehavior(visitors);
             }
@@ -7001,9 +7017,10 @@ onclick="sellUpgradeFromModal('${up.id}')">
                     showToast(`${causeEmoji} ${death.animal.name} has died.`, 'error');
                     state.naturalDeaths = (state.naturalDeaths || 0) + 1;
                     state.totalDeaths = (state.totalDeaths || 0) + 1;
-                    state.money -= 100;
-                    showFloatingMoney(-100);
-                }
+    const deathPenalty = Math.floor(death.animal.dailyIncome * 15); 
+    state.money -= deathPenalty;
+    showFloatingMoney(-deathPenalty);
+}
 
                 for (const {
                         exhibit
