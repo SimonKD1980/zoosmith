@@ -5217,98 +5217,131 @@ ${categories.map(cat => { const count = data.animals.filter(a => a.category === 
                 renderShop();
             }
 
-            function renderShopGrid() {
-                const grid = document.getElementById('shopGrid');
-                if (!grid) return;
-                const existingLocked = grid.parentElement.querySelector('[data-locked-section]');
-                if (existingLocked) existingLocked.remove();
-                const unlocked = [];
-                const locked = [];
-                data.animals.forEach(animal => {
-                    const achievementMet = !animal.unlock || state.achievements[animal.unlock];
-                    const researchMet = !animal.researchRequired || isResearchComplete(animal.researchRequired);
-                    if (achievementMet && researchMet) unlocked.push(animal);
-                    else locked.push(animal);
-                });
-                let filtered = unlocked;
-                if (currentCategory !== 'all') filtered = filtered.filter(a => a.category === currentCategory);
-                if (currentSearch) filtered = filtered.filter(a => a.name.toLowerCase().includes(currentSearch) || a.scienceName?.toLowerCase().includes(currentSearch) || a.habitat?.toLowerCase().includes(currentSearch));
-                if (filtered.length === 0 && locked.length === 0) {
-                    grid.innerHTML = '<div style="text-align:center; padding:40px; color:var(--muted); grid-column: 1/-1;"><h3>No animals found</h3></div>';
-                    return;
-                }
-                grid.innerHTML = '';
-                filtered.forEach(animal => {
-                    const slotCost = getAnimalSlotCost(animal);
-                    const slotColor = slotCost >= 3 ? 'danger' : slotCost >= 2 ? 'warn' : 'blue';
-                    const dietEmoji = animal.diet === 'Carnivore' ? '🥩' : animal.diet === 'Herbivore' ? '🌿' : '🍖';
-                    const statusEmoji = animal.conservationStatus === 'Endangered' ? '🔴' : animal.conservationStatus === 'Vulnerable' ? '🟡' : animal.conservationStatus === 'Critically Endangered' ? '⚫' : '🟢';
-                    const card = document.createElement("div");
-                    card.className = "premium-card";
-                    card.innerHTML = `<img src="${animal.image}" alt="${animal.name}" class="shop-card-img" /><div class="card-body">
-<div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 8px;">
-<div style="display: flex; align-items: center; gap: 10px;">
-    <h3 style="margin:0; font-size:1.3rem; font-weight:800;">${animal.name}</h3>
-    <button onclick="closeModal(); renameAnimal('${exhibitId}', ${index})" 
-            style="background: rgba(59,130,246,0.2); border: 1px solid rgba(59,130,246,0.4); 
-                   color: var(--blue); padding: 4px 10px; border-radius: 8px; cursor: pointer; 
-                   font-size: 0.75rem; font-weight: 700; transition: all 0.2s;"
-            onmouseover="this.style.background='rgba(59,130,246,0.4)'"
-            onmouseout="this.style.background='rgba(59,130,246,0.2)'">
-        ✏️ Rename
-    </button>
-</div>
-<p style="margin:0 0 4px; font-size:0.85rem; color:var(--muted); font-style:italic;">${animal.scienceName || ''}</p></div>
-${animal.category ? `<span class="stat-badge purple">${animal.category}</span>` : ''}
-</div>
-<div class="card-stats">
-<span class="stat-badge">${dietEmoji} ${animal.diet}</span><span class="stat-badge">🌍 ${animal.habitat}</span>
-<span class="stat-badge">${statusEmoji} ${animal.conservationStatus}</span><span class="stat-badge ${slotColor}">🧑‍🌾 ${slotCost} slot${slotCost > 1 ? 's' : ''}</span>
-</div>
-<p class="card-desc">${animal.info}</p>
-<div class="card-price">$${animal.cost.toLocaleString()}<small>📈 Earns $${animal.dailyIncome}/day</small></div>
-<div style="display:flex; gap:6px; flex-wrap:wrap; margin: 6px 0;">
-  <span class="stat-badge warn">🍖 Food: $${getActualFoodCost(animal)}/day</span>
-  <span class="stat-badge green">💰 Net: $${animal.dailyIncome - getActualFoodCost(animal)}/day</span>
-</div><button class="primary-btn">Add to Zoo</button></div>`;
-                    card.querySelector(".primary-btn").onclick = () => openBuyModal(animal);
-                    grid.appendChild(card);
-                });
-                if (locked.length > 0) {
-                    const lockedSection = document.createElement("div");
-                    lockedSection.style.gridColumn = "1 / -1";
-                    lockedSection.style.marginTop = "30px";
-                    lockedSection.innerHTML = `<div style="text-align: center; padding: 20px; background: var(--card); border-radius: var(--radius); border: 1px solid #243042; margin-bottom: 20px;"><h3 style="margin: 0 0 8px 0; color: var(--muted);">🔒 ${locked.length} Animal${locked.length !== 1 ? 's' : ''} Locked</h3><p style="margin: 0; color: var(--muted); font-size: 0.9rem;">Complete research or achievements to unlock these animals</p></div><div class="grid-layout" id="lockedGrid"></div>`;
-                    lockedSection.dataset.lockedSection = "true";
-                    grid.parentElement.appendChild(lockedSection);
-                    const lockedGrid = lockedSection.querySelector('#lockedGrid');
-                    locked.forEach(animal => {
-                        let lockReason = '';
-                        let lockColor = 'var(--muted)';
-                        if (animal.researchRequired && !isResearchComplete(animal.researchRequired)) {
-                            const project = data.researchProjects[animal.researchRequired];
-                            const tier = project ? TIER_INFO[project.tier] : TIER_INFO.basic;
-                            lockReason = `<div style="font-size: 0.8rem; color: var(--muted); margin-bottom: 4px;">Requires research:</div><div style="font-weight: 700; color: ${tier.color};">${project?.icon || '🔬'} ${project?.name || 'Unknown'}</div>${project ? `<div style="font-size: 0.8rem; color: var(--muted); margin-top: 4px;">💰 $${project.cost.toLocaleString()} • ⏱ ${project.days} days</div>` : ''}`;
-                            lockColor = tier.color;
-                        } else if (animal.unlock && !state.achievements[animal.unlock]) {
-                            const achievement = data.achievements.find(a => a.id === animal.unlock);
-                            lockReason = `<div style="font-size: 0.8rem; color: var(--muted); margin-bottom: 4px;">Requires achievement:</div><div style="font-weight: 700; color: var(--gold);">🏆 ${achievement?.name || animal.unlock}</div>${achievement ? `<div style="font-size: 0.8rem; color: var(--muted); margin-top: 4px;">${achievement.desc || ''}</div>` : ''}`;
-                            lockColor = 'var(--gold)';
-                        }
-                        const card = document.createElement("div");
-                        card.className = "premium-card";
-                        card.style.opacity = "0.5";
-                        card.style.filter = "grayscale(0.5)";
-                        card.style.position = "relative";
-                        card.innerHTML = `<div style="position: absolute; top: 10px; right: 10px; z-index: 10; background: rgba(0,0,0,0.8); padding: 6px 12px; border-radius: 20px; font-size: 0.85rem; font-weight: 700; color: ${lockColor};">🔒 Locked</div>
-<img src="${animal.image}" alt="${animal.name}" class="shop-card-img" style="filter: blur(2px);" /><div class="card-body">
-<h3 style="margin:0; font-size:1.3rem; font-weight:800;">${animal.name}</h3><p style="margin:4px 0; font-size:0.85rem; color:var(--muted); font-style:italic;">${animal.scienceName || ''}</p>
-<div style="padding: 10px; background: #0b1220; border-radius: 8px; margin: 8px 0;">${lockReason}</div>
-<button class="primary-btn" disabled style="opacity: 0.5;">🔒 Locked</button></div>`;
-                        lockedGrid.appendChild(card);
-                    });
-                }
+function renderShopGrid() {
+    const grid = document.getElementById('shopGrid');
+    if (!grid) return;
+    
+    const existingLocked = grid.parentElement.querySelector('[data-locked-section]');
+    if (existingLocked) existingLocked.remove();
+    
+    const unlocked = [];
+    const locked = [];
+    data.animals.forEach(animal => {
+        const achievementMet = !animal.unlock || state.achievements[animal.unlock];
+        const researchMet = !animal.researchRequired || isResearchComplete(animal.researchRequired);
+        if (achievementMet && researchMet) unlocked.push(animal);
+        else locked.push(animal);
+    });
+    
+    let filtered = unlocked;
+    if (currentCategory !== 'all') filtered = filtered.filter(a => a.category === currentCategory);
+    if (currentSearch) filtered = filtered.filter(a => 
+        a.name.toLowerCase().includes(currentSearch) || 
+        a.scienceName?.toLowerCase().includes(currentSearch) || 
+        a.habitat?.toLowerCase().includes(currentSearch)
+    );
+    
+    if (filtered.length === 0 && locked.length === 0) {
+        grid.innerHTML = '<div style="text-align:center; padding:40px; color:var(--muted); grid-column: 1/-1;"><h3>No animals found</h3></div>';
+        return;
+    }
+    
+    grid.innerHTML = '';
+    
+    filtered.forEach(animal => {
+        const slotCost = getAnimalSlotCost(animal);
+        const slotColor = slotCost >= 3 ? 'danger' : slotCost >= 2 ? 'warn' : 'blue';
+        const dietEmoji = animal.diet === 'Carnivore' ? '🥩' : animal.diet === 'Herbivore' ? '🌿' : '🍖';
+        const statusEmoji = animal.conservationStatus === 'Endangered' ? '🔴' : 
+                           animal.conservationStatus === 'Vulnerable' ? '🟡' : 
+                           animal.conservationStatus === 'Critically Endangered' ? '⚫' : '🟢';
+        
+        // ✅ FIXED: Use getActualFoodCost() for accurate display
+        const actualFoodCost = getActualFoodCost(animal);
+        const netIncome = animal.dailyIncome - actualFoodCost;
+        
+        const card = document.createElement("div");
+        card.className = "premium-card";
+        card.innerHTML = `
+            <img src="${animal.image}" alt="${animal.name}" class="shop-card-img" />
+            <div class="card-body">
+                <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 8px;">
+                    <div>
+                        <h3 style="margin:0; font-size:1.3rem; font-weight:800;">${animal.name}</h3>
+                        <p style="margin:0 0 4px; font-size:0.85rem; color:var(--muted); font-style:italic;">${animal.scienceName || ''}</p>
+                    </div>
+                    ${animal.category ? `<span class="stat-badge purple">${animal.category}</span>` : ''}
+                </div>
+                <div class="card-stats">
+                    <span class="stat-badge">${dietEmoji} ${animal.diet}</span>
+                    <span class="stat-badge">🌍 ${animal.habitat}</span>
+                    <span class="stat-badge">${statusEmoji} ${animal.conservationStatus}</span>
+                    <span class="stat-badge ${slotColor}">🧑‍🌾 ${slotCost} slot${slotCost > 1 ? 's' : ''}</span>
+                </div>
+                <p class="card-desc">${animal.info}</p>
+                <div class="card-price">$${animal.cost.toLocaleString()}<small>📈 Earns $${animal.dailyIncome}/day</small></div>
+                <div style="display:flex; gap:6px; flex-wrap:wrap; margin: 6px 0;">
+                    <span class="stat-badge warn">🍖 Food: $${actualFoodCost}/day</span>
+                    <span class="stat-badge green">💰 Net: $${netIncome}/day</span>
+                </div>
+                <button class="primary-btn">Add to Zoo</button>
+            </div>`;
+        card.querySelector(".primary-btn").onclick = () => openBuyModal(animal);
+        grid.appendChild(card);
+    });
+    
+    // Locked animals section
+    if (locked.length > 0) {
+        const lockedSection = document.createElement("div");
+        lockedSection.style.gridColumn = "1 / -1";
+        lockedSection.style.marginTop = "30px";
+        lockedSection.innerHTML = `
+            <div style="text-align: center; padding: 20px; background: var(--card); border-radius: var(--radius); border: 1px solid #243042; margin-bottom: 20px;">
+                <h3 style="margin: 0 0 8px 0; color: var(--muted);">🔒 ${locked.length} Animal${locked.length !== 1 ? 's' : ''} Locked</h3>
+                <p style="margin: 0; color: var(--muted); font-size: 0.9rem;">Complete research or achievements to unlock these animals</p>
+            </div>
+            <div class="grid-layout" id="lockedGrid"></div>`;
+        lockedSection.dataset.lockedSection = "true";
+        grid.parentElement.appendChild(lockedSection);
+        
+        const lockedGrid = lockedSection.querySelector('#lockedGrid');
+        locked.forEach(animal => {
+            let lockReason = '';
+            let lockColor = 'var(--muted)';
+            
+            if (animal.researchRequired && !isResearchComplete(animal.researchRequired)) {
+                const project = data.researchProjects[animal.researchRequired];
+                const tier = project ? TIER_INFO[project.tier] : TIER_INFO.basic;
+                lockReason = `<div style="font-size: 0.8rem; color: var(--muted); margin-bottom: 4px;">Requires research:</div>
+                    <div style="font-weight: 700; color: ${tier.color};">${project?.icon || '🔬'} ${project?.name || 'Unknown'}</div>
+                    ${project ? `<div style="font-size: 0.8rem; color: var(--muted); margin-top: 4px;">💰 $${project.cost.toLocaleString()} • ⏱ ${project.days} days</div>` : ''}`;
+                lockColor = tier.color;
+            } else if (animal.unlock && !state.achievements[animal.unlock]) {
+                const achievement = data.achievements.find(a => a.id === animal.unlock);
+                lockReason = `<div style="font-size: 0.8rem; color: var(--muted); margin-bottom: 4px;">Requires achievement:</div>
+                    <div style="font-weight: 700; color: var(--gold);">🏆 ${achievement?.name || animal.unlock}</div>
+                    ${achievement ? `<div style="font-size: 0.8rem; color: var(--muted); margin-top: 4px;">${achievement.desc || ''}</div>` : ''}`;
+                lockColor = 'var(--gold)';
             }
+            
+            const card = document.createElement("div");
+            card.className = "premium-card";
+            card.style.opacity = "0.5";
+            card.style.filter = "grayscale(0.5)";
+            card.style.position = "relative";
+            card.innerHTML = `
+                <div style="position: absolute; top: 10px; right: 10px; z-index: 10; background: rgba(0,0,0,0.8); padding: 6px 12px; border-radius: 20px; font-size: 0.85rem; font-weight: 700; color: ${lockColor};">🔒 Locked</div>
+                <img src="${animal.image}" alt="${animal.name}" class="shop-card-img" style="filter: blur(2px);" />
+                <div class="card-body">
+                    <h3 style="margin:0; font-size:1.3rem; font-weight:800;">${animal.name}</h3>
+                    <p style="margin:4px 0; font-size:0.85rem; color:var(--muted); font-style:italic;">${animal.scienceName || ''}</p>
+                    <div style="padding: 10px; background: #0b1220; border-radius: 8px; margin: 8px 0;">${lockReason}</div>
+                    <button class="primary-btn" disabled style="opacity: 0.5;">🔒 Locked</button>
+                </div>`;
+            lockedGrid.appendChild(card);
+        });
+    }
+}
 
             function renderVisitors() {
                 const box = document.getElementById("visitors");
