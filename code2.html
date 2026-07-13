@@ -10,7 +10,7 @@
         <meta charset="UTF-8">
         <meta name="viewport"
               content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-        <title>ZooSmith V0.8.0</title>
+        <title>ZooSmith V0.9.0</title>
         <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
         <script type="module">
             import {
@@ -4084,17 +4084,16 @@ state.hiredStaff.forEach(staffInstance => {
                 if (totalIncome > 0) state.money += totalIncome;
             }
 
-            function processUpkeep() {
-                let totalCost = 0;
-                for (const id in state.exhibits) totalCost += 5;
-
-                // Add upkeep for houses and their exhibits
-                for (const houseId in state.houses) {
-                    totalCost += 10; // Base house upkeep
-                    for (const exId in state.houses[houseId].exhibits) {
-                        totalCost += 5; // Upkeep for exhibits inside the house
-                    }
-                }
+function processUpkeep() {
+    let totalCost = 0;
+    for (const id in state.exhibits) {
+        const ex = state.exhibits[id];
+        let base = 5;
+        if (ex.size === 'medium') base = 15;
+        if (ex.size === 'large') base = 30;
+        base += (ex.animals.length * 2); // Vet/waste cost per animal
+        totalCost += base;
+    }
 
                 state.money -= totalCost;
                 if (totalCost > 0) addTicker(`🧾 Facility upkeep: -$${totalCost}`);
@@ -6918,35 +6917,6 @@ onclick="sellUpgradeFromModal('${up.id}')">
                 state.monthlyIncomeTracker = 0; // Reset tracker for the new month
                 renderReports();
             }
-
-            function processExhibitCleanliness() {
-                const staffEffects = getStaffEffects();
-                const cleaningPower = staffEffects.cleanExhibits || 0; // How much staff cleans per day
-
-                const allExhibits = getAllExhibits();
-                for (const {
-                        exhibit
-                    }
-                    of allExhibits) {
-                    if (exhibit.buildDaysRemaining > 0) continue;
-
-                    // 1. Initialize if missing (safety check)
-                    if (exhibit.cleanliness === undefined) exhibit.cleanliness = 100;
-
-                    // 2. Animals make it dirty (2% dirt per animal per day)
-                    const dirtAmount = exhibit.animals.length * 2;
-                    exhibit.cleanliness -= dirtAmount;
-
-                    // 3. Staff cleans it
-                    if (cleaningPower > 0) {
-                        exhibit.cleanliness += cleaningPower;
-                    }
-
-                    // 4. Clamp between 0 and 100
-                    exhibit.cleanliness = Math.max(0, Math.min(100, exhibit.cleanliness));
-                }
-            }
-
             function advanceDay() {
                 if (state.activeEvent) {
                     showToast("Resolve the current event before ending the day!", "warn");
