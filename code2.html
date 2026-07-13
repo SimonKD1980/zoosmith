@@ -4432,6 +4432,7 @@ ${!unlocked ? '🔒 Locked' : !canAfford ? '💰 Need Funds' : 'Build House'}
     return `<span class="animal-icon-badge" onclick="event.stopPropagation(); showAnimalOnMap('${animalId}', '${exhibit.id}')" title="${animalData?.name || animalId}"><span class="${animClass}">${animalData?.emoji || '🐾'}</span></span>`;
 }).join('');
 
+                    }
                     // Happiness bar color
                     const happinessColor = happiness >= 80 ? 'var(--accent)' : happiness >= 50 ? 'var(--warn)' : 'var(--danger)';
 
