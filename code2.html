@@ -3786,6 +3786,10 @@ function getCleanerCapacity() {
                 return getKeeperDemand() > getKeeperCapacity() || getCleanerDemand() > getCleanerCapacity();
             }
 
+function isKeepersUnderstaffed() {
+    return getKeeperDemand() > getKeeperCapacity();
+}
+            
             function getAvailableSlots() {
                 return getKeeperCapacity() - getKeeperDemand();
             }
@@ -4559,21 +4563,17 @@ ${!unlocked ? '🔒 Locked' : !canAfford ? '💰 Need Funds' : 'Build House'}
             function consumeDailyFood() {
                 const hungryAnimals = [];
                 const allAnimals = getAllAnimals();
-                if (isUnderstaffed()) {
-                    allAnimals.forEach(animal => {
-                        animal.wasHungry = true;
-                        hungryAnimals.push(animal.name);
-                    });
-                    if (hungryAnimals.length > 0) {
-                        addTicker(`⚠️ No keepers! ${hungryAnimals.length} animals went unfed.`);
-                        showToast("No keepers to feed the animals! Hire staff!", "error");
-                    }
-                    return {
-                        hay: 0,
-                        meat: 0,
-                        produce: 0
-                    };
-                }
+    if (isKeepersUnderstaffed()) { 
+        allAnimals.forEach(animal => {
+            animal.wasHungry = true;
+            hungryAnimals.push(animal.name);
+        });
+        if (hungryAnimals.length > 0) {
+            addTicker(`⚠️ No keepers! ${hungryAnimals.length} animals went unfed.`);
+            showToast("No keepers to feed the animals! Hire staff!", "error");
+        }
+        return { hay: 0, meat: 0, produce: 0 };
+    }
                 const consumption = {
                     hay: 0,
                     meat: 0,
@@ -4646,8 +4646,8 @@ allAnimals.forEach(animal => {
                 if (!exhibit || !exhibit.animals?.length) return 0;
                 let totalHappiness = 0;
                 const upgrades = exhibit.upgrades || [];
-                const understaffed = isUnderstaffed();
-                const staffEffects = getStaffEffects();
+    const understaffed = isKeepersUnderstaffed(); 
+    const staffEffects = getStaffEffects();
 
                 // Get exhibit cleanliness once (defaults to 100 if missing from old saves)
                 const cleanliness = exhibit.cleanliness ?? 100;
@@ -4824,10 +4824,8 @@ allAnimals.forEach(animal => {
             }
 
             function processAnimalHealth() {
-
-                const understaffed = isUnderstaffed();
-                const allExhibits = getAllExhibits();
-
+    const understaffed = isKeepersUnderstaffed(); 
+    const allExhibits = getAllExhibits();
                 for (const {
                         exhibit
                     }
@@ -5021,8 +5019,7 @@ ${isEmpty ? `<div style="padding: 8px; background: rgba(239, 68, 68, 0.15); bord
         let healthWarningHTML = '';
         if (criticalAnimals.length > 0) healthWarningHTML = `<div style="padding: 8px; background: rgba(220, 38, 38, 0.2); border: 1px solid var(--danger); border-radius: 8px; color: var(--danger); font-weight: 700; text-align: center; margin: 6px 0;">💀 ${criticalAnimals.length} animal${criticalAnimals.length > 1 ? 's' : ''} in CRITICAL condition!</div>`;
         else if (sickAnimals.length > 0) healthWarningHTML = `<div style="padding: 8px; background: rgba(245, 158, 11, 0.15); border: 1px solid var(--warn); border-radius: 8px; color: var(--warn); font-weight: 700; text-align: center; margin: 6px 0;">🤒 ${sickAnimals.length} animal${sickAnimals.length > 1 ? 's' : ''} sick - hire keepers!</div>`;
-        else if (isUnderstaffed() && group.animals.length > 0) healthWarningHTML = `<div style="padding: 6px; background: rgba(245, 158, 11, 0.1); border-radius: 8px; color: var(--warn); font-size: 0.8rem; text-align: center; margin: 6px 0;">⚠️ Health declining - no keepers</div>`;
-
+       else if (isKeepersUnderstaffed() && group.animals.length > 0) healthWarningHTML = `<div style="padding: 6px; background: rgba(245, 158, 11, 0.1); border-radius: 8px; color: var(--warn); font-size: 0.8rem; text-align: center; margin: 6px 0;">⚠️ Health declining - no keepers</div>`;
         let cleanlinessWarningHTML = '';
         if (cleanliness < 50) cleanlinessWarningHTML = `<div style="padding: 8px; background: rgba(239, 68, 68, 0.15); border: 1px solid var(--danger); border-radius: 8px; color: #fca5a5; font-weight: 700; font-size: 0.85rem; text-align: center; margin: 6px 0;">🦠 Exhibit is dirty - Happiness declining!</div>`;
 
@@ -5842,12 +5839,14 @@ function renderShopGrid() {
                     icon: '😫',
                     text: "I'm starving! Please feed me!",
                     type: 'critical'
-                });
-                if (isUnderstaffed()) thoughts.push({
-                    icon: '😰',
-                    text: "Where are the keepers? Nobody's looking after us!",
-                    type: 'critical'
-                });
+                });    
+                
+                if (isKeepersUnderstaffed()) thoughts.push({
+        icon: '😰',
+        text: "Where are the keepers? Nobody's looking after us!",
+        type: 'critical'
+    });
+
                 if (sameSpeciesCount < animal.minInExhibit) {
                     const needed = animal.minInExhibit - sameSpeciesCount;
                     thoughts.push({
@@ -5997,7 +5996,7 @@ ${thoughts.map(t => `
 <p>👥 Needs: ${animal.minInExhibit} - ${animal.maxInExhibit}</p><p>🏞 Exhibit: ${exhibit.name ?? "Unknown"}</p>
 ${thoughtsHTML}
 ${animal.variation ? `<p>✨ Variant: ${animal.variation.name}</p>` : ""}<p>🍼 Born in zoo: ${animal.bornInZoo ? "Yes" : "No"}</p>
-${(() => { const h = animal.health ?? 100; const color = h >= 80 ? 'var(--accent)' : h >= 50 ? 'var(--warn)' : h >= 20 ? 'var(--danger)' : '#dc2626'; const emoji = h >= 80 ? '💚' : h >= 50 ? '💛' : h >= 20 ? '🧡' : '❤️‍🩹'; const status = h >= 80 ? 'Healthy' : h >= 50 ? 'Unwell' : h >= 20 ? 'Sick' : 'Critical'; return `<div style="margin: 10px 0; padding: 12px; background: #0b1220; border-radius: 8px; border: 1px solid ${color};"><div style="display: flex; justify-content: space-between; margin-bottom: 6px;"><span>${emoji} Health</span><strong style="color: ${color};">${Math.round(h)}% (${status})</strong></div><div class="happiness-bar" style="height: 10px;"><div style="height: 100%; width: ${h}%; background: ${color}; transition: width 0.3s;"></div></div>${isUnderstaffed() ? '<div style="margin-top: 8px; font-size: 0.8rem; color: var(--danger);">⚠️ Health declining - no keepers on staff!</div>' : ''}</div>`; })()}
+${(() => { const h = animal.health ?? 100; const color = h >= 80 ? 'var(--accent)' : h >= 50 ? 'var(--warn)' : h >= 20 ? 'var(--danger)' : '#dc2626'; const emoji = h >= 80 ? '💚' : h >= 50 ? '💛' : h >= 20 ? '🧡' : '❤️‍🩹'; const status = h >= 80 ? 'Healthy' : h >= 50 ? 'Unwell' : h >= 20 ? 'Sick' : 'Critical'; return `<div style="margin: 10px 0; padding: 12px; background: #0b1220; border-radius: 8px; border: 1px solid ${color};"><div style="display: flex; justify-content: space-between; margin-bottom: 6px;"><span>${emoji} Health</span><strong style="color: ${color};">${Math.round(h)}% (${status})</strong></div><div class="happiness-bar" style="height: 10px;"><div style="height: 100%; width: ${h}%; background: ${color}; transition: width 0.3s;"></div></div>${isKeepersUnderstaffed() ? '<div style="margin-top: 8px; font-size: 0.8rem; color: var(--danger);">⚠️ Health declining - no keepers on staff!</div>' : ''}</div>`; })()}
 ${animal.sick ? `<p style="color:var(--danger);">🤒 Currently sick - health declining faster</p>` : ''}
 ${stage.canBreed ? '<p style="color:var(--accent);">✅ Can breed</p>' : '<p style="color:var(--muted);">🔒 Too young to breed</p>'}${pregnancyInfo}
 <div style="margin-top: 15px; display: flex; gap: 10px;"><button id="sellAnimalBtn" class="buildBtn">💸 Sell Animal</button><button id="moveFromInfoBtn" class="moveBtn">🔄 Move Animal</button></div>`;
