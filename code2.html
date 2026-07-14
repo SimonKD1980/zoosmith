@@ -3195,13 +3195,10 @@ Rewritten for stability, unified exhibit handling, and bug fixes.
 
 function getActualFoodCost(animal) {
     const foodType = getDietFoodType(animal.diet);
-    // ✅ Use JSON value, fallback to 1 for older save files
-    const baseAmount = animal.foodAmount || 1; 
-    
-    // ✅ If pregnant, they eat double their BASE amount
-    const units = animal.isPregnant ? baseAmount * 2 : baseAmount; 
-    
-    return FOOD_TYPES[foodType].costPerUnit * units;
+    const foodData = FOOD_TYPES[foodType] || FOOD_TYPES.hay; // Fallback to hay
+    const baseAmount = animal.foodAmount || 1;
+    const units = animal.isPregnant ? baseAmount * 2 : baseAmount;
+    return foodData.costPerUnit * units;
 }
 
             const TIER_INFO = {
@@ -5178,10 +5175,14 @@ ${isEmpty ? `<div style="padding: 8px; background: rgba(239, 68, 68, 0.15); bord
 <button class="category-tab ${currentCategory === 'all' ? 'active' : ''}" onclick="filterByCategory('all')" style="padding: 8px 16px; background: ${currentCategory === 'all' ? 'var(--accent)' : 'var(--card)'}; color: ${currentCategory === 'all' ? '#000' : 'var(--text)'}; border: 1px solid #243042; border-radius: 8px; cursor: pointer; font-weight: 600;">🌍 All (${data.animals.length})</button>
 ${categories.map(cat => { const count = data.animals.filter(a => a.category === cat).length; const isActive = currentCategory === cat; return `<button class="category-tab ${isActive ? 'active' : ''}" onclick="filterByCategory('${cat}')" style="padding: 8px 16px; background: ${isActive ? 'var(--accent)' : 'var(--card)'}; color: ${isActive ? '#000' : 'var(--text)'}; border: 1px solid #243042; border-radius: 8px; cursor: pointer; font-weight: 600;">${cat} (${count})</button>`; }).join('')}
 </div></div><div class="grid-layout" id="shopGrid"></div>`;
-                document.getElementById('animalSearch').addEventListener('input', (e) => {
-                    currentSearch = e.target.value.toLowerCase();
-                    renderShopGrid();
-                });
+                const searchInput = document.getElementById('animalSearch');
+if (!searchInput.dataset.listenerAttached) {
+    searchInput.dataset.listenerAttached = 'true';
+    searchInput.addEventListener('input', (e) => {
+        currentSearch = e.target.value.toLowerCase();
+        renderShopGrid();
+    });
+}
                 renderShopGrid();
             }
 
@@ -5740,7 +5741,7 @@ function renderShopGrid() {
                 for (const houseId in state.houses) {
                     const house = state.houses[houseId];
                     const houseType = data.houses[house.typeId];
-                    if (!houseType.allowedCategories.includes(animal.category)) continue;
+                    if (!houseType.allowedCategories?.includes(animal.category)) continue;
                     for (const exhibitId in house.exhibits) {
                         const exhibit = house.exhibits[exhibitId];
                         if (exhibit.buildDaysRemaining > 0) continue;
@@ -5777,7 +5778,7 @@ function renderShopGrid() {
 
                 if (exhibit.buildDaysRemaining > 0) return showToast("Exhibit is still under construction!", "error");
 
-                const incompatible = exhibit.animals.some(existing => existing.id !== animal.id && !animal.compatibleWith.includes(existing.id));
+                const incompatible = exhibit.animals.some(existing => existing.id !== animal.id && !animal.compatibleWith?.includes(existing.id));
                 if (incompatible) return showToast("This animal cannot live with current exhibit animals!", "error");
 
                 const slotCost = getAnimalSlotCost(animal);
@@ -6393,7 +6394,8 @@ onclick="sellUpgradeFromModal('${up.id}')">
                 if (!staff.assignments) staff.assignments = [];
                 if (!staff.assignments.includes(targetId)) {
                     staff.assignments.push(targetId);
-                    showToast(`✅ Assigned ${data.staff.find(s=>s.id===staff.typeId).name}!`, "info");
+                    const assignedStaffData = data.staff.find(s => s.id === staff.typeId);
+showToast(`✅ Assigned ${assignedStaffData?.name || 'Staff'}!`, "info");
                 }
                 closeAssignStaffModal();
                 renderExhibits();
