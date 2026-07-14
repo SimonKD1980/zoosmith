@@ -694,7 +694,6 @@
                 color: var(--warn);
             }
 
-            .facility-icon,
             .staff-icon {
                 font-size: 2.5rem;
                 margin-bottom: 8px;
@@ -2669,14 +2668,12 @@
             <button class="active"
                     onclick="showSection('shop', event)">🛒 Shop</button>
             <button onclick="showSection('exhibits', event)">🏞 Exhibits</button>
-            <button onclick="showSection('houses', event)">🏠 Houses</button>
-
+            
             <!-- Operations -->
             <button onclick="showSection('staff', event)">👷 Staff</button>
             <button onclick="showSection('supplies', event)">🍽 Supplies</button>
             <button onclick="showSection('amenities', event)">🏪 Amenities</button>
-            <button onclick="showSection('facilities', event)">🏗 Facilities</button>
-
+            
             <!-- Progression -->
             <button onclick="showSection('research', event)">🔬 Research</button>
 
@@ -2721,14 +2718,9 @@
             </div>
         </div>
 
-
-        <div id="facilities"
-             class="section"></div>
         <div id="shop"
              class="section active"></div>
         <div id="exhibits"
-             class="section"></div>
-        <div id="houses"
              class="section"></div>
         <div id="research"
              class="section"></div>
@@ -3064,7 +3056,6 @@ function getActualFoodCost(animal) {
                 ticketPrice: 20,
                 exhibits: {},
                 builtEnclosures: {},
-                zooFacilities: [],
                 hiredStaff: [],
                 achievements: {},
                 animalCounters: {},
@@ -3098,7 +3089,6 @@ function getActualFoodCost(animal) {
                 maintenanceLevel: 0,
                 tutorialStep: 0,
                 tutorialSkipped: false,
-                houses: {},
                 recentDeathPenalty: 0,
                 zooRating: 0,
                 unnaturalDeaths: 0,
@@ -3152,17 +3142,7 @@ function getActualFoodCost(animal) {
                     console.error("Failed to load upgrades", e);
                 }
             }
-            async function loadFacilities() {
-                try {
-                    const res = await fetch("facilities.json");
-                    const arr = await res.json();
-                    data.facilities = {};
-                    arr.forEach(item => data.facilities[item.id] = item);
-                    renderFacilities();
-                } catch (e) {
-                    console.error("Failed to load facilities", e);
-                }
-            }
+        
             async function loadStaff() {
                 try {
                     const res = await fetch("staff.json?nocache=" + Date.now());
@@ -3203,61 +3183,26 @@ function getActualFoodCost(animal) {
                     console.error("Failed to load exhibit types", e);
                 }
             }
-            async function loadHouses() {
-                try {
-                    const res = await fetch("houses.json?nocache=" + Date.now());
-                    const arr = await res.json();
-                    data.houses = {};
-                    arr.forEach(item => data.houses[item.id] = item);
-                } catch (e) {
-                    console.error("Failed to load houses", e);
-                }
-            }
 
             /* --------------------------------------------------------------------------
             🛠️ 4. UTILITY & HELPER FUNCTIONS
             -------------------------------------------------------------------------- */
             // UNIFIED EXHIBIT HELPER: Seamlessly handles both regular and house exhibits
             function getExhibitContext(exhibitId) {
-                if (state.exhibits[exhibitId]) return {
-                    exhibit: state.exhibits[exhibitId],
-                    houseId: null
-                };
-                for (const houseId in state.houses) {
-                    if (state.houses[houseId].exhibits[exhibitId]) {
-                        return {
-                            exhibit: state.houses[houseId].exhibits[exhibitId],
-                            houseId: houseId
-                        };
-                    }
-                }
-                return null;
-            }
+    if (state.exhibits[exhibitId]) return { exhibit: state.exhibits[exhibitId], houseId: null };
+    return null;
+}
 
-            function getAllAnimals() {
-                const regularAnimals = Object.values(state.exhibits).flatMap(ex => ex.animals || []);
-                const houseAnimals = getAllHouseAnimals();
-                return regularAnimals.concat(houseAnimals);
-            }
-
-            function getAllExhibits() {
-                const exhibits = [];
-                for (const id in state.exhibits) exhibits.push({
-                    exhibit: state.exhibits[id],
-                    isHouse: false,
-                    houseId: null
-                });
-                for (const houseId in state.houses) {
-                    for (const exId in state.houses[houseId].exhibits) {
-                        exhibits.push({
-                            exhibit: state.houses[houseId].exhibits[exId],
-                            isHouse: true,
-                            houseId: houseId
-                        });
-                    }
-                }
-                return exhibits;
-            }
+function getAllAnimals() {
+    return Object.values(state.exhibits).flatMap(ex => ex.animals || []);
+}
+function getAllExhibits() {
+    const exhibits = [];
+    for (const id in state.exhibits) {
+        exhibits.push({ exhibit: state.exhibits[id], isHouse: false, houseId: null });
+    }
+    return exhibits;
+}
 
             function countAnimals(id) {
                 return getAllAnimals().filter(a => a.id === id).length;
@@ -3889,7 +3834,6 @@ function generateVisitors() {
 
             function calculateGuestHappiness() {
                 let happiness = 50;
-                if (state.zooFacilities.length >= 1) happiness += 10;
                 if (calculateAttraction() > 50) happiness += 10;
                 const allExhibits = getAllExhibits();
                 const avgAnimalHappiness = allExhibits.length ? allExhibits.reduce((sum, {
@@ -3965,7 +3909,7 @@ function processUpkeep() {
                 };
                 addTicker(`🏗 Started building ${houseType.emoji} ${houseType.name}`);
                 updateUI();
-                renderHouses();
+                
             }
 
             function buildExhibit(size, type = 'terrestrial') {
@@ -4004,110 +3948,6 @@ function processUpkeep() {
         renderMap();
     }
 }
-            function getAllHouseAnimals() {
-                let animals = [];
-                for (const houseId in state.houses) {
-                    const house = state.houses[houseId];
-                    for (const exhibitId in house.exhibits) {
-                        animals = animals.concat(house.exhibits[exhibitId].animals || []);
-                    }
-                }
-                return animals;
-            }
-
-            function renderHouses() {
-                const box = document.getElementById("houses");
-                const houseIds = Object.keys(state.houses);
-                box.innerHTML = '<div class="grid-layout"></div>';
-                const grid = box.querySelector('.grid-layout');
-                if (houseIds.length === 0) {
-                    const emptyMsg = document.createElement("div");
-                    emptyMsg.style.gridColumn = "1 / -1";
-                    emptyMsg.innerHTML = '<div style="text-align:center; padding:40px; color:var(--muted);"><h2>🏠 No Houses Yet</h2><p>Build a house to get started!</p></div>';
-                    grid.appendChild(emptyMsg);
-                }
-                houseIds.forEach(houseId => {
-                    const house = state.houses[houseId];
-                    const houseType = data.houses[house.typeId];
-                    const isBuilding = house.buildDaysRemaining > 0;
-                    const exhibitCount = Object.keys(house.exhibits).length;
-                    const totalAnimals = Object.values(house.exhibits).reduce((sum, ex) => sum + (ex.animals?.length || 0), 0);
-                    const card = document.createElement("div");
-                    card.className = "premium-card";
-                    card.innerHTML = `
-<div class="card-header">
-<h3>${houseType.emoji} ${house.name}</h3>
-<div class="subtitle">${isBuilding ? `🏗 Building... ${house.buildDaysRemaining} days left` : `${exhibitCount}/${houseType.maxExhibits} exhibits • ${totalAnimals} animals`}</div>
-</div>
-<div class="card-body">
-${isBuilding ? '<div style="padding:20px; text-align:center; color:var(--warn);">⏳ Under construction</div>' : `
-<div style="display:flex; flex-direction:column; gap:8px;">
-${Object.values(house.exhibits).map(ex => `
-<div style="padding:10px; background:#0b1220; border-radius:8px; border:1px solid #243042;">
-<div style="font-weight:700; margin-bottom:4px; display:flex; justify-content:space-between;">
-<span>${ex.name}</span>
-<span style="font-size:0.8rem; color:var(--muted);">${ex.upgrades?.length || 0} upgrades</span>
-</div>
-<div class="animalList" style="margin-top:6px;">
-${ex.animals.map((a, i) => {
-    const stage = getLifeStage(a);
-    const pregnantTag = a.isPregnant ? '🤰 ' : '';
-    const sickTag = a.sick ? '🤒 ' : '';
-    const health = a.health ?? 100;
-    const healthEmoji = health >= 80 ? '' : health >= 50 ? ' 💛' : health >= 20 ? ' 🧡' : ' ❤️‍🩹';
-    // ✅ NEW: Calculate happiness for the house exhibit to pass to animation helper
-    const exHappiness = getExhibitHappiness(ex); 
-    const animClass = getAnimalAnimClass(a, exHappiness);
-    return `<span class="animalTag" data-exhibit="${ex.id}" data-index="${i}" title="Age: ${getAnimalAgeDisplay(a)} | Health: ${Math.round(health)}%"><span class="${animClass}">${sickTag}${pregnantTag}${stage.emoji}</span> ${a.name}${healthEmoji}</span>`;
-}).join("")}
-</div>
-<div style="display:flex; gap:6px; margin-top:8px;">
-<button class="secondary-btn" style="flex:1; padding:6px; font-size:0.8rem;" onclick="openUpgradeMenu('${ex.id}')">🏗 Upgrades</button>
-<button class="secondary-btn" style="flex:1; padding:6px; font-size:0.8rem; background: linear-gradient(135deg, #f59e0b, #d97706); color: white;" onclick="repairFence('${ex.id}')">🔧 Repair</button>
-</div>
-</div>
-`).join('')}
-</div>
-<button class="primary-btn" onclick="buildHouseExhibit('${houseId}', 'small')" style="margin-top:10px;">➕ Add Small Exhibit ($${EXHIBIT_SIZES.small.cost.toLocaleString()})</button>
-<button class="secondary-btn" onclick="buildHouseExhibit('${houseId}', 'medium')">➕ Add Medium Exhibit ($${EXHIBIT_SIZES.medium.cost.toLocaleString()})</button>
-`}
-</div>
-`;
-                    grid.appendChild(card);
-                });
-                const buildSection = document.createElement("div");
-                buildSection.style.gridColumn = "1 / -1";
-                buildSection.style.marginTop = "20px";
-                buildSection.innerHTML = `
-<div class="premium-card">
-<div class="card-header"><h3>🏗 Build New House</h3></div>
-<div class="card-body">
-<div class="grid-layout">
-${Object.values(data.houses).map(ht => {
-const unlocked = !ht.unlockResearch || isResearchComplete(ht.unlockResearch);
-const canAfford = state.money >= ht.cost;
-return `
-<div class="premium-card" style="${!unlocked ? 'opacity:0.5;' : ''}">
-<div class="card-header">
-<h3>${ht.emoji} ${ht.name}</h3>
-<div class="subtitle">${!unlocked ? '🔒 Locked' : 'Available'}</div>
-</div>
-<div class="card-body">
-<p class="card-desc">${ht.description}</p>
-<div class="card-price">$${ht.cost.toLocaleString()}</div>
-<button class="primary-btn" ${!unlocked || !canAfford ? 'disabled' : ''} onclick="buildHouse('${ht.id}')">
-${!unlocked ? '🔒 Locked' : !canAfford ? '💰 Need Funds' : 'Build House'}
-</button>
-</div>
-</div>
-`;
-}).join('')}
-</div>
-</div>
-</div>
-`;
-                grid.appendChild(buildSection);
-            }
             /* --------------------------------------------------------------------------
             🍖 10. ANIMAL CARE (Food, Breeding, Health, Fences)
             -------------------------------------------------------------------------- */
@@ -4274,28 +4114,6 @@ allAnimals.forEach(animal => {
                             state.builtEnclosures[id] = true;
                             addTicker(`✅ ${ex.name} is now complete!`);
                             showToast(`${ex.name} finished building! 🎉`, "info");
-                        }
-                    }
-                }
-                for (const houseId in state.houses) {
-                    const house = state.houses[houseId];
-                    const houseType = data.houses[house.typeId];
-                    if (house.buildDaysRemaining > 0) {
-                        house.buildDaysRemaining--;
-                        if (house.buildDaysRemaining === 0) {
-                            addTicker(`✅ ${houseType.emoji} ${house.name} is now complete!`);
-                            showToast(`${house.name} finished building! 🎉`, "info");
-                        }
-                        continue;
-                    }
-                    for (const exhibitId in house.exhibits) {
-                        const ex = house.exhibits[exhibitId];
-                        if (ex.buildDaysRemaining > 0) {
-                            ex.buildDaysRemaining--;
-                            if (ex.buildDaysRemaining === 0) {
-                                addTicker(`✅ ${ex.name} in ${house.name} is now complete!`);
-                                showToast(`${ex.name} finished building! 🎉`, "info");
-                            }
                         }
                     }
                 }
@@ -4694,7 +4512,7 @@ ${isEmpty ? `<div style="padding: 8px; background: rgba(239, 68, 68, 0.15); bord
                 showToast(`Exhibit renamed to "${trimmed}"`, "info");
                 updateUI();
                 renderExhibits();
-                renderHouses();
+                
                 saveGame();
             }
 
@@ -4721,7 +4539,7 @@ function repairFence(exhibitId) {
     showToast(`✅ Fence repaired!`, "info");
     updateUI();
     renderExhibits();
-    renderHouses();
+    
 }
             /* --------------------------------------------------------------------------
             🎨 12. UI RENDERING: OTHER TABS
@@ -5075,22 +4893,6 @@ function renderShopGrid() {
                 });
             }
 
-            function renderFacilities() {
-                const box = document.getElementById("facilities");
-                box.innerHTML = '<div class="grid-layout"></div>';
-                const grid = box.querySelector('.grid-layout');
-                if (!data.facilities) return;
-                for (const id in data.facilities) {
-                    const facility = data.facilities[id];
-                    const owned = state.zooFacilities.includes(id);
-                    const card = document.createElement("div");
-                    card.className = "premium-card";
-                    card.innerHTML = `<div class="card-header"><span class="facility-icon">${facility.icon || '🏗'}</span><h3>${facility.name}</h3><div class="subtitle">${owned ? '✅ Built' : '❌ Not built'}</div></div><div class="card-body"><p class="card-desc">${facility.description || 'A useful facility for your zoo.'}</p><div class="card-price">$${facility.cost.toLocaleString()}</div><button class="primary-btn" ${owned ? 'disabled' : ''}>${owned ? 'Already Owned' : 'Build Facility'}</button></div>`;
-                    card.querySelector("button").onclick = () => buyFacility(id);
-                    grid.appendChild(card);
-                }
-            }
-
             function renderStaff() {
                 const box = document.getElementById("staff");
                 if (!box) return;
@@ -5298,21 +5100,6 @@ function renderShopGrid() {
                     select.appendChild(opt);
                     compatibleExhibits++;
                 }
-                for (const houseId in state.houses) {
-                    const house = state.houses[houseId];
-                    const houseType = data.houses[house.typeId];
-                    if (!houseType.allowedCategories?.includes(animal.category)) continue;
-                    for (const exhibitId in house.exhibits) {
-                        const exhibit = house.exhibits[exhibitId];
-                        if (exhibit.buildDaysRemaining > 0) continue;
-                        if (!exhibitSizeOk(exhibit.size, animal.requiredExhibitSize || "small")) continue;
-                        const opt = document.createElement("option");
-                        opt.value = exhibitId; // Unified ID system!
-                        opt.textContent = `🏠 ${house.name} → ${exhibit.name}`;
-                        select.appendChild(opt);
-                        compatibleExhibits++;
-                    }
-                }
                 if (compatibleExhibits === 0) {
                     const typeName = data.exhibitTypes[requiredType]?.name || 'Standard';
                     return showToast(`No compatible exhibits! Build one first.`, "error");
@@ -5372,7 +5159,7 @@ function renderShopGrid() {
                 closeBuyModal();
                 updateUI();
                 renderExhibits();
-                renderHouses();
+                
             };
 
             function generateAnimalThoughts(animal, exhibit) {
@@ -5608,7 +5395,7 @@ ${stage.canBreed ? '<p style="color:var(--accent);">✅ Can breed</p>' : '<p sty
                 closeAnimalInfo();
                 updateUI();
                 renderExhibits();
-                renderHouses();
+                
             }
 
             function openUpgradeMenu(exhibitId) {
@@ -5754,7 +5541,7 @@ onclick="sellUpgradeFromModal('${up.id}')">
                 addTicker(`🏗 Built ${upgrade.name}`);
                 updateUI();
                 renderExhibits();
-                renderHouses();
+                
                 openUpgradeMenu(state.activeUpgradeExhibit);
             }
 
@@ -5772,23 +5559,10 @@ onclick="sellUpgradeFromModal('${up.id}')">
                 addTicker(`💰 Sold ${upgrade.name} for $${refund}`);
                 updateUI();
                 renderExhibits();
-                renderHouses();
+                
                 openUpgradeMenu(state.activeUpgradeExhibit);
             }
-
-            function buyFacility(facilityId) {
-                const facility = data.facilities[facilityId];
-                if (!facility) return;
-                if (state.money < facility.cost) return showToast("Not enough money!", "error");
-                if (state.zooFacilities.includes(facilityId)) return showToast("You already own this facility!", "warn");
-                state.money -= facility.cost;
-                showFloatingMoney(-facility.cost);
-                state.zooFacilities.push(facilityId);
-                addTicker(`🏗 Built ${facility.name} (Global)`);
-                updateUI();
-                renderFacilities();
-            }
-
+            
             function buyAmenity(amenityId) {
                 const amenity = data.amenities[amenityId];
                 if (!amenity) return;
@@ -5824,7 +5598,7 @@ onclick="sellUpgradeFromModal('${up.id}')">
                 updateUI();
                 renderStaff();
                 renderExhibits();
-                renderHouses(); // Added to ensure house exhibits update staffing status too
+                
             }
 
             function fireStaff(uid) {
@@ -5847,7 +5621,7 @@ onclick="sellUpgradeFromModal('${up.id}')">
                 updateUI();
                 renderStaff();
                 renderExhibits();
-                renderHouses();
+                
                 saveGame();
             }
 
@@ -6007,20 +5781,6 @@ showToast(`✅ Assigned ${assignedStaffData?.name || 'Staff'}!`, "info");
                     box.appendChild(div);
                 });
 
-                // House exhibits
-                for (const houseId in state.houses) {
-                    const house = state.houses[houseId];
-                    for (const exId in house.exhibits) {
-                        const ex = house.exhibits[exId];
-                        if (exId === state.moveState.fromExhibit) continue;
-                        const div = document.createElement("div");
-                        div.className = "exhibitCard";
-                        div.innerHTML = `<div class="exhibit-header"><h3>🏠 ${house.name} → ${ex.name}</h3></div><div class="exhibit-body"><p style="text-align:center; padding:10px;">Click to move here</p></div>`;
-                        div.style.cursor = 'pointer';
-                        div.onclick = () => moveAnimalTo(exId);
-                        box.appendChild(div);
-                    }
-                }
             }
 
             function moveAnimalTo(toId) {
@@ -6041,7 +5801,6 @@ showToast(`✅ Assigned ${assignedStaffData?.name || 'Staff'}!`, "info");
                     animalIndex: null
                 };
                 renderExhibits();
-                renderHouses();
             }
             let currentExhibitType = 'terrestrial';
             const buildBtn = document.getElementById("buildExhibitBtn");
@@ -6630,7 +6389,6 @@ showToast(`✅ Assigned ${assignedStaffData?.name || 'Staff'}!`, "info");
                 }
 
                 renderExhibits();
-                renderHouses();
                 if (document.getElementById("map").classList.contains("active")) renderMap();
                 const delta = state.money - startMoney;
                 if (delta !== 0) showFloatingMoney(delta);
@@ -6747,7 +6505,6 @@ showToast(`✅ Assigned ${assignedStaffData?.name || 'Staff'}!`, "info");
                 checkAchievements();
                 updateUI();
                 renderExhibits();
-                renderHouses();
                 renderAchievements();
                 renderVisitors();
                 renderSupplies();
@@ -6889,7 +6646,6 @@ showToast(`✅ Assigned ${assignedStaffData?.name || 'Staff'}!`, "info");
                 if (section === "leaderboard") renderLeaderboard();
                 if (section === "supplies") renderSupplies();
                 if (section === "research") renderResearch();
-                if (section === "houses") renderHouses();
                 if (section === "map") renderMap();
             }
             const TUTORIAL_STEPS = [{
@@ -7113,29 +6869,6 @@ showToast(`✅ Assigned ${assignedStaffData?.name || 'Staff'}!`, "info");
                     }
 
 autoLayoutExhibits();
-for (const houseId in state.houses) {
-    for (const exId in state.houses[houseId].exhibits) {
-        const ex = state.houses[houseId].exhibits[exId];
-        if (ex.mapX === undefined || ex.mapY === undefined) {
-            ex.mapX = 3 + Math.random() * 60;
-            ex.mapY = 3 + Math.random() * 60;
-        }
-    }
-}
-
-
-                    for (const houseId in state.houses) {
-                        for (const exId in state.houses[houseId].exhibits) {
-                            state.houses[houseId].exhibits[exId].id ??= exId;
-                            state.houses[houseId].exhibits[exId].animals ??= [];
-                            state.houses[houseId].exhibits[exId].upgrades ??= [];
-                        }
-                    }
-                    console.log("Game loaded successfully");
-                } catch (e) {
-                    console.error("Failed to load save:", e);
-                }
-            }
 
             /* --------------------------------------------------------------------------
             🏞️ ZOO MANAGEMENT UI
@@ -7270,7 +7003,6 @@ ${!isActive ? `<button class="primary-btn" style="flex:1; padding: 8px;" onclick
                     ticketSatisfactionImpact: 0,
                     exhibits: {},
                     builtEnclosures: {},
-                    zooFacilities: [],
                     hiredStaff: [],
                     achievements: {},
                     animalCounters: {},
@@ -7304,7 +7036,6 @@ ${!isActive ? `<button class="primary-btn" style="flex:1; padding: 8px;" onclick
                     maintenanceLevel: 0,
                     tutorialStep: 0,
                     tutorialSkipped: false,
-                    houses: {},
                     recentDeathPenalty: 0,
                     zooRating: 0,
                     unnaturalDeaths: 0,
@@ -7323,10 +7054,8 @@ ${!isActive ? `<button class="primary-btn" style="flex:1; padding: 8px;" onclick
                 renderVisitors();
                 renderSupplies();
                 renderAmenities();
-                renderFacilities();
                 renderAchievements();
                 renderReports();
-                renderHouses();
             }
 
 /* --------------------------------------------------------------------------
@@ -7354,7 +7083,6 @@ async function initGame() {
     await Promise.all([
         loadShop(),
         loadUpgrades(),
-        loadFacilities(),
         loadStaff(),
         loadAmenities(),
         loadExhibitTypes(),
@@ -7372,7 +7100,6 @@ async function initGame() {
     renderAchievements();
     
     renderReports();
-    renderFacilities();
     renderStaff();
     
     leaderboardPlayerId = getPlayerId();
