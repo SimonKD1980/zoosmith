@@ -113,7 +113,6 @@
                 box-shadow: 0 0 10px rgba(251, 191, 36, 0.2);
             }
 
-            /* Mobile tweak for the new header */
             @media (max-width: 768px) {
                 .stat-pill {
                     font-size: 0.75rem;
@@ -2641,7 +2640,9 @@
 @media (max-width: 400px) {
     .map-exhibit.draggable-exhibit { width: 100px; height: 100px; }
 }
- </style>       <header>
+ </style>       
+        
+        <header>
             <div id="ticker">Welcome to your zoo...</div>
             <div class="header-main">
                 <div class="zoo-name-display"
@@ -2884,9 +2885,6 @@ Rewritten for stability, unified exhibit handling, and bug fixes.
                 large: 3
             };
 
-// ==========================================================================
-// 🗺️ PHASE 1 MAP: Free-form positioning
-// ==========================================================================
 function autoLayoutExhibits() {
     const allExhibits = getAllExhibits();
     const cols = 3;
