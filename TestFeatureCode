@@ -2901,6 +2901,89 @@
     animation: animalHop 0.8s ease-in-out infinite; 
     display: inline-block; 
 }
+
+/* ==========================================================================
+🗺️ PHASE 1 MAP: Free-form draggable exhibits
+========================================================================== */
+.map-park-area {
+    position: relative !important;
+    min-height: 600px;
+    padding: 10px;
+    display: block !important; /* Override the grid layout */
+    background: 
+        radial-gradient(circle at 30% 40%, rgba(34, 197, 94, 0.08) 0%, transparent 50%),
+        radial-gradient(circle at 70% 60%, rgba(59, 130, 246, 0.06) 0%, transparent 50%);
+    border-radius: 12px;
+    border: 2px dashed rgba(45, 90, 63, 0.4);
+    overflow: hidden;
+}
+
+.draggable-exhibit {
+    position: absolute !important;
+    width: 200px;
+    min-height: 130px;
+    cursor: grab;
+    transition: box-shadow 0.2s, transform 0.2s;
+    touch-action: none; /* Prevent scroll while dragging */
+    user-select: none;
+}
+
+.draggable-exhibit:hover {
+    transform: translateY(-3px) scale(1.02);
+    box-shadow: 0 8px 20px rgba(34, 197, 94, 0.25);
+    z-index: 5;
+}
+
+.draggable-exhibit.dragging {
+    cursor: grabbing;
+    transform: scale(1.08) !important;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5), 0 0 0 3px var(--accent);
+    z-index: 100 !important;
+    opacity: 0.95;
+    transition: none;
+}
+
+.drag-handle {
+    position: absolute;
+    top: 6px;
+    left: 6px;
+    color: var(--muted);
+    font-size: 0.9rem;
+    letter-spacing: -2px;
+    opacity: 0.5;
+    transition: opacity 0.2s;
+    pointer-events: none;
+    z-index: 3;
+}
+
+.draggable-exhibit:hover .drag-handle {
+    opacity: 1;
+    color: var(--accent);
+}
+
+/* Mobile adjustments */
+@media (max-width: 768px) {
+    .map-park-area {
+        min-height: 500px;
+    }
+    .draggable-exhibit {
+        width: 160px;
+        min-height: 110px;
+    }
+    .exhibit-quick-stats {
+        font-size: 0.75rem;
+    }
+    .animal-icon-badge {
+        font-size: 0.95rem;
+    }
+}
+
+@media (max-width: 400px) {
+    .draggable-exhibit {
+        width: 140px;
+        min-height: 100px;
+    }
+}
         </style>
         <header>
             <div id="ticker">Welcome to your zoo...</div>
@@ -3154,6 +3237,41 @@ Rewritten for stability, unified exhibit handling, and bug fixes.
                 medium: 2,
                 large: 3
             };
+
+// ==========================================================================
+// 🗺️ PHASE 1 MAP: Free-form positioning
+// ==========================================================================
+function autoLayoutExhibits() {
+    const allExhibits = getAllExhibits();
+    const cols = 3;
+    allExhibits.forEach(({ exhibit }, i) => {
+        if (exhibit.mapX === undefined || exhibit.mapY === undefined) {
+            const col = i % cols;
+            const row = Math.floor(i / cols);
+            exhibit.mapX = 3 + col * 32;   // 3%, 35%, 67%
+            exhibit.mapY = 3 + row * 26;   // 3%, 29%, 55%, 81%...
+        }
+    });
+}
+
+function setExhibitPosition(exhibitId, x, y) {
+    // Clamp to keep tiles on-screen (with small margin)
+    x = Math.max(0, Math.min(75, x));
+    y = Math.max(0, Math.min(85, y));
+    
+    if (state.exhibits[exhibitId]) {
+        state.exhibits[exhibitId].mapX = x;
+        state.exhibits[exhibitId].mapY = y;
+        return;
+    }
+    for (const houseId in state.houses) {
+        if (state.houses[houseId].exhibits[exhibitId]) {
+            state.houses[houseId].exhibits[exhibitId].mapX = x;
+            state.houses[houseId].exhibits[exhibitId].mapY = y;
+            return;
+        }
+    }
+}
 
             function exhibitSizeOk(exhibitSize, requiredSize) {
                 return SIZE_RANK[exhibitSize] >= SIZE_RANK[requiredSize];
@@ -4327,13 +4445,13 @@ ${!unlocked ? '🔒 Locked' : !canAfford ? '💰 Need Funds' : 'Build House'}
 
             /* Map */
             function renderMap() {
-                const box = document.getElementById("map");
-                if (!box) return;
-
-                const allExhibits = getAllExhibits();
-
-                if (allExhibits.length === 0) {
-                    box.innerHTML = `
+    const box = document.getElementById("map");
+    if (!box) return;
+    
+    const allExhibits = getAllExhibits();
+    
+    if (allExhibits.length === 0) {
+        box.innerHTML = `
             <div class="map-container">
                 <div style="text-align: center; padding: 80px 20px; color: var(--muted); position: relative; z-index: 2;">
                     <div style="font-size: 5rem; margin-bottom: 20px; animation: floatUp 3s ease-in-out infinite alternate;">🗺️</div>
@@ -4343,197 +4461,106 @@ ${!unlocked ? '🔒 Locked' : !canAfford ? '💰 Need Funds' : 'Build House'}
                 </div>
             </div>
         `;
-                    return;
-                }
-
-                // Calculate dashboard stats
-                const totalAnimals = allExhibits.reduce((sum, {
-                    exhibit
-                }) => sum + (exhibit.animals?.length || 0), 0);
-                const avgHappiness = allExhibits.length > 0 ?
-                    Math.round(allExhibits.reduce((sum, {
-                        exhibit
-                    }) => sum + getExhibitHappiness(exhibit), 0) / allExhibits.length) :
-                    0;
-                const needsAttention = allExhibits.filter(({
-                    exhibit
-                }) => {
-                    const happiness = getExhibitHappiness(exhibit);
-                    const fence = exhibit.fenceCondition ?? 100;
-                    return happiness < 50 || fence < 50 || exhibit.animals?.some(a => (a.health ?? 100) < 40);
-                }).length;
-                const underConstruction = allExhibits.filter(({
-                    exhibit
-                }) => exhibit.buildDaysRemaining > 0).length;
-
-                // Build dashboard
-                const dashboardHTML = `
+        return;
+    }
+    
+    // Dashboard stats
+    const totalAnimals = allExhibits.reduce((sum, { exhibit }) => sum + (exhibit.animals?.length || 0), 0);
+    const avgHappiness = allExhibits.length > 0 
+        ? Math.round(allExhibits.reduce((sum, { exhibit }) => sum + getExhibitHappiness(exhibit), 0) / allExhibits.length) 
+        : 0;
+    const needsAttention = allExhibits.filter(({ exhibit }) => {
+        const happiness = getExhibitHappiness(exhibit);
+        const fence = exhibit.fenceCondition ?? 100;
+        return happiness < 50 || fence < 50 || exhibit.animals?.some(a => (a.health ?? 100) < 40);
+    }).length;
+    
+    const dashboardHTML = `
         <div class="map-dashboard">
-            <div class="map-stat-card">
-                <div class="map-stat-label">Total Exhibits</div>
-                <div class="map-stat-value">${allExhibits.length}</div>
-            </div>
-            <div class="map-stat-card">
-                <div class="map-stat-label">Animals</div>
-                <div class="map-stat-value good">${totalAnimals}</div>
-            </div>
-            <div class="map-stat-card">
-                <div class="map-stat-label">Avg Happiness</div>
-                <div class="map-stat-value ${avgHappiness >= 80 ? 'good' : avgHappiness >= 50 ? 'warn' : 'danger'}">${avgHappiness}%</div>
-            </div>
-            <div class="map-stat-card">
-                <div class="map-stat-label">Needs Attention</div>
-                <div class="map-stat-value ${needsAttention > 0 ? 'danger' : 'good'}">${needsAttention}</div>
-            </div>
-            <div class="map-stat-card">
-                <div class="map-stat-label">Under Construction</div>
-                <div class="map-stat-value warn">${underConstruction}</div>
-            </div>
+            <div class="map-stat-card"><div class="map-stat-label">Total Exhibits</div><div class="map-stat-value">${allExhibits.length}</div></div>
+            <div class="map-stat-card"><div class="map-stat-label">Animals</div><div class="map-stat-value good">${totalAnimals}</div></div>
+            <div class="map-stat-card"><div class="map-stat-label">Avg Happiness</div><div class="map-stat-value ${avgHappiness >= 80 ? 'good' : avgHappiness >= 50 ? 'warn' : 'danger'}">${avgHappiness}%</div></div>
+            <div class="map-stat-card"><div class="map-stat-label">Needs Attention</div><div class="map-stat-value ${needsAttention > 0 ? 'danger' : 'good'}">${needsAttention}</div></div>
         </div>
     `;
-
-                // Build legend
-                const typeCounts = {};
-                allExhibits.forEach(({
-                    exhibit
-                }) => {
-                    const type = exhibit.type || 'terrestrial';
-                    const exhibitType = data.exhibitTypes[type] || data.exhibitTypes.terrestrial || {
-                        emoji: '🏞️',
-                        name: 'Exhibit',
-                        color: '#22c55e'
-                    };
-                    typeCounts[type] = (typeCounts[type] || 0) + 1;
-                });
-
-                let legendHTML = '<div class="map-legend-panel"><div class="legend-title">🗺️ Exhibit Types</div><div class="legend-items">';
-                for (const [typeId, count] of Object.entries(typeCounts)) {
-                    const exhibitType = data.exhibitTypes[typeId] || data.exhibitTypes.terrestrial || {
-                        emoji: '🏞️',
-                        name: 'Exhibit',
-                        color: '#22c55e'
-                    };
-                    legendHTML += `<div class="legend-item"><div class="legend-color-dot" style="background: ${exhibitType.color || '#22c55e'}"></div>${exhibitType.emoji} ${exhibitType.name} (${count})</div>`;
-                }
-                legendHTML += '</div></div>';
-
-                // Build exhibit cards
-                let exhibitsHTML = '';
-
-                allExhibits.forEach(({
-                    exhibit,
-                    isHouse,
-                    houseId
-                }) => {
-                    const isBuilding = exhibit.buildDaysRemaining > 0;
-                    const exhibitType = data.exhibitTypes[exhibit.type] || data.exhibitTypes.terrestrial || {
-                        emoji: '🏞️',
-                        name: 'Standard Exhibit',
-                        color: '#22c55e'
-                    };
-                    const happiness = getExhibitHappiness(exhibit);
-                    const fence = exhibit.fenceCondition ?? 100;
-                    const animalCount = exhibit.animals?.length || 0;
-                    const hasSickAnimals = exhibit.animals?.some(a => (a.health ?? 100) < 40);
-
-                    // Determine status
-                    let statusClass = '';
-                    let statusIcon = '';
-                    if (isBuilding) {
-                        statusClass = 'building';
-                        statusIcon = '🏗️';
-                    } else if (hasSickAnimals || fence < 30) {
-                        statusClass = 'critical';
-                        statusIcon = '🚨';
-                    } else if (happiness < 50 || fence < 50) {
-                        statusClass = 'needs-attention';
-                        statusIcon = '⚠️';
-                    } else if (happiness >= 90) {
-                        statusIcon = '✨';
-                    }
-
-                    // Get animal icons
-                    let animalIcons = '';
-                    if (animalCount > 0) {
-                        const uniqueAnimals = [...new Set(exhibit.animals.map(a => a.id))];
-                        animalIcons = uniqueAnimals.slice(0, 8).map(animalId => {
-    const animalData = data.animals.find(a => a.id === animalId);
-    const animalInstance = exhibit.animals.find(a => a.id === animalId);
-    // ✅ NEW: Apply animation to map icons
-    const animClass = animalInstance ? getAnimalAnimClass(animalInstance, happiness) : '';
-    return `<span class="animal-icon-badge" onclick="event.stopPropagation(); showAnimalOnMap('${animalId}', '${exhibit.id}')" title="${animalData?.name || animalId}"><span class="${animClass}">${animalData?.emoji || '🐾'}</span></span>`;
-}).join('');
-
-                    }
-                    // Happiness bar color
-                    const happinessColor = happiness >= 80 ? 'var(--accent)' : happiness >= 50 ? 'var(--warn)' : 'var(--danger)';
-
-                    // Building progress
-                    let buildingHTML = '';
-                    if (isBuilding) {
-                        const sizeInfo = EXHIBIT_SIZES[exhibit.size] || EXHIBIT_SIZES.small;
-                        const progress = ((sizeInfo.buildDays - exhibit.buildDaysRemaining) / sizeInfo.buildDays) * 100;
-                        buildingHTML = `
-                <div class="exhibit-progress-bar"><div class="exhibit-progress-fill" style="width: ${progress}%"></div></div>
-            `;
-                    }
-
-                    exhibitsHTML += `
-            <div class="map-exhibit ${statusClass}" onclick="jumpToExhibit('${exhibit.id}')" style="border-top: 4px solid ${exhibitType.color || '#22c55e'}">
+    
+    // Build draggable exhibit tiles
+    let exhibitsHTML = '';
+    allExhibits.forEach(({ exhibit }) => {
+        const isBuilding = exhibit.buildDaysRemaining > 0;
+        const exhibitType = data.exhibitTypes[exhibit.type] || data.exhibitTypes.terrestrial || { emoji: '🏞️', name: 'Standard', color: '#22c55e' };
+        const happiness = getExhibitHappiness(exhibit);
+        const fence = exhibit.fenceCondition ?? 100;
+        const animalCount = exhibit.animals?.length || 0;
+        const hasSickAnimals = exhibit.animals?.some(a => (a.health ?? 100) < 40);
+        
+        let statusClass = '';
+        let statusIcon = '';
+        if (isBuilding) { statusClass = 'building'; statusIcon = '🏗️'; }
+        else if (hasSickAnimals || fence < 30) { statusClass = 'critical'; statusIcon = '🚨'; }
+        else if (happiness < 50 || fence < 50) { statusClass = 'needs-attention'; statusIcon = '⚠️'; }
+        else if (happiness >= 90) { statusIcon = '✨'; }
+        
+        // Animal icons (top 5 only to keep tile compact)
+        let animalIcons = '';
+        if (animalCount > 0) {
+            const uniqueAnimals = [...new Set(exhibit.animals.map(a => a.id))];
+            animalIcons = uniqueAnimals.slice(0, 5).map(animalId => {
+                const animalData = data.animals.find(a => a.id === animalId);
+                const animalInstance = exhibit.animals.find(a => a.id === animalId);
+                const animClass = animalInstance ? getAnimalAnimClass(animalInstance, happiness) : '';
+                return `<span class="animal-icon-badge" title="${animalData?.name || animalId}"><span class="${animClass}">${animalData?.emoji || '🐾'}</span></span>`;
+            }).join('');
+        }
+        
+        const happinessColor = happiness >= 80 ? 'var(--accent)' : happiness >= 50 ? 'var(--warn)' : 'var(--danger)';
+        
+        exhibitsHTML += `
+            <div class="map-exhibit draggable-exhibit ${statusClass}" 
+                 data-exhibit-id="${exhibit.id}"
+                 style="left: ${exhibit.mapX}%; top: ${exhibit.mapY}%; border-top: 4px solid ${exhibitType.color || '#22c55e'}">
+                <div class="drag-handle" title="Drag to reposition">⋮⋮</div>
                 ${statusIcon ? `<div class="exhibit-status-icon">${statusIcon}</div>` : ''}
                 <div class="exhibit-name-tag">
                     <span>${exhibitType.emoji}</span>
                     <span style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${exhibit.name}</span>
                 </div>
-                <div class="exhibit-type-badge">${exhibitType.name} • ${exhibit.size}</div>
                 ${!isBuilding ? `
                     <div class="exhibit-quick-stats">
-                        <div class="exhibit-stat-row">
-                            <span>🐾 Animals</span>
-                            <strong>${animalCount}</strong>
-                        </div>
-                        <div class="exhibit-stat-row">
-                            <span>😊 Happiness</span>
-                            <strong style="color: ${happinessColor}">${happiness}%</strong>
-                        </div>
-                        <div class="exhibit-stat-row">
-                            <span>🔒 Fence</span>
-                            <strong style="color: ${fence >= 70 ? 'var(--accent)' : fence >= 50 ? 'var(--warn)' : 'var(--danger)'}">${Math.round(fence)}%</strong>
-                        </div>
-                    </div>
-                    <div class="exhibit-happiness-bar">
-                        <div class="exhibit-happiness-fill" style="width: ${happiness}%; background: ${happinessColor}"></div>
+                        <div class="exhibit-stat-row"><span>🐾</span><strong>${animalCount}</strong></div>
+                        <div class="exhibit-stat-row"><span>😊</span><strong style="color: ${happinessColor}">${happiness}%</strong></div>
+                        <div class="exhibit-stat-row"><span>🔒</span><strong>${Math.round(fence)}%</strong></div>
                     </div>
                     <div class="exhibit-animal-icons">${animalIcons}</div>
                 ` : `
-                    <div style="text-align: center; padding: 15px 0; color: var(--warn);">
-                        <div style="font-size: 2rem; margin-bottom: 8px;">🏗️</div>
-                        <div style="font-size: 0.85rem; font-weight: 700;">${exhibit.buildDaysRemaining} days left</div>
+                    <div style="text-align: center; padding: 10px 0; color: var(--warn);">
+                        <div style="font-size: 1.5rem; margin-bottom: 4px;">🏗️</div>
+                        <div style="font-size: 0.75rem; font-weight: 700;">${exhibit.buildDaysRemaining}d</div>
                     </div>
                 `}
-                ${buildingHTML}
             </div>
         `;
-                });
-
-                box.innerHTML = `
+    });
+    
+    box.innerHTML = `
         <div class="map-container">
-            <div style="margin-bottom: 15px; position: relative; z-index: 2;">
-                <h2 style="margin: 0 0 5px 0; color: var(--text);">🗺️ Zoo Overview</h2>
-                <p style="margin: 0; color: var(--muted); font-size: 0.9rem;">Click any exhibit to manage it • Hover for details</p>
+            <div style="margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; position: relative; z-index: 2;">
+                <div>
+                    <h2 style="margin: 0 0 5px 0; color: var(--text);">🗺️ Your Zoo</h2>
+                    <p style="margin: 0; color: var(--muted); font-size: 0.85rem;">✨ Drag exhibits to rearrange your park • Tap to manage</p>
+                </div>
+                <button class="primary-btn" onclick="document.getElementById('buildExhibitBtn').click()" style="padding: 10px 18px;">➕ Build</button>
             </div>
             ${dashboardHTML}
-            ${legendHTML}
-            <div class="map-park-area">
+            <div class="map-park-area" id="mapParkArea">
                 ${exhibitsHTML}
-            </div>
-            <div style="text-align: center; padding: 20px; background: rgba(0,0,0,0.3); border-radius: 10px; margin-top: 20px; position: relative; z-index: 2;">
-                <button class="primary-btn" onclick="document.getElementById('buildExhibitBtn').click()" style="padding: 12px 24px;">➕ Add New Exhibit</button>
             </div>
         </div>
     `;
-            }
-
+    
+    // Attach drag handlers to each exhibit
+    initMapDrag();
+}
             function jumpToExhibit(exhibitId) {
                 showSection('exhibits');
                 setTimeout(() => {
@@ -4550,6 +4577,97 @@ ${!unlocked ? '🔒 Locked' : !canAfford ? '💰 Need Funds' : 'Build House'}
                     });
                 }, 100);
             }
+
+// ==========================================================================
+// 🖱️ MAP DRAG-AND-DROP (Phase 1)
+// ==========================================================================
+let mapDragState = null;
+
+function initMapDrag() {
+    const tiles = document.querySelectorAll('.draggable-exhibit');
+    tiles.forEach(tile => {
+        tile.addEventListener('pointerdown', onMapPointerDown);
+    });
+}
+
+function onMapPointerDown(e) {
+    // Don't start drag if clicking a button inside the tile
+    if (e.target.closest('button')) return;
+    
+    const tile = e.currentTarget;
+    const exhibitId = tile.dataset.exhibitId;
+    const container = document.getElementById('mapParkArea');
+    if (!container) return;
+    
+    const containerRect = container.getBoundingClientRect();
+    const tileRect = tile.getBoundingClientRect();
+    
+    mapDragState = {
+        exhibitId,
+        tile,
+        container,
+        containerRect,
+        offsetX: e.clientX - tileRect.left,
+        offsetY: e.clientY - tileRect.top,
+        startX: e.clientX,
+        startY: e.clientY,
+        moved: false
+    };
+    
+    tile.setPointerCapture(e.pointerId);
+    tile.addEventListener('pointermove', onMapPointerMove);
+    tile.addEventListener('pointerup', onMapPointerUp);
+    tile.addEventListener('pointercancel', onMapPointerUp);
+    e.preventDefault();
+}
+
+function onMapPointerMove(e) {
+    if (!mapDragState) return;
+    
+    const dx = e.clientX - mapDragState.startX;
+    const dy = e.clientY - mapDragState.startY;
+    
+    // Movement threshold — distinguish tap from drag
+    if (!mapDragState.moved && Math.abs(dx) < 6 && Math.abs(dy) < 6) return;
+    
+    if (!mapDragState.moved) {
+        mapDragState.moved = true;
+        mapDragState.tile.classList.add('dragging');
+    }
+    
+    const containerRect = mapDragState.containerRect;
+    const newLeft = e.clientX - containerRect.left - mapDragState.offsetX;
+    const newTop = e.clientY - containerRect.top - mapDragState.offsetY;
+    
+    const percentX = (newLeft / containerRect.width) * 100;
+    const percentY = (newTop / containerRect.height) * 100;
+    
+    mapDragState.tile.style.left = percentX + '%';
+    mapDragState.tile.style.top = percentY + '%';
+}
+
+function onMapPointerUp(e) {
+    if (!mapDragState) return;
+    
+    const tile = mapDragState.tile;
+    tile.classList.remove('dragging');
+    tile.removeEventListener('pointermove', onMapPointerMove);
+    tile.removeEventListener('pointerup', onMapPointerUp);
+    tile.removeEventListener('pointercancel', onMapPointerUp);
+    
+    if (mapDragState.moved) {
+        // Save new position
+        const x = parseFloat(tile.style.left);
+        const y = parseFloat(tile.style.top);
+        setExhibitPosition(mapDragState.exhibitId, x, y);
+        saveGame();
+    } else {
+        // It was a tap — trigger original jump behavior
+        jumpToExhibit(mapDragState.exhibitId);
+    }
+    
+    mapDragState = null;
+}
 
             function showAnimalOnMap(animalId, exhibitId) {
                 const ctx = getExhibitContext(exhibitId);
@@ -7558,6 +7676,19 @@ showToast(`✅ Assigned ${assignedStaffData?.name || 'Staff'}!`, "info");
                         state.exhibits[id].size ??= "small";
                         state.exhibits[id].type ??= "terrestrial";
                     }
+
+autoLayoutExhibits();
+for (const houseId in state.houses) {
+    for (const exId in state.houses[houseId].exhibits) {
+        const ex = state.houses[houseId].exhibits[exId];
+        if (ex.mapX === undefined || ex.mapY === undefined) {
+            ex.mapX = 3 + Math.random() * 60;
+            ex.mapY = 3 + Math.random() * 60;
+        }
+    }
+}
+
+
                     for (const houseId in state.houses) {
                         for (const exId in state.houses[houseId].exhibits) {
                             state.houses[houseId].exhibits[exId].id ??= exId;
