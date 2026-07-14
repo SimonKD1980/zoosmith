@@ -3942,9 +3942,7 @@ function processUpkeep() {
     updateUI();
     renderExhibits();
     
-    // ✅ FIX: Instantly refresh the map if the user is currently looking at it
-    if (document.getElementById("map").classList.contains("active")) {
-        renderMap();
+
     }
 }
             /* --------------------------------------------------------------------------
@@ -5141,6 +5139,7 @@ function renderShopGrid() {
                     variation: pickVariation(animal),
                     foodCost: animal.foodCost,
                     diet: animal.diet,
+                    foodAmount: animal.foodAmount || 1,
                     compatibleWith: animal.compatibleWith,
                     minInExhibit: animal.minInExhibit,
                     maxInExhibit: animal.maxInExhibit,
@@ -5889,9 +5888,6 @@ showToast(`✅ Assigned ${assignedStaffData?.name || 'Staff'}!`, "info");
     updateUI();
     renderExhibits();
     
-    // ✅ FIX: Instantly refresh the map if the user is currently looking at it
-    if (document.getElementById("map").classList.contains("active")) {
-        renderMap();
     }
 }
             /* --------------------------------------------------------------------------
@@ -6388,7 +6384,6 @@ showToast(`✅ Assigned ${assignedStaffData?.name || 'Staff'}!`, "info");
                 }
 
                 renderExhibits();
-                if (document.getElementById("map").classList.contains("active")) renderMap();
                 const delta = state.money - startMoney;
                 if (delta !== 0) showFloatingMoney(delta);
                 state.monthlyIncomeTracker = (state.monthlyIncomeTracker || 0) + delta;
@@ -6645,7 +6640,7 @@ showToast(`✅ Assigned ${assignedStaffData?.name || 'Staff'}!`, "info");
                 if (section === "leaderboard") renderLeaderboard();
                 if (section === "supplies") renderSupplies();
                 if (section === "research") renderResearch();
-                if (section === "map") renderMap();
+
             }
             const TUTORIAL_STEPS = [{
                     title: "👋 Welcome to ZooSmith!",
@@ -7090,7 +7085,6 @@ async function initGame() {
         loadAmenities(),
         loadExhibitTypes(),
         loadAchievements(),
-        loadHouses(),
         loadResearch()
     ]);
 
