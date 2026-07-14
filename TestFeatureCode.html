@@ -6868,7 +6868,11 @@ showToast(`✅ Assigned ${assignedStaffData?.name || 'Staff'}!`, "info");
                     }
 
 autoLayoutExhibits();
-
+                    
+} catch (e) {
+    console.error("Error loading save data:", e);
+}
+} // <--- This closes the loadGame() function
             /* --------------------------------------------------------------------------
             🏞️ ZOO MANAGEMENT UI
             -------------------------------------------------------------------------- */
