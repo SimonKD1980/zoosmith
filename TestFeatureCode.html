@@ -4399,32 +4399,42 @@ function processUpkeep() {
                 renderHouses();
             }
 
-            function buildHouseExhibit(houseId, size) {
-                const house = state.houses[houseId];
-                const houseType = data.houses[house.typeId];
-                if (!house) return showToast("House not found!", "error");
-                if (Object.keys(house.exhibits).length >= houseType.maxExhibits) {
-                    return showToast(`This house can only hold ${houseType.maxExhibits} exhibits!`, "error");
-                }
-                const sizeInfo = EXHIBIT_SIZES[size];
-                if (state.money < sizeInfo.cost) return showToast("Not enough money!", "error");
-                state.money -= sizeInfo.cost;
-                showFloatingMoney(-sizeInfo.cost);
-                const exhibitId = "house_exhibit_" + Date.now();
-                house.exhibits[exhibitId] = {
-                    id: exhibitId,
-                    name: `${sizeInfo.label} Exhibit`,
-                    size: size,
-                    animals: [],
-                    upgrades: [],
-                    buildDaysRemaining: sizeInfo.buildDays,
-                    fenceCondition: 100
-                };
-                addTicker(`🏗 Added ${sizeInfo.label} exhibit to ${house.name}`);
-                updateUI();
-                renderHouses();
-            }
-
+            function buildExhibit(size, type = 'terrestrial') {
+    const info = EXHIBIT_SIZES[size];
+    const exhibitType = data.exhibitTypes[type];
+    if (!exhibitType) return showToast("Invalid exhibit type!", "error");
+    if (exhibitType.unlockResearch && !isResearchComplete(exhibitType.unlockResearch)) return showToast(`🔒 ${exhibitType.name} requires research!`, "error");
+    if (state.money < info.cost) return showToast("Not enough money!", "error");
+    
+    state.money -= info.cost;
+    showFloatingMoney(-info.cost);
+    
+    const id = "exhibit_" + Date.now();
+    const exhibitCount = Object.keys(state.exhibits).length + 1;
+    state.exhibits[id] = {
+        id: id,
+        name: `${exhibitType.name} ${exhibitCount}`,
+        size: size,
+        type: type,
+        animals: [],
+        upgrades: [],
+        buildDaysRemaining: info.buildDays,
+        fenceCondition: 100,
+        cleanliness: 100 
+    };
+    
+    // ✅ FIX: Assign map coordinates immediately so they are saved to state
+    autoLayoutExhibits();
+    
+    addTicker(`🏗 Started building ${exhibitType.emoji} ${info.label} ${exhibitType.name} (ready in ${info.buildDays} days)`);
+    updateUI();
+    renderExhibits();
+    
+    // ✅ FIX: Instantly refresh the map if the user is currently looking at it
+    if (document.getElementById("map").classList.contains("active")) {
+        renderMap();
+    }
+}
             function getAllHouseAnimals() {
                 let animals = [];
                 for (const houseId in state.houses) {
@@ -6756,36 +6766,41 @@ showToast(`✅ Assigned ${assignedStaffData?.name || 'Staff'}!`, "info");
             }
 
             function buildExhibit(size, type = 'terrestrial') {
-                const info = EXHIBIT_SIZES[size];
-                const exhibitType = data.exhibitTypes[type];
-
-                if (!exhibitType) return showToast("Invalid exhibit type!", "error");
-                if (exhibitType.unlockResearch && !isResearchComplete(exhibitType.unlockResearch)) return showToast(`🔒 ${exhibitType.name} requires research!`, "error");
-                if (state.money < info.cost) return showToast("Not enough money!", "error");
-
-                state.money -= info.cost;
-                showFloatingMoney(-info.cost);
-
-                // ✅ CRITICAL: 'id' MUST be declared here, BEFORE it is used below!
-                const id = "exhibit_" + Date.now();
-                const exhibitCount = Object.keys(state.exhibits).length + 1;
-
-                state.exhibits[id] = {
-                    id: id,
-                    name: `${exhibitType.name} ${exhibitCount}`,
-                    size: size,
-                    type: type,
-                    animals: [],
-                    upgrades: [],
-                    buildDaysRemaining: info.buildDays,
-                    fenceCondition: 100,
-                    cleanliness: 100 // ✅ Added for the new cleanliness system
-                };
-
-                addTicker(`🏗 Started building ${exhibitType.emoji} ${info.label} ${exhibitType.name} (ready in ${info.buildDays} days)`);
-                updateUI();
-                renderExhibits();
-            }
+    const info = EXHIBIT_SIZES[size];
+    const exhibitType = data.exhibitTypes[type];
+    if (!exhibitType) return showToast("Invalid exhibit type!", "error");
+    if (exhibitType.unlockResearch && !isResearchComplete(exhibitType.unlockResearch)) return showToast(`🔒 ${exhibitType.name} requires research!`, "error");
+    if (state.money < info.cost) return showToast("Not enough money!", "error");
+    
+    state.money -= info.cost;
+    showFloatingMoney(-info.cost);
+    
+    const id = "exhibit_" + Date.now();
+    const exhibitCount = Object.keys(state.exhibits).length + 1;
+    state.exhibits[id] = {
+        id: id,
+        name: `${exhibitType.name} ${exhibitCount}`,
+        size: size,
+        type: type,
+        animals: [],
+        upgrades: [],
+        buildDaysRemaining: info.buildDays,
+        fenceCondition: 100,
+        cleanliness: 100 
+    };
+    
+    // ✅ FIX: Assign map coordinates immediately so they are saved to state
+    autoLayoutExhibits();
+    
+    addTicker(`🏗 Started building ${exhibitType.emoji} ${info.label} ${exhibitType.name} (ready in ${info.buildDays} days)`);
+    updateUI();
+    renderExhibits();
+    
+    // ✅ FIX: Instantly refresh the map if the user is currently looking at it
+    if (document.getElementById("map").classList.contains("active")) {
+        renderMap();
+    }
+}
             /* --------------------------------------------------------------------------
             🎲 14. EVENTS & LEADERBOARD
             -------------------------------------------------------------------------- */
