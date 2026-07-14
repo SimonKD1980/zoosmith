@@ -5854,19 +5854,22 @@ showToast(`✅ Assigned ${assignedStaffData?.name || 'Staff'}!`, "info");
                 document.getElementById("buildModal").classList.remove("active");
                 document.getElementById("buildModal").querySelector('.modal-content').style.maxWidth = '400px';
             }
-
-            function buildExhibit(size, type = 'terrestrial') {
+function buildExhibit(size, type = 'terrestrial') {
     const info = EXHIBIT_SIZES[size];
     const exhibitType = data.exhibitTypes[type];
+
     if (!exhibitType) return showToast("Invalid exhibit type!", "error");
-    if (exhibitType.unlockResearch && !isResearchComplete(exhibitType.unlockResearch)) return showToast(`🔒 ${exhibitType.name} requires research!`, "error");
+    if (exhibitType.unlockResearch && !isResearchComplete(exhibitType.unlockResearch)) {
+        return showToast(`🔒 ${exhibitType.name} requires research!`, "error");
+    }
     if (state.money < info.cost) return showToast("Not enough money!", "error");
-    
+
     state.money -= info.cost;
     showFloatingMoney(-info.cost);
-    
+
     const id = "exhibit_" + Date.now();
     const exhibitCount = Object.keys(state.exhibits).length + 1;
+
     state.exhibits[id] = {
         id: id,
         name: `${exhibitType.name} ${exhibitCount}`,
@@ -5876,17 +5879,16 @@ showToast(`✅ Assigned ${assignedStaffData?.name || 'Staff'}!`, "info");
         upgrades: [],
         buildDaysRemaining: info.buildDays,
         fenceCondition: 100,
-        cleanliness: 100 
+        cleanliness: 100
     };
-    
+
     // ✅ FIX: Assign map coordinates immediately so they are saved to state
     autoLayoutExhibits();
-    
+
     addTicker(`🏗 Started building ${exhibitType.emoji} ${info.label} ${exhibitType.name} (ready in ${info.buildDays} days)`);
+
     updateUI();
     renderExhibits();
-    
-    }
 }
             /* --------------------------------------------------------------------------
             🎲 14. EVENTS & LEADERBOARD
