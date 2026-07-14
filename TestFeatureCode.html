@@ -2902,22 +2902,21 @@
     display: inline-block; 
 }
 /* ==========================================================================
-🗺️ NEW MAP EXHIBIT ENCLOSURES
+🗺️ CLEAN MAP EXHIBIT ENCLOSURES (Replaces all old map CSS)
 ========================================================================== */
 .map-park-area {
     position: relative !important;
     min-height: 600px;
-    padding: 10px;
-    display: block !important;
-    background: 
-        radial-gradient(circle at 30% 40%, rgba(34, 197, 94, 0.08) 0%, transparent 50%),
-        radial-gradient(circle at 70% 60%, rgba(59, 130, 246, 0.06) 0%, transparent 50%);
+    padding: 15px;
+    display: block !important; /* Forces block layout for absolute children */
+    background: radial-gradient(circle at 30% 40%, rgba(34, 197, 94, 0.08) 0%, transparent 50%),
+                radial-gradient(circle at 70% 60%, rgba(59, 130, 246, 0.06) 0%, transparent 50%);
     border-radius: 12px;
     border: 2px dashed rgba(45, 90, 63, 0.4);
     overflow: hidden;
 }
 
-.draggable-exhibit {
+.map-exhibit.draggable-exhibit {
     position: absolute !important;
     width: 130px;
     height: 130px;
@@ -2927,11 +2926,13 @@
     transition: transform 0.2s ease, box-shadow 0.2s ease;
     z-index: 5;
 }
-.draggable-exhibit:hover {
+
+.map-exhibit.draggable-exhibit:hover {
     transform: translateY(-4px) scale(1.04);
     z-index: 10;
 }
-.draggable-exhibit.dragging {
+
+.map-exhibit.draggable-exhibit.dragging {
     cursor: grabbing;
     transform: scale(1.1) !important;
     z-index: 100 !important;
@@ -2984,6 +2985,7 @@
     justify-content: center;
     margin-top: 2px;
 }
+
 .map-animal-icon {
     font-size: 1rem;
     background: rgba(0,0,0,0.35);
@@ -3059,17 +3061,16 @@
 
 /* Mobile adjustments */
 @media (max-width: 768px) {
-    .map-park-area { min-height: 500px; }
-    .draggable-exhibit { width: 110px; height: 110px; }
+    .map-park-area { min-height: 500px; padding: 10px; }
+    .map-exhibit.draggable-exhibit { width: 110px; height: 110px; }
     .biome-icon { font-size: 1.7rem; }
     .map-animal-icon { width: 18px; height: 18px; font-size: 0.9rem; }
     .map-amenity { font-size: 1.5rem; }
     .map-amenity.decoration { font-size: 1.2rem; }
 }
 @media (max-width: 400px) {
-    .draggable-exhibit { width: 100px; height: 100px; }
+    .map-exhibit.draggable-exhibit { width: 100px; height: 100px; }
 }
-        </style>
         <header>
             <div id="ticker">Welcome to your zoo...</div>
             <div class="header-main">
@@ -3330,11 +3331,12 @@ function autoLayoutExhibits() {
     const allExhibits = getAllExhibits();
     const cols = 3;
     allExhibits.forEach(({ exhibit }, i) => {
-        if (exhibit.mapX === undefined || exhibit.mapY === undefined) {
+        // ✅ Catches undefined, null, and NaN to prevent invalid CSS
+        if (exhibit.mapX == null || exhibit.mapY == null || isNaN(exhibit.mapX) || isNaN(exhibit.mapY)) {
             const col = i % cols;
             const row = Math.floor(i / cols);
-            exhibit.mapX = 3 + col * 32;   // 3%, 35%, 67%
-            exhibit.mapY = 3 + row * 26;   // 3%, 29%, 55%, 81%...
+            exhibit.mapX = 3 + col * 32;
+            exhibit.mapY = 3 + row * 26;
         }
     });
 }
@@ -4529,13 +4531,12 @@ ${!unlocked ? '🔒 Locked' : !canAfford ? '💰 Need Funds' : 'Build House'}
             }
 
             /* Map */
-           function renderMap() {
+          function renderMap() {
     const box = document.getElementById("map");
     if (!box) return;
     
     const allExhibits = getAllExhibits();
     
-    // Empty State
     if (allExhibits.length === 0) {
         box.innerHTML = `
             <div class="map-container">
@@ -4550,11 +4551,8 @@ ${!unlocked ? '🔒 Locked' : !canAfford ? '💰 Need Funds' : 'Build House'}
         return;
     }
     
-    // Dashboard Stats
     const totalAnimals = allExhibits.reduce((sum, { exhibit }) => sum + (exhibit.animals?.length || 0), 0);
-    const avgHappiness = allExhibits.length > 0 
-        ? Math.round(allExhibits.reduce((sum, { exhibit }) => sum + getExhibitHappiness(exhibit), 0) / allExhibits.length) 
-        : 0;
+    const avgHappiness = allExhibits.length > 0 ? Math.round(allExhibits.reduce((sum, { exhibit }) => sum + getExhibitHappiness(exhibit), 0) / allExhibits.length) : 0;
     const needsAttention = allExhibits.filter(({ exhibit }) => {
         const happiness = getExhibitHappiness(exhibit);
         const fence = exhibit.fenceCondition ?? 100;
@@ -4570,23 +4568,15 @@ ${!unlocked ? '🔒 Locked' : !canAfford ? '💰 Need Funds' : 'Build House'}
         </div>
     `;
     
-    // Amenities & Decorations
     const amenityPositions = getAmenityPositions();
     let amenitiesHTML = '';
     amenityPositions.forEach(amenity => {
         const isDecoration = amenity.isDecoration;
-        amenitiesHTML += `
-            <div class="map-amenity ${isDecoration ? 'decoration' : 'interactive'}" 
-                 style="left: ${amenity.x}%; top: ${amenity.y}%;"
-                 title="${amenity.id.replace('_', ' ')}">
-                ${amenity.emoji}
-            </div>
-        `;
+        amenitiesHTML += `<div class="map-amenity ${isDecoration ? 'decoration' : 'interactive'}" style="left: ${amenity.x}%; top: ${amenity.y}%;" title="${amenity.id.replace('_', ' ')}">${amenity.emoji}</div>`;
     });
     
-    // ✅ YOUR NEW EXHIBIT RENDERING SNIPPET
     let exhibitsHTML = '';
-    allExhibits.forEach(({ exhibit }) => {
+    allExhibits.forEach(({ exhibit }, i) => {
         const isBuilding = exhibit.buildDaysRemaining > 0;
         const exhibitType = data.exhibitTypes[exhibit.type] || data.exhibitTypes.terrestrial || { emoji: '🏞️', name: 'Standard', color: '#22c55e' };
         const happiness = getExhibitHappiness(exhibit);
@@ -4594,7 +4584,10 @@ ${!unlocked ? '🔒 Locked' : !canAfford ? '💰 Need Funds' : 'Build House'}
         const hasSickAnimals = exhibit.animals?.some(a => (a.health ?? 100) < 40);
         const animalCount = exhibit.animals?.length || 0;
 
-        // ✅ Subtle status system (no more giant ! marks)
+        // ✅ SAFETY FALLBACK: Guarantee valid numbers for CSS
+        const safeX = (exhibit.mapX != null && !isNaN(exhibit.mapX)) ? exhibit.mapX : (3 + (i % 3) * 32);
+        const safeY = (exhibit.mapY != null && !isNaN(exhibit.mapY)) ? exhibit.mapY : (3 + Math.floor(i / 3) * 26);
+
         let statusClass = '';
         let statusBadge = '';
         if (isBuilding) {
@@ -4609,7 +4602,6 @@ ${!unlocked ? '🔒 Locked' : !canAfford ? '💰 Need Funds' : 'Build House'}
             statusBadge = '<div class="status-badge thriving" title="Thriving!">✨</div>';
         }
 
-        // ✅ Animal icons rendered inside the enclosure
         let animalGrid = '';
         if (animalCount > 0 && !isBuilding) {
             const uniqueAnimals = [...new Set(exhibit.animals.map(a => a.id))].slice(0, 4);
@@ -4622,7 +4614,7 @@ ${!unlocked ? '🔒 Locked' : !canAfford ? '💰 Need Funds' : 'Build House'}
         exhibitsHTML += `
             <div class="map-exhibit draggable-exhibit ${statusClass}" 
                  data-exhibit-id="${exhibit.id}"
-                 style="left: ${exhibit.mapX}%; top: ${exhibit.mapY}%; --exhibit-color: ${exhibitType.color || '#22c55e'}">
+                 style="left: ${safeX}%; top: ${safeY}%; --exhibit-color: ${exhibitType.color || '#22c55e'}">
                 <div class="drag-handle">⋮⋮</div>
                 ${statusBadge}
                 <div class="exhibit-enclosure">
@@ -4635,7 +4627,6 @@ ${!unlocked ? '🔒 Locked' : !canAfford ? '💰 Need Funds' : 'Build House'}
         `;
     });
     
-    // Final Assembly
     box.innerHTML = `
         <div class="map-container">
             <div style="margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; position: relative; z-index: 2;">
@@ -4653,7 +4644,6 @@ ${!unlocked ? '🔒 Locked' : !canAfford ? '💰 Need Funds' : 'Build House'}
         </div>
     `;
     
-    // Attach drag handlers
     initMapDrag();
 }
             function jumpToExhibit(exhibitId) {
