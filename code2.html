@@ -4152,18 +4152,24 @@ state.hiredStaff.forEach(staffInstance => {
 
 function processUpkeep() {
     let totalCost = 0;
-    for (const id in state.exhibits) {
-        const ex = state.exhibits[id];
+    const allExhibits = getAllExhibits(); // ✅ Use the unified helper
+    
+    for (const { exhibit } of allExhibits) {
+        // ✅ BEST PRACTICE: Skip exhibits still under construction
+        // (Aligns with processFenceDegradation and processExhibitCleanliness)
+        if (exhibit.buildDaysRemaining > 0) continue; 
+        
         let base = 5;
-        if (ex.size === 'medium') base = 15;
-        if (ex.size === 'large') base = 30;
-        base += (ex.animals.length * 2); // Vet/waste cost per animal
+        if (exhibit.size === 'medium') base = 15;
+        if (exhibit.size === 'large') base = 30;
+        
+        base += (exhibit.animals.length * 2); // Vet/waste cost per animal
         totalCost += base;
     }
-
-                state.money -= totalCost;
-                if (totalCost > 0) addTicker(`🧾 Facility upkeep: -$${totalCost}`);
-            }
+    
+    state.money -= totalCost;
+    if (totalCost > 0) addTicker(`🧾 Facility upkeep: -$${totalCost}`);
+}
 
             function buildHouse(typeId) {
                 const houseType = data.houses[typeId];
@@ -5144,25 +5150,31 @@ ${isEmpty ? `<div style="padding: 8px; background: rgba(239, 68, 68, 0.15); bord
                 saveGame();
             }
 
-            function repairFence(exhibitId) {
-                const ctx = getExhibitContext(exhibitId);
-                if (!ctx) return;
-                const exhibit = ctx.exhibit;
-                if (state.maintenanceWorkers === 0) return showToast("You need to hire maintenance staff first! Go to the Staff tab.", "error");
-                const damage = 100 - exhibit.fenceCondition;
-                const sizeMultiplier = exhibit.size === "large" ? 3 : exhibit.size === "medium" ? 2 : 1;
-                const repairCost = Math.floor(damage * 10 * sizeMultiplier);
-                if (state.money < repairCost) return showToast(`Need $${repairCost} to repair fence!`, "error");
-                state.money -= repairCost;
-                showFloatingMoney(-repairCost);
-                exhibit.fenceCondition = 100;
-                addTicker(`🔧 Repaired ${exhibit.name} fence (-$${repairCost})`);
-                showToast(`✅ Fence repaired!`, "info");
-                updateUI();
-                renderExhibits();
-                renderHouses();
-            }
+function repairFence(exhibitId) {
+    const ctx = getExhibitContext(exhibitId);
+    if (!ctx) return;
+    const exhibit = ctx.exhibit;
 
+    // ✅ FIXED: Use the aggregated staff effects instead of the dead counter
+    const staffEffects = getStaffEffects();
+    if (staffEffects.maintenanceLevel === 0) {
+        return showToast("You need to hire maintenance staff first! Go to the Staff tab.", "error");
+    }
+
+    const damage = 100 - exhibit.fenceCondition;
+    const sizeMultiplier = exhibit.size === "large" ? 3 : exhibit.size === "medium" ? 2 : 1;
+    const repairCost = Math.floor(damage * 10 * sizeMultiplier);
+    if (state.money < repairCost) return showToast(`Need $${repairCost} to repair fence!`, "error");
+
+    state.money -= repairCost;
+    showFloatingMoney(-repairCost);
+    exhibit.fenceCondition = 100;
+    addTicker(`🔧 Repaired ${exhibit.name} fence (-$${repairCost})`);
+    showToast(`✅ Fence repaired!`, "info");
+    updateUI();
+    renderExhibits();
+    renderHouses();
+}
             /* --------------------------------------------------------------------------
             🎨 12. UI RENDERING: OTHER TABS
             -------------------------------------------------------------------------- */
@@ -6316,17 +6328,22 @@ onclick="sellUpgradeFromModal('${up.id}')">
             }
 
             function getFreeSlots(staffInstance) {
-                const staffData = data.staff.find(s => s.id === staffInstance.typeId);
-                if (!staffData) return 0;
-                const totalSlots = isKeeperRole(staffInstance.typeId) ? (staffData.keeperSlots || 5) : (staffData.cleanerSlots || 10);
-                const usedSlots = (staffInstance.assignments || []).reduce((sum, targetId) => {
-                    if (state.exhibits[targetId]) return sum + getTargetDemand(targetId, 'exhibit');
-                    if (state.amenities[targetId] !== undefined) return sum + getTargetDemand(targetId, 'amenity');
-                    return sum;
-                }, 0);
-                return Math.max(0, totalSlots - usedSlots);
-            }
-
+    const staffData = data.staff.find(s => s.id === staffInstance.typeId);
+    if (!staffData) return 0;
+    
+    // ✅ FIXED: Use ?? 0 to match getKeeperCapacity() / getCleanerCapacity()
+    const totalSlots = isKeeperRole(staffInstance.typeId) 
+        ? (staffData.keeperSlots ?? 0) 
+        : (staffData.cleanerSlots ?? 0);
+    
+    const usedSlots = (staffInstance.assignments || []).reduce((sum, targetId) => {
+        if (state.exhibits[targetId]) return sum + getTargetDemand(targetId, 'exhibit');
+        if (state.amenities[targetId] !== undefined) return sum + getTargetDemand(targetId, 'amenity');
+        return sum;
+    }, 0);
+    
+    return Math.max(0, totalSlots - usedSlots);
+}
             function openAssignStaffModal(targetId, targetType) {
                 const demand = getTargetDemand(targetId, targetType);
                 const isKeeper = targetType === 'exhibit';
@@ -7746,70 +7763,83 @@ ${!isActive ? `<button class="primary-btn" style="flex:1; padding: 8px;" onclick
                 renderHouses();
             }
 
-            /* --------------------------------------------------------------------------
-            🚀 16. INITIALIZATION & EVENT LISTENERS
-            -------------------------------------------------------------------------- */
-            const resetBtn = document.getElementById("resetGameBtn");
-            if (resetBtn) {
-                resetBtn.onclick = () => {
-                    if (!confirm("Are you sure you want to reset your CURRENT zoo? This cannot be undone.")) return;
-                    resetStateToDefault();
-                    state.zooName = "Reset Zoo";
-                    saveGame();
-                    refreshAllUI();
-                    showToast("Current zoo has been reset! 🔄", "info");
-                };
-            }
-            // Boot up the game
-            loadGame();
-            state.food ??= {
-                hay: 30,
-                meat: 20,
-                produce: 15
-            };
-            loadShop();
-            loadUpgrades();
-            loadFacilities();
-            loadStaff();
-            loadAmenities();
-            loadExhibitTypes();
-            loadAchievements();
-            loadHouses();
-            updateUI();
-            renderExhibits();
-            checkAchievements();
-            renderAchievements();
-            loadResearch();
-            renderReports();
-            renderFacilities();
-            renderStaff();
-            leaderboardPlayerId = getPlayerId();
-            setInterval(saveGame, 10000);
-            window.addEventListener("beforeunload", saveGame);
-            setTimeout(renderTutorial, 1000);
-            const originalAdvanceDay = advanceDay;
-            window.advanceDay = function() {
-                originalAdvanceDay();
-                setTimeout(renderTutorial, 100);
-            };
-            document.getElementById("endDayBtn").onclick = advanceDay;
+/* --------------------------------------------------------------------------
+🚀 16. INITIALIZATION & EVENT LISTENERS
+-------------------------------------------------------------------------- */
+const resetBtn = document.getElementById("resetGameBtn");
+if (resetBtn) {
+    resetBtn.onclick = () => {
+        if (!confirm("Are you sure you want to reset your CURRENT zoo? This cannot be undone.")) return;
+        resetStateToDefault();
+        state.zooName = "Reset Zoo";
+        saveGame();
+        refreshAllUI();
+        showToast("Current zoo has been reset! 🔄", "info");
+    };
+}
 
-            // Mobile touch optimizations
-            let lastTouchEnd = 0;
-            document.addEventListener('touchend', (e) => {
-                const now = Date.now();
-                if (now - lastTouchEnd <= 300) e.preventDefault();
-                lastTouchEnd = now;
-            }, {
-                passive: false
-            });
-            window.addEventListener('load', () => {
-                setTimeout(() => window.scrollTo(0, 1), 100);
-            });
-            document.querySelectorAll('.nav, .complaints-list').forEach(el => {
-                el.style.webkitOverflowScrolling = 'touch';
-            });
+// Boot up the game
+loadGame();
+state.food ??= { hay: 30, meat: 20, produce: 15 };
 
+// ✅ FIX: Wrap initialization in an async function to prevent race conditions
+async function initGame() {
+    // Wait for ALL core JSON data to load before evaluating achievements or rendering
+    await Promise.all([
+        loadShop(),
+        loadUpgrades(),
+        loadFacilities(),
+        loadStaff(),
+        loadAmenities(),
+        loadExhibitTypes(),
+        loadAchievements(),
+        loadHouses(),
+        loadResearch()
+    ]);
+
+    // Now it's safe to render and check achievements with full data
+    updateUI();
+    renderExhibits();
+    
+    // ✅ data.animals is now fully populated, so speciesCollection checks are 100% accurate
+    checkAchievements();
+    renderAchievements();
+    
+    renderReports();
+    renderFacilities();
+    renderStaff();
+    
+    leaderboardPlayerId = getPlayerId();
+    setInterval(saveGame, 10000);
+    window.addEventListener("beforeunload", saveGame);
+    setTimeout(renderTutorial, 1000);
+}
+
+// Start the async boot sequence
+initGame();
+
+const originalAdvanceDay = advanceDay;
+window.advanceDay = function() {
+    originalAdvanceDay();
+    setTimeout(renderTutorial, 100);
+};
+document.getElementById("endDayBtn").onclick = advanceDay;
+
+// Mobile touch optimizations
+let lastTouchEnd = 0;
+document.addEventListener('touchend', (e) => {
+    const now = Date.now();
+    if (now - lastTouchEnd <= 300) e.preventDefault();
+    lastTouchEnd = now;
+}, { passive: false });
+
+window.addEventListener('load', () => {
+    setTimeout(() => window.scrollTo(0, 1), 100);
+});
+
+document.querySelectorAll('.nav, .complaints-list').forEach(el => {
+    el.style.webkitOverflowScrolling = 'touch';
+});
         </script>
         </body>
 </html>
