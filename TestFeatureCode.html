@@ -235,9 +235,9 @@
         <div id="tutorialOverlay"></div>
         <div id="toast-container"></div>
         <script>
-            /* ==========================================================================
-🦁 ZOOSMITH V0.4.0 - MAIN GAME SCRIPT
-Rewritten for stability, unified exhibit handling, and bug fixes.
+
+/* ==========================================================================
+🦁 ZOOSMITH - MAIN GAME SCRIPT
 ========================================================================== */
 
             /* --------------------------------------------------------------------------
@@ -2006,6 +2006,9 @@ function renderShopGrid() {
                 <div style="display:flex; gap:6px; flex-wrap:wrap; margin: 6px 0;">
                     <span class="stat-badge warn">🍖 Upkeep: $${actualFoodCost}/day</span>
                     <span class="stat-badge blue">🌟 Attraction: +${animal.attractionValue}</span>
+                </div>
+      <div style="font-size: 1.4rem; font-weight: 800; color: var(--accent); margin: 10px 0; text-align: center; background: rgba(34, 197, 94, 0.1); padding: 8px; border-radius: 8px; border: 1px solid rgba(34, 197, 94, 0.2);">💰 $${(animal.cost ?? animal.price ?? 0).toLocaleString()}</div>
+      <button class="primary-btn">Add to Zoo</butto
                 </div>
                 <button class="primary-btn">Add to Zoo</button>
             </div>`;
