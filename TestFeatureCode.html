@@ -1244,11 +1244,7 @@ state.hiredStaff.forEach(staffInstance => {
                 processVisitorBehavior(visitors);
             }
 
-function processAnimalIncome() {
-    // ✅ UPDATED: Animals no longer generate direct daily cash.
-    // Income is now driven entirely by visitor ticket sales based on Attraction Value!
-    return 0;
-}
+
 
 function processUpkeep() {
     let totalCost = 0;
@@ -1267,29 +1263,6 @@ function processUpkeep() {
     return totalCost; // ✅ ADDED: Return the cost so we can track it daily
 }
             
-            function buildHouse(typeId) {
-                const houseType = data.houses[typeId];
-                if (!houseType) return showToast("Invalid house type!", "error");
-                if (houseType.unlockResearch && !isResearchComplete(houseType.unlockResearch)) {
-                    return showToast(`🔒 ${houseType.name} requires research!`, "error");
-                }
-                if (state.money < houseType.cost) return showToast("Not enough money!", "error");
-                state.money -= houseType.cost;
-                showFloatingMoney(-houseType.cost);
-                const id = typeId + "_" + Date.now();
-                state.houses[id] = {
-                    id: id,
-                    typeId: typeId,
-                    name: houseType.name,
-                    exhibits: {},
-                    upgrades: [],
-                    buildDaysRemaining: houseType.buildDays
-                };
-                addTicker(`🏗 Started building ${houseType.emoji} ${houseType.name}`);
-                updateUI();
-                
-            }
-
     function buildExhibit(size, type = 'terrestrial') {
     const info = EXHIBIT_SIZES[size];
     const exhibitType = data.exhibitTypes[type];
@@ -3828,11 +3801,6 @@ function buildExhibit(size, type = 'terrestrial') {
         return sum + (s?.salary || 0);
     }, 0);
     
-    // ✅ FIXED: Animals no longer generate direct daily cash (income is from tickets!)
-    // Setting this to 0 ensures the report math matches the actual bank account changes.
-    const animalIncome = 0; 
-    processAnimalIncome(); // This function should return 0 or do nothing
-
     // 4. CAPTURE FACILITY EXPENSES
     const upkeepExpense = processUpkeep(); 
     processDailyMaintenance();
