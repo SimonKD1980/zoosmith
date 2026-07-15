@@ -2008,10 +2008,9 @@ function renderShopGrid() {
                     <span class="stat-badge">🌍 ${animal.habitat}</span>
                     <span class="stat-badge">${statusEmoji} ${animal.conservationStatus}</span>
                     <span class="stat-badge ${slotColor}">🧑‍🌾 ${slotCost} slot${slotCost > 1 ? 's' : ''}</span>
-                </div>
-                <p class="card-desc">${animal.info}</p>
-                <div class="card-price">$${animal.cost.toLocaleString()}<small>📈 Earns $${animal.dailyIncome}/day</small></div>
-                <div style="display:flex; gap:6px; flex-wrap:wrap; margin: 6px 0;">
+                </div><p class="card-desc">${animal.info}</p>
+<div class="card-price">$${animal.cost.toLocaleString()}</div>
+<div style="display:flex; gap:6px; flex-wrap:wrap; margin: 6px 0;">
                     <span class="stat-badge warn">🍖 Food: $${actualFoodCost}/day</span>
                     <span class="stat-badge green">💰 Net: $${netIncome}/day</span>
                 </div>
