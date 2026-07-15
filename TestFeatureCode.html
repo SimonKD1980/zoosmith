@@ -1244,12 +1244,11 @@ state.hiredStaff.forEach(staffInstance => {
                 processVisitorBehavior(visitors);
             }
 
-            function processAnimalIncome() {
-                let totalIncome = 0;
-                const allAnimals = getAllAnimals();
-                for (const animal of allAnimals) totalIncome += calculateAnimalIncome(animal);
-                if (totalIncome > 0) state.money += totalIncome;
-            }
+function processAnimalIncome() {
+    // ✅ UPDATED: Animals no longer generate direct daily cash.
+    // Income is now driven entirely by visitor ticket sales based on Attraction Value!
+    return 0;
+}
 
 function processUpkeep() {
     let totalCost = 0;
@@ -1987,9 +1986,7 @@ function renderShopGrid() {
                             animal.conservationStatus === 'Vulnerable' ? '🟡' : 
                             animal.conservationStatus === 'Critically Endangered' ? '⚫' : '🟢';
         
-        // ✅ FIXED: Use getActualFoodCost() for accurate display
         const actualFoodCost = getActualFoodCost(animal);
-        const netIncome = animal.dailyIncome - actualFoodCost;
 
         const card = document.createElement("div");
         card.className = "premium-card";
@@ -2011,7 +2008,8 @@ function renderShopGrid() {
                 </div>
                 <p class="card-desc">${animal.info}</p>
                 <div style="display:flex; gap:6px; flex-wrap:wrap; margin: 6px 0;">
-                    <span class="stat-badge warn">🍖 Daily Food Cost: $${actualFoodCost}/day</span>
+                    <span class="stat-badge warn">🍖 Upkeep: $${actualFoodCost}/day</span>
+                    <span class="stat-badge blue">🌟 Attraction: +${animal.attractionValue}</span>
                 </div>
                 <button class="primary-btn">Add to Zoo</button>
             </div>`;
@@ -2020,7 +2018,7 @@ function renderShopGrid() {
         grid.appendChild(card);
     });
 
-    // Locked animals section
+    // Locked animals section (unchanged)
     if (locked.length > 0) {
         const lockedSection = document.createElement("div");
         lockedSection.style.gridColumn = "1 / -1";
@@ -2719,7 +2717,7 @@ ${thoughts.map(t => `
 </div>
 ` : '';
                 content.innerHTML = `<h2>${animal.name}</h2><p>${stage.emoji} Life Stage: <strong>${stage.label}</strong> • Age: <strong>${ageDisplay}</strong></p>
-<p>💰 Income: $${actualIncome}/day ${stage.incomeMultiplier !== 1 ? `<small style="color:var(--muted);">(base $${animal.dailyIncome} × ${stage.incomeMultiplier})</small>` : ''}</p>
+<p>🌟 Attraction Value: <strong>+${animal.attractionValue}</strong> <small style="color:var(--muted);">(Drives visitor ticket sales)</small></p>
 <p>🍖 Food: $${getActualFoodCost(animal)}/day ${animal.isPregnant ? '<small style="color:var(--warn);">(×2 pregnant)</small>' : ''}</p>
 <p>👥 Needs: ${animal.minInExhibit} - ${animal.maxInExhibit}</p><p>🏞 Exhibit: ${exhibit.name ?? "Unknown"}</p>
 ${thoughtsHTML}
@@ -2746,38 +2744,45 @@ ${stage.canBreed ? '<p style="color:var(--accent);">✅ Can breed</p>' : '<p sty
                 document.getElementById("animalInfoModal").classList.remove("active");
             }
 
-            function sellAnimal(animal, exhibitId) {
-                const ctx = getExhibitContext(exhibitId);
-                if (ctx) ctx.exhibit.animals = ctx.exhibit.animals.filter(a => a !== animal);
-                const basePrice = animal.dailyIncome * 5;
-                const stage = getLifeStage(animal);
-                let ageMultiplier = 1.0;
-                if (stage.stage === 'baby') ageMultiplier = 0.3;
-                else if (stage.stage === 'juvenile') ageMultiplier = 0.6;
-                else if (stage.stage === 'senior') ageMultiplier = 0.7;
-                const health = animal.health ?? 100;
-                let healthMultiplier = 1.0;
-                if (health < 20) healthMultiplier = 0.3;
-                else if (health < 50) healthMultiplier = 0.5;
-                else if (health < 80) healthMultiplier = 0.8;
-                if (animal.sick) healthMultiplier *= 0.5;
-                let pregnancyBonus = 0;
-                if (animal.isPregnant) pregnancyBonus = Math.floor(basePrice * 0.3);
-                const salePrice = Math.floor(basePrice * ageMultiplier * healthMultiplier) + pregnancyBonus;
-                state.money += salePrice;
-                showFloatingMoney(salePrice);
-                state.animalsSold++;
-                const breakdown = [];
-                if (ageMultiplier !== 1.0) breakdown.push(`age ${Math.round(ageMultiplier * 100)}%`);
-                if (healthMultiplier !== 1.0) breakdown.push(`health ${Math.round(healthMultiplier * 100)}%`);
-                if (pregnancyBonus > 0) breakdown.push(`+pregnancy bonus`);
-                addTicker(`💸 Sold ${animal.name} for $${salePrice}${breakdown.length > 0 ? ` (${breakdown.join(', ')})` : ''}`);
-                closeAnimalInfo();
-                updateUI();
-                renderExhibits();
-                
-            }
-
+           function sellAnimal(animal, exhibitId) {
+    const ctx = getExhibitContext(exhibitId);
+    if (ctx) ctx.exhibit.animals = ctx.exhibit.animals.filter(a => a !== animal);
+    
+    // ✅ UPDATED: Base price is now a 40% refund of the purchase cost
+    const basePrice = Math.floor(animal.cost * 0.4); 
+    
+    const stage = getLifeStage(animal);
+    let ageMultiplier = 1.0;
+    if (stage.stage === 'baby') ageMultiplier = 0.3;
+    else if (stage.stage === 'juvenile') ageMultiplier = 0.6;
+    else if (stage.stage === 'senior') ageMultiplier = 0.7;
+    
+    const health = animal.health ?? 100;
+    let healthMultiplier = 1.0;
+    if (health < 20) healthMultiplier = 0.3;
+    else if (health < 50) healthMultiplier = 0.5;
+    else if (health < 80) healthMultiplier = 0.8;
+    
+    if (animal.sick) healthMultiplier *= 0.5;
+    
+    let pregnancyBonus = 0;
+    if (animal.isPregnant) pregnancyBonus = Math.floor(basePrice * 0.3);
+    
+    const salePrice = Math.floor(basePrice * ageMultiplier * healthMultiplier) + pregnancyBonus;
+    state.money += salePrice;
+    showFloatingMoney(salePrice);
+    state.animalsSold++;
+    
+    const breakdown = [];
+    if (ageMultiplier !== 1.0) breakdown.push(`age ${Math.round(ageMultiplier * 100)}%`);
+    if (healthMultiplier !== 1.0) breakdown.push(`health ${Math.round(healthMultiplier * 100)}%`);
+    if (pregnancyBonus > 0) breakdown.push(`+pregnancy bonus`);
+    
+    addTicker(`💸 Sold ${animal.name} for $${salePrice}${breakdown.length > 0 ? ` (${breakdown.join(', ')})` : ''}`);
+    closeAnimalInfo();
+    updateUI();
+    renderExhibits();
+}
             function openUpgradeMenu(exhibitId) {
 
                 state.activeUpgradeExhibit = exhibitId;
@@ -3806,7 +3811,7 @@ function buildExhibit(size, type = 'terrestrial') {
                     showToast(`${causeEmoji} ${death.animal.name} has died.`, 'error');
                     state.naturalDeaths = (state.naturalDeaths || 0) + 1;
                     state.totalDeaths = (state.totalDeaths || 0) + 1;
-    const deathPenalty = Math.floor(death.animal.dailyIncome * 15); 
+    const deathPenalty = Math.max(50, Math.floor(death.animal.cost * 0.15));
     state.money -= deathPenalty;
     showFloatingMoney(-deathPenalty);
 }
