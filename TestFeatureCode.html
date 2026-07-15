@@ -1252,25 +1252,21 @@ function processAnimalIncome() {
 
 function processUpkeep() {
     let totalCost = 0;
-    const allExhibits = getAllExhibits(); // ✅ Use the unified helper
-    
+    const allExhibits = getAllExhibits(); 
     for (const { exhibit } of allExhibits) {
-        // ✅ BEST PRACTICE: Skip exhibits still under construction
-        // (Aligns with processFenceDegradation and processExhibitCleanliness)
-        if (exhibit.buildDaysRemaining > 0) continue; 
-        
+        if (exhibit.buildDaysRemaining > 0) continue;
         let base = 5;
         if (exhibit.size === 'medium') base = 15;
         if (exhibit.size === 'large') base = 30;
-        
-        base += (exhibit.animals.length * 2); // Vet/waste cost per animal
+        base += (exhibit.animals.length * 2); 
         totalCost += base;
     }
-    
     state.money -= totalCost;
     if (totalCost > 0) addTicker(`🧾 Facility upkeep: -$${totalCost}`);
+    
+    return totalCost; // ✅ ADDED: Return the cost so we can track it daily
 }
-
+            
             function buildHouse(typeId) {
                 const houseType = data.houses[typeId];
                 if (!houseType) return showToast("Invalid house type!", "error");
@@ -2178,98 +2174,100 @@ function renderShopGrid() {
             }
             let reportsChartInstance = null;
 
-            function renderReports() {
-                const box = document.getElementById("reports");
-                box.innerHTML = `<div class="premium-card" style="grid-column: 1 / -1; margin-bottom: 20px;"><div class="card-header"><h3>📈 Financial Overview</h3></div><div class="card-body" style="height: 300px; position: relative;"><canvas id="reportsChart"></canvas></div></div><div class="grid-layout" id="reportsGrid" style="grid-column: 1 / -1;"></div>`;
-                const grid = box.querySelector('#reportsGrid');
-                if (state.monthlyReports.length === 0) {
-                    grid.innerHTML = '<div style="text-align:center; padding:40px; color:var(--muted); grid-column: 1/-1;"><h2>📊 No Reports Yet</h2><p>Advance the day to generate your first monthly report!</p></div>';
-                    return;
+        function renderReports() {
+    const box = document.getElementById("reports");
+    box.innerHTML = `<div class="premium-card" style="grid-column: 1 / -1; margin-bottom: 20px;"><div class="card-header"><h3>📈 Monthly Financial Overview</h3></div><div class="card-body" style="height: 300px; position: relative;"><canvas id="reportsChart"></canvas></div></div><div class="grid-layout" id="reportsGrid" style="grid-column: 1 / -1;"></div>`;
+    
+    const grid = box.querySelector('#reportsGrid');
+    if (state.monthlyReports.length === 0) {
+        grid.innerHTML = '<div style="text-align:center; padding:40px; color:var(--muted); grid-column: 1/-1;"><h2>📊 No Monthly Reports Yet</h2><p>Advance 30 days to generate your first monthly report!</p></div>';
+    } else {
+        if (reportsChartInstance) reportsChartInstance.destroy();
+        const ctx = document.getElementById('reportsChart').getContext('2d');
+        const sortedReports = [...state.monthlyReports].reverse();
+        reportsChartInstance = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: sortedReports.map(r => `M${r.month} Y${r.year}`),
+                datasets: [
+                    { label: 'Income ($)', data: sortedReports.map(r => r.income), borderColor: '#22c55e', backgroundColor: 'rgba(34, 197, 94, 0.1)', tension: 0.3, fill: true, yAxisID: 'y' },
+                    { label: 'Visitors', data: sortedReports.map(r => r.visitors), borderColor: '#3b82f6', backgroundColor: 'rgba(59, 130, 246, 0.1)', tension: 0.3, fill: true, yAxisID: 'y1' }
+                ]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { labels: { color: '#e5e7eb' } } },
+                scales: {
+                    x: { ticks: { color: '#9ca3af' }, grid: { color: '#243042' } },
+                    y: { type: 'linear', display: true, position: 'left', ticks: { color: '#9ca3af', callback: v => '$' + v.toLocaleString() }, grid: { color: '#243042' } },
+                    y1: { type: 'linear', display: true, position: 'right', ticks: { color: '#9ca3af' }, grid: { drawOnChartArea: false } }
                 }
-                if (reportsChartInstance) reportsChartInstance.destroy();
-                const ctx = document.getElementById('reportsChart').getContext('2d');
-                const sortedReports = [...state.monthlyReports].reverse();
-                reportsChartInstance = new Chart(ctx, {
-                    type: 'line',
-                    data: {
-                        labels: sortedReports.map(r => `M${r.month} Y${r.year}`),
-                        datasets: [{
-                                label: 'Income ($)',
-                                data: sortedReports.map(r => r.income),
-                                borderColor: '#22c55e',
-                                backgroundColor: 'rgba(34, 197, 94, 0.1)',
-                                tension: 0.3,
-                                fill: true,
-                                yAxisID: 'y'
-                            },
-                            {
-                                label: 'Visitors',
-                                data: sortedReports.map(r => r.visitors),
-                                borderColor: '#3b82f6',
-                                backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                                tension: 0.3,
-                                fill: true,
-                                yAxisID: 'y1'
-                            }
-                        ]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                            legend: {
-                                labels: {
-                                    color: '#e5e7eb'
-                                }
-                            }
-                        },
-                        scales: {
-                            x: {
-                                ticks: {
-                                    color: '#9ca3af'
-                                },
-                                grid: {
-                                    color: '#243042'
-                                }
-                            },
-                            y: {
-                                type: 'linear',
-                                display: true,
-                                position: 'left',
-                                ticks: {
-                                    color: '#9ca3af',
-                                    callback: v => '$' + v.toLocaleString()
-                                },
-                                grid: {
-                                    color: '#243042'
-                                }
-                            },
-                            y1: {
-                                type: 'linear',
-                                display: true,
-                                position: 'right',
-                                ticks: {
-                                    color: '#9ca3af'
-                                },
-                                grid: {
-                                    drawOnChartArea: false
-                                }
-                            }
-                        }
-                    }
-                });
-                state.monthlyReports.forEach(report => {
-                    const card = document.createElement("div");
-                    card.className = "report-card";
-                    card.innerHTML = `<div class="report-header"><h3>📅 Month ${report.month}, Year ${report.year}</h3></div><div class="report-body">
-<div class="report-stat visitors"><div class="label">Attraction</div><div class="value">${report.attraction}</div></div>
-<div class="report-stat visitors"><div class="label">Avg Visitors/Day</div><div class="value">${report.visitors}</div></div>
-<div class="report-stat income"><div class="label">Monthly Income</div><div class="value">$${report.income.toLocaleString()}</div></div>
-<div class="report-stat happiness"><div class="label">Guest Happiness</div><div class="value">${report.guestHappiness}%</div></div></div>`;
-                    grid.appendChild(card);
-                });
             }
+        });
+        state.monthlyReports.forEach(report => {
+            const card = document.createElement("div");
+            card.className = "report-card";
+            card.innerHTML = `<div class="report-header"><h3>📅 Month ${report.month}, Year ${report.year}</h3></div><div class="report-body">
+            <div class="report-stat visitors"><div class="label">Attraction</div><div class="value">${report.attraction}</div></div>
+            <div class="report-stat visitors"><div class="label">Avg Visitors/Day</div><div class="value">${report.visitors}</div></div>
+            <div class="report-stat income"><div class="label">Monthly Income</div><div class="value">$${report.income.toLocaleString()}</div></div>
+            <div class="report-stat happiness"><div class="label">Guest Happiness</div><div class="value">${report.guestHappiness}%</div></div></div>`;
+            grid.appendChild(card);
+        });
+    }
 
+    // ✅ NEW: DAILY BREAKDOWN SPREADSHEET
+    let dailyTableHTML = '';
+    if (state.dailyReports && state.dailyReports.length > 0) {
+        dailyTableHTML = `
+            <div class="premium-card" style="grid-column: 1 / -1; margin-top: 20px;">
+                <div class="card-header">
+                    <h3>📅 Daily Financial Breakdown</h3>
+                    <div class="subtitle">Operational Profit & Loss (Last ${state.dailyReports.length} days)</div>
+                </div>
+                <div class="card-body" style="padding: 0; overflow-x: auto; max-height: 500px; overflow-y: auto;">
+                    <table style="width: 100%; border-collapse: collapse; min-width: 850px; font-size: 0.85rem;">
+                        <thead>
+                            <tr style="background: #0b1220; position: sticky; top: 0; z-index: 10;">
+                                <th style="padding: 10px; text-align: left; border-bottom: 2px solid #243042;">Date</th>
+                                <th style="padding: 10px; text-align: right; border-bottom: 2px solid #243042; color: var(--accent);">🎟 Tickets</th>
+                                <th style="padding: 10px; text-align: right; border-bottom: 2px solid #243042; color: var(--accent);">🏪 Amenities</th>
+                                <th style="padding: 10px; text-align: right; border-bottom: 2px solid #243042; color: var(--accent);">🦁 Animals</th>
+                                <th style="padding: 10px; text-align: right; border-bottom: 2px solid #243042; color: var(--danger);">👷 Staff</th>
+                                <th style="padding: 10px; text-align: right; border-bottom: 2px solid #243042; color: var(--danger);">🧾 Upkeep</th>
+                                <th style="padding: 10px; text-align: right; border-bottom: 2px solid #243042; color: var(--danger);">🧹 Maint</th>
+                                <th style="padding: 10px; text-align: right; border-bottom: 2px solid #243042; color: var(--danger);">🍖 Food</th>
+                                <th style="padding: 10px; text-align: right; border-bottom: 2px solid #243042; color: var(--gold); font-weight: 800;">💰 Net</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${state.dailyReports.map(r => {
+                                const netColor = r.net >= 0 ? 'var(--accent)' : 'var(--danger)';
+                                return `
+                                <tr style="border-bottom: 1px solid #1e293b; transition: background 0.2s;" onmouseover="this.style.background='#1e293b'" onmouseout="this.style.background='transparent'">
+                                    <td style="padding: 8px 10px; font-weight: 600; white-space: nowrap;">Y${r.year} M${r.month} D${r.day}</td>
+                                    <td style="padding: 8px 10px; text-align: right; color: var(--accent);">$${r.income.tickets.toLocaleString()}</td>
+                                    <td style="padding: 8px 10px; text-align: right; color: var(--accent);">$${r.income.amenities.toLocaleString()}</td>
+                                    <td style="padding: 8px 10px; text-align: right; color: var(--accent);">$${r.income.animals.toLocaleString()}</td>
+                                    <td style="padding: 8px 10px; text-align: right; color: var(--danger);">-$${r.expenses.staff.toLocaleString()}</td>
+                                    <td style="padding: 8px 10px; text-align: right; color: var(--danger);">-$${r.expenses.upkeep.toLocaleString()}</td>
+                                    <td style="padding: 8px 10px; text-align: right; color: var(--danger);">-$${r.expenses.maintenance.toLocaleString()}</td>
+                                    <td style="padding: 8px 10px; text-align: right; color: var(--danger);">-$${r.expenses.food.toLocaleString()}</td>
+                                    <td style="padding: 8px 10px; text-align: right; font-weight: 800; color: ${netColor};">$${r.net.toLocaleString()}</td>
+                                </tr>`;
+                            }).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        `;
+    } else {
+        dailyTableHTML = `<div class="premium-card" style="grid-column: 1 / -1; margin-top: 20px;"><div class="card-body" style="text-align:center; color:var(--muted); padding: 30px;">End a day to see your daily financial breakdown!</div></div>`;
+    }
+    
+    // Append the daily table to the bottom of the reports section
+    box.insertAdjacentHTML('beforeend', dailyTableHTML);
+}
             function renderStaff() {
                 const box = document.getElementById("staff");
                 if (!box) return;
@@ -3743,175 +3741,197 @@ function buildExhibit(size, type = 'terrestrial') {
                 state.monthlyIncomeTracker = 0; // Reset tracker for the new month
                 renderReports();
             }
-            function advanceDay() {
-                if (state.activeEvent) {
-                    showToast("Resolve the current event before ending the day!", "warn");
-                    return;
-                }
-                const startMoney = state.money;
-                consumeDailyFood();
-                processAnimalHealth();
-                processDayIncome();
-                processAnimalIncome();
-                processUpkeep();
-                processDailyMaintenance();
-                processFenceDegradation();
-                processExhibitCleanliness();
+           function advanceDay() {
+    if (state.activeEvent) {
+        showToast("Resolve the current event before ending the day!", "warn");
+        return;
+    }
+    const startMoney = state.money;
 
-                if (state.recentDeathPenalty > 0) state.recentDeathPenalty = Math.max(0, state.recentDeathPenalty - 5);
+    // ✅ 1. TRACK FOOD CONSUMPTION (Value of food eaten today)
+    const foodConsumed = consumeDailyFood();
+    const foodExpense = (foodConsumed.hay * FOOD_TYPES.hay.costPerUnit) + 
+                        (foodConsumed.meat * FOOD_TYPES.meat.costPerUnit) + 
+                        (foodConsumed.produce * FOOD_TYPES.produce.costPerUnit);
 
-                const allExhibits = getAllExhibits();
-                for (const {
-                        exhibit
-                    }
-                    of allExhibits) {
-                    if (exhibit.buildDaysRemaining > 0) continue;
-                    const condition = exhibit.fenceCondition || 100;
-                    if (condition < 30 && condition >= 10) addTicker(`🔴 ${exhibit.name} fence is critical! Repair immediately!`);
-                    else if (condition < 50 && condition >= 30) addTicker(`🔶 ${exhibit.name} fence needs urgent repair!`);
-                    else if (condition < 70 && condition >= 50) addTicker(`⚠️ ${exhibit.name} fence is wearing down.`);
-                }
+    processAnimalHealth();
+    
+    // ✅ 2. CAPTURE INCOMES & STAFF EXPENSES
+    processDayIncome();
+    const ticketIncome = state.dailyVisitors * state.ticketPrice;
+    const amenityIncome = state.visitorSpending.total;
+    const staffExpense = state.hiredStaff.reduce((sum, inst) => {
+        const s = data.staff.find(x => x.id === inst.typeId);
+        return sum + (s?.salary || 0);
+    }, 0);
+    
+    const animalIncome = getAllAnimals().reduce((sum, a) => sum + calculateAnimalIncome(a), 0);
+    processAnimalIncome();
 
-                renderExhibits();
-                const delta = state.money - startMoney;
-                if (delta !== 0) showFloatingMoney(delta);
-                state.monthlyIncomeTracker = (state.monthlyIncomeTracker || 0) + delta;
-                state.daysSinceNewAnimal++;
+    // ✅ 3. CAPTURE FACILITY EXPENSES
+    const upkeepExpense = processUpkeep(); // Note: Ensure processUpkeep() has "return totalCost;" at the end!
+    processDailyMaintenance();
+    const maintenanceExpense = state.maintenance.dailyMaintenanceCost;
 
-                const deaths = [];
-                for (const {
-                        exhibit
-                    }
-                    of allExhibits) {
-                    for (const animal of exhibit.animals) {
-                        animal.ageDays = (animal.ageDays || 0) + 1;
-                        if (animal.ageDays === 30) addTicker(`🎂 ${animal.name} is now a juvenile!`);
-                        else if (animal.ageDays === 90) addTicker(`🎉 ${animal.name} has reached adulthood!`);
-                        else if (animal.ageDays === 365) addTicker(`👴 ${animal.name} is now a senior.`);
-                        if (shouldDieOfOldAge(animal)) {
-                            deaths.push({
-                                animal,
-                                exhibit,
-                                cause: 'old age'
-                            });
-                        } else if (animal.sick && Math.random() < 0.05) {
-                            deaths.push({
-                                animal,
-                                exhibit,
-                                cause: 'sickness'
-                            });
-                        }
-                    }
-                }
+    processFenceDegradation();
+    processExhibitCleanliness();
 
-                for (const death of deaths) {
-                    death.exhibit.animals = death.exhibit.animals.filter(a => a !== death.animal);
-                    const causeEmoji = death.cause === 'old age' ? '⚰️' : '💀';
-                    addTicker(`${causeEmoji} ${death.animal.name} passed away from ${death.cause}.`);
-                    showToast(`${causeEmoji} ${death.animal.name} has died.`, 'error');
-                    state.naturalDeaths = (state.naturalDeaths || 0) + 1;
-                    state.totalDeaths = (state.totalDeaths || 0) + 1;
-    const deathPenalty = Math.max(50, Math.floor(death.animal.cost * 0.15));
-    state.money -= deathPenalty;
-    showFloatingMoney(-deathPenalty);
-}
+    // ✅ 4. SAVE DAILY FINANCIAL REPORT
+    if (!state.dailyReports) state.dailyReports = [];
+    const netProfit = ticketIncome + amenityIncome + animalIncome - staffExpense - upkeepExpense - maintenanceExpense - foodExpense;
 
-                for (const {
-                        exhibit
-                    }
-                    of allExhibits) tryBreeding(exhibit);
+    state.dailyReports.unshift({
+        day: state.day,
+        month: state.month,
+        year: state.year,
+        income: { tickets: ticketIncome, amenities: amenityIncome, animals: animalIncome },
+        expenses: { staff: staffExpense, upkeep: upkeepExpense, maintenance: maintenanceExpense, food: foodExpense },
+        net: netProfit
+    });
 
-                for (const {
-                        exhibit
-                    }
-                    of allExhibits) {
-                    for (const animal of exhibit.animals) {
-                        if (animal.isPregnant) {
-                            animal.daysUntilBirth--;
-                            if (animal.daysUntilBirth <= 0) {
-                                const species = animal.babySpecies || animal.id;
-                                const speciesData = data.animals.find(a => a.id === species);
-                                const baby = {
-                                    id: species,
-                                    name: getNextAnimalName(speciesData?.name || species),
-                                    gender: Math.random() < 0.5 ? "male" : "female",
-                                    ageDays: 0,
-                                    dailyIncome: animal.dailyIncome,
-                                    foodCost: animal.foodCost,
-                                    diet: animal.diet,
-                                    variation: null,
-                                    compatibleWith: animal.compatibleWith,
-                                    minInExhibit: animal.minInExhibit,
-                                    maxInExhibit: animal.maxInExhibit,
-                                    breedChance: animal.breedChance,
-                                    bornInZoo: true,
-                                    health: 100
-                                };
-                                exhibit.animals.push(baby);
-                                animal.isPregnant = false;
-                                delete animal.daysUntilBirth;
-                                delete animal.babySpecies;
-                                delete animal.babyFather;
-                                state.bredAnimals++;
-                                addTicker(`🍼 ${baby.name} was born to ${animal.name}!`);
-                                showToast(`🎉 ${baby.name} has been born!`, "info");
-                            }
-                        }
-                    }
-                }
+    // Keep only the last 90 days to prevent localStorage bloat
+    if (state.dailyReports.length > 90) state.dailyReports.length = 90;
 
-                if (state.activeResearch) {
-                    state.activeResearch.daysRemaining--;
-                    if (state.activeResearch.daysRemaining <= 0) {
-                        const project = data.researchProjects[state.activeResearch.projectId];
-                        state.completedResearch.push(state.activeResearch.projectId);
-                        state.activeResearch = null;
-                        if (project) {
-                            addTicker(`🎉 Research complete: ${project.name}!`);
-                            showToast(`🔬 ${project.name} complete! ${project.unlocks.length} new animals unlocked!`, "info");
-                        }
-                        renderShop();
-                    }
-                }
+    if (state.recentDeathPenalty > 0) state.recentDeathPenalty = Math.max(0, state.recentDeathPenalty - 5);
 
-                state.day++;
-                if (state.day > 30) {
-                    state.day = 1;
-                    state.month++;
-                    showMonthlyReport();
-                }
-                if (state.month > 12) {
-                    state.month = 1;
-                    state.year++;
-                }
+    const allExhibits = getAllExhibits();
+    for (const { exhibit } of allExhibits) {
+        if (exhibit.buildDaysRemaining > 0) continue;
+        const condition = exhibit.fenceCondition || 100;
+        if (condition < 30 && condition >= 10) addTicker(`🔴 ${exhibit.name} fence is critical! Repair immediately!`);
+        else if (condition < 50 && condition >= 30) addTicker(`🔶 ${exhibit.name} fence needs urgent repair!`);
+        else if (condition < 70 && condition >= 50) addTicker(`⚠️ ${exhibit.name} fence is wearing down.`);
+    }
 
-                checkAchievements();
-                updateUI();
-                renderExhibits();
-                renderAchievements();
-                renderVisitors();
-                renderSupplies();
+    renderExhibits();
 
-                const oldRating = state.zooRating || 0;
-                state.zooRating = calculateZooRating();
-                const newTier = getZooRatingTier(state.zooRating);
-                const oldTier = getZooRatingTier(oldRating);
-                if (newTier.tierNum > oldTier.tierNum) {
-                    addTicker(`🎉 Zoo upgraded to ${newTier.emoji} ${newTier.label}!`);
-                    showToast(`Zoo Rating: ${newTier.emoji} ${newTier.label}!`, "info");
-                    const tierBonus = newTier.tierNum * 500;
-                    state.money += tierBonus;
-                    showFloatingMoney(tierBonus);
-                } else if (newTier.tierNum < oldTier.tierNum) {
-                    addTicker(`📉 Zoo rating dropped to ${newTier.emoji} ${newTier.label}`);
-                    showToast(`Zoo rating dropped!`, "warn");
-                }
+    const delta = state.money - startMoney;
+    if (delta !== 0) showFloatingMoney(delta);
+    state.monthlyIncomeTracker = (state.monthlyIncomeTracker || 0) + delta;
+    state.daysSinceNewAnimal++;
 
-                saveGame();
-                submitToLeaderboard();
-                triggerRandomEvent();
+    const deaths = [];
+    for (const { exhibit } of allExhibits) {
+        for (const animal of exhibit.animals) {
+            animal.ageDays = (animal.ageDays || 0) + 1;
+            if (animal.ageDays === 30) addTicker(`🎂 ${animal.name} is now a juvenile!`);
+            else if (animal.ageDays === 90) addTicker(`🎉 ${animal.name} has reached adulthood!`);
+            else if (animal.ageDays === 365) addTicker(`👴 ${animal.name} is now a senior.`);
+
+            if (shouldDieOfOldAge(animal)) {
+                deaths.push({ animal, exhibit, cause: 'old age' });
+            } else if (animal.sick && Math.random() < 0.05) {
+                deaths.push({ animal, exhibit, cause: 'sickness' });
             }
+        }
+    }
 
+    for (const death of deaths) {
+        death.exhibit.animals = death.exhibit.animals.filter(a => a !== death.animal);
+        const causeEmoji = death.cause === 'old age' ? '⚰️' : '💀';
+        addTicker(`${causeEmoji} ${death.animal.name} passed away from ${death.cause}.`);
+        showToast(`${causeEmoji} ${death.animal.name} has died.`, 'error');
+        state.naturalDeaths = (state.naturalDeaths || 0) + 1;
+        state.totalDeaths = (state.totalDeaths || 0) + 1;
+        
+        // ✅ UPDATED: Death penalty based on purchase cost (looked up from JSON data)
+        const baseAnimalData = data.animals.find(a => a.id === death.animal.id);
+        const animalCost = baseAnimalData?.cost || 1000; 
+        const deathPenalty = Math.max(50, Math.floor(animalCost * 0.15));
+        state.money -= deathPenalty;
+        showFloatingMoney(-deathPenalty);
+    }
+
+    for (const { exhibit } of allExhibits) tryBreeding(exhibit);
+
+    for (const { exhibit } of allExhibits) {
+        for (const animal of exhibit.animals) {
+            if (animal.isPregnant) {
+                animal.daysUntilBirth--;
+                if (animal.daysUntilBirth <= 0) {
+                    const species = animal.babySpecies || animal.id;
+                    const speciesData = data.animals.find(a => a.id === species);
+                    const baby = {
+                        id: species,
+                        name: getNextAnimalName(speciesData?.name || species),
+                        gender: Math.random() < 0.5 ? "male" : "female",
+                        ageDays: 0,
+                        dailyIncome: animal.dailyIncome,
+                        foodCost: animal.foodCost,
+                        diet: animal.diet,
+                        variation: null,
+                        compatibleWith: animal.compatibleWith,
+                        minInExhibit: animal.minInExhibit,
+                        maxInExhibit: animal.maxInExhibit,
+                        breedChance: animal.breedChance,
+                        bornInZoo: true,
+                        health: 100
+                    };
+                    exhibit.animals.push(baby);
+                    animal.isPregnant = false;
+                    delete animal.daysUntilBirth;
+                    delete animal.babySpecies;
+                    delete animal.babyFather;
+                    state.bredAnimals++;
+                    addTicker(`🍼 ${baby.name} was born to ${animal.name}!`);
+                    showToast(`🎉 ${baby.name} has been born!`, "info");
+                }
+            }
+        }
+    }
+
+    if (state.activeResearch) {
+        state.activeResearch.daysRemaining--;
+        if (state.activeResearch.daysRemaining <= 0) {
+            const project = data.researchProjects[state.activeResearch.projectId];
+            state.completedResearch.push(state.activeResearch.projectId);
+            state.activeResearch = null;
+            if (project) {
+                addTicker(`🎉 Research complete: ${project.name}!`);
+                showToast(`🔬 ${project.name} complete! ${project.unlocks.length} new animals unlocked!`, "info");
+            }
+            renderShop();
+        }
+    }
+
+    state.day++;
+    if (state.day > 30) {
+        state.day = 1;
+        state.month++;
+        showMonthlyReport();
+    }
+    if (state.month > 12) {
+        state.month = 1;
+        state.year++;
+    }
+
+    checkAchievements();
+    updateUI();
+    renderExhibits();
+    renderAchievements();
+    renderVisitors();
+    renderSupplies();
+
+    const oldRating = state.zooRating || 0;
+    state.zooRating = calculateZooRating();
+    const newTier = getZooRatingTier(state.zooRating);
+    const oldTier = getZooRatingTier(oldRating);
+
+    if (newTier.tierNum > oldTier.tierNum) {
+        addTicker(`🎉 Zoo upgraded to ${newTier.emoji} ${newTier.label}!`);
+        showToast(`Zoo Rating: ${newTier.emoji} ${newTier.label}!`, "info");
+        const tierBonus = newTier.tierNum * 500;
+        state.money += tierBonus;
+        showFloatingMoney(tierBonus);
+    } else if (newTier.tierNum < oldTier.tierNum) {
+        addTicker(`📉 Zoo rating dropped to ${newTier.emoji} ${newTier.label}`);
+        showToast(`Zoo rating dropped!`, "warn");
+    }
+
+    saveGame();
+    submitToLeaderboard();
+    triggerRandomEvent();
+}
             function updateTicketPrice(newPrice) {
                 const price = parseInt(newPrice);
                 if (price < 5 || price > 100) return;
