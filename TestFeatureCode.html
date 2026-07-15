@@ -2182,23 +2182,15 @@ function setDailyReportFilter(filter) {
 
             
        function renderReports() {
-    // Ensure filter state exists
     if (!state.dailyReportFilter) state.dailyReportFilter = '7days';
-
     const box = document.getElementById("reports");
     
-    // 1. BUILD DAILY BREAKDOWN HTML (Now at the top!)
     let dailyTableHTML = '';
     if (state.dailyReports && state.dailyReports.length > 0) {
-        // Apply filter
         let filteredReports = [...state.dailyReports];
-        if (state.dailyReportFilter === '7days') {
-            filteredReports = filteredReports.slice(0, 7);
-        } else if (state.dailyReportFilter === '30days') {
-            filteredReports = filteredReports.slice(0, 30);
-        }
+        if (state.dailyReportFilter === '7days') filteredReports = filteredReports.slice(0, 7);
+        else if (state.dailyReportFilter === '30days') filteredReports = filteredReports.slice(0, 30);
 
-        // Calculate totals for the filtered period
         const totalTickets = filteredReports.reduce((sum, r) => sum + r.income.tickets, 0);
         const totalAmenities = filteredReports.reduce((sum, r) => sum + r.income.amenities, 0);
         const totalAnimals = filteredReports.reduce((sum, r) => sum + r.income.animals, 0);
@@ -2206,8 +2198,11 @@ function setDailyReportFilter(filter) {
         const totalUpkeep = filteredReports.reduce((sum, r) => sum + r.expenses.upkeep, 0);
         const totalMaint = filteredReports.reduce((sum, r) => sum + r.expenses.maintenance, 0);
         const totalFood = filteredReports.reduce((sum, r) => sum + r.expenses.food, 0);
+        const totalInvestments = filteredReports.reduce((sum, r) => sum + (r.investments || 0), 0);
         const totalNet = filteredReports.reduce((sum, r) => sum + r.net, 0);
+        
         const netColor = totalNet >= 0 ? 'var(--accent)' : 'var(--danger)';
+        const invColor = totalInvestments >= 0 ? 'var(--accent)' : 'var(--purple)';
 
         const filterButtons = `
             <div style="display: flex; gap: 8px; margin-bottom: 15px; flex-wrap: wrap;">
@@ -2221,12 +2216,12 @@ function setDailyReportFilter(filter) {
             <div class="premium-card" style="grid-column: 1 / -1; margin-bottom: 20px;">
                 <div class="card-header">
                     <h3>📅 Daily Financial Breakdown</h3>
-                    <div class="subtitle">Operational Profit & Loss</div>
+                    <div class="subtitle">Complete Cash Flow & Operational Profit/Loss</div>
                 </div>
                 <div class="card-body" style="padding: 15px;">
                     ${filterButtons}
                     <div style="overflow-x: auto; max-height: 500px; overflow-y: auto;">
-                        <table style="width: 100%; border-collapse: collapse; min-width: 850px; font-size: 0.85rem;">
+                        <table style="width: 100%; border-collapse: collapse; min-width: 950px; font-size: 0.85rem;">
                             <thead>
                                 <tr style="background: #0b1220; position: sticky; top: 0; z-index: 10;">
                                     <th style="padding: 10px; text-align: left; border-bottom: 2px solid #243042;">Date</th>
@@ -2237,12 +2232,15 @@ function setDailyReportFilter(filter) {
                                     <th style="padding: 10px; text-align: right; border-bottom: 2px solid #243042; color: var(--danger);">🧾 Upkeep</th>
                                     <th style="padding: 10px; text-align: right; border-bottom: 2px solid #243042; color: var(--danger);">🧹 Maint</th>
                                     <th style="padding: 10px; text-align: right; border-bottom: 2px solid #243042; color: var(--danger);">🍖 Food</th>
+                                    <th style="padding: 10px; text-align: right; border-bottom: 2px solid #243042; color: var(--purple);">📦 Purchases</th>
                                     <th style="padding: 10px; text-align: right; border-bottom: 2px solid #243042; color: var(--gold); font-weight: 800;">💰 Net</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 ${filteredReports.map(r => {
                                     const rowNetColor = r.net >= 0 ? 'var(--accent)' : 'var(--danger)';
+                                    const rowInvColor = (r.investments || 0) >= 0 ? 'var(--accent)' : 'var(--purple)';
+                                    const invVal = r.investments || 0;
                                     return `
                                     <tr style="border-bottom: 1px solid #1e293b; transition: background 0.2s;" onmouseover="this.style.background='#1e293b'" onmouseout="this.style.background='transparent'">
                                         <td style="padding: 8px 10px; font-weight: 600; white-space: nowrap;">Y${r.year} M${r.month} D${r.day}</td>
@@ -2253,7 +2251,8 @@ function setDailyReportFilter(filter) {
                                         <td style="padding: 8px 10px; text-align: right; color: var(--danger);">-$${r.expenses.upkeep.toLocaleString()}</td>
                                         <td style="padding: 8px 10px; text-align: right; color: var(--danger);">-$${r.expenses.maintenance.toLocaleString()}</td>
                                         <td style="padding: 8px 10px; text-align: right; color: var(--danger);">-$${r.expenses.food.toLocaleString()}</td>
-                                        <td style="padding: 8px 10px; text-align: right; font-weight: 800; color: ${rowNetColor};">$${r.net.toLocaleString()}</td>
+                                        <td style="padding: 8px 10px; text-align: right; color: ${rowInvColor};">${invVal >= 0 ? '+' : ''}$${invVal.toLocaleString()}</td>
+                                        <td style="padding: 8px 10px; text-align: right; font-weight: 800; color: ${rowNetColor};">${r.net >= 0 ? '+' : ''}$${r.net.toLocaleString()}</td>
                                     </tr>`;
                                 }).join('')}
                                 <tr style="background: #0b1220; font-weight: 800; border-top: 2px solid #243042;">
@@ -2265,7 +2264,8 @@ function setDailyReportFilter(filter) {
                                     <td style="padding: 10px; text-align: right; color: var(--danger);">-$${totalUpkeep.toLocaleString()}</td>
                                     <td style="padding: 10px; text-align: right; color: var(--danger);">-$${totalMaint.toLocaleString()}</td>
                                     <td style="padding: 10px; text-align: right; color: var(--danger);">-$${totalFood.toLocaleString()}</td>
-                                    <td style="padding: 10px; text-align: right; color: ${netColor};">$${totalNet.toLocaleString()}</td>
+                                    <td style="padding: 10px; text-align: right; color: ${invColor};">${totalInvestments >= 0 ? '+' : ''}$${totalInvestments.toLocaleString()}</td>
+                                    <td style="padding: 10px; text-align: right; color: ${netColor};">${totalNet >= 0 ? '+' : ''}$${totalNet.toLocaleString()}</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -2277,7 +2277,6 @@ function setDailyReportFilter(filter) {
         dailyTableHTML = `<div class="premium-card" style="grid-column: 1 / -1; margin-bottom: 20px;"><div class="card-body" style="text-align:center; color:var(--muted); padding: 30px;">End a day to see your daily financial breakdown!</div></div>`;
     }
 
-    // 2. INJECT HTML: Daily Table FIRST, then Monthly Chart & Cards
     box.innerHTML = `
         ${dailyTableHTML}
         <div class="premium-card" style="grid-column: 1 / -1; margin-bottom: 20px;">
@@ -2287,7 +2286,6 @@ function setDailyReportFilter(filter) {
         <div class="grid-layout" id="reportsGrid" style="grid-column: 1 / -1;"></div>
     `;
     
-    // 3. RENDER MONTHLY CHART & CARDS (Unchanged logic)
     const grid = box.querySelector('#reportsGrid');
     if (state.monthlyReports.length === 0) {
         grid.innerHTML = '<div style="text-align:center; padding:40px; color:var(--muted); grid-column: 1/-1;"><h2>📊 No Monthly Reports Yet</h2><p>Advance 30 days to generate your first monthly report!</p></div>';
@@ -3806,7 +3804,7 @@ function buildExhibit(size, type = 'terrestrial') {
     }
     const startMoney = state.money;
 
-    // ✅ 1. TRACK FOOD CONSUMPTION (Value of food eaten today)
+    // 1. TRACK FOOD CONSUMPTION (Operational cost)
     const foodConsumed = consumeDailyFood();
     const foodExpense = (foodConsumed.hay * FOOD_TYPES.hay.costPerUnit) + 
                         (foodConsumed.meat * FOOD_TYPES.meat.costPerUnit) + 
@@ -3814,7 +3812,7 @@ function buildExhibit(size, type = 'terrestrial') {
 
     processAnimalHealth();
     
-    // ✅ 2. CAPTURE INCOMES & STAFF EXPENSES
+    // 2. CAPTURE INCOMES & STAFF EXPENSES
     processDayIncome();
     const ticketIncome = state.dailyVisitors * state.ticketPrice;
     const amenityIncome = state.visitorSpending.total;
@@ -3826,29 +3824,13 @@ function buildExhibit(size, type = 'terrestrial') {
     const animalIncome = getAllAnimals().reduce((sum, a) => sum + calculateAnimalIncome(a), 0);
     processAnimalIncome();
 
-    // ✅ 3. CAPTURE FACILITY EXPENSES
-    const upkeepExpense = processUpkeep(); // Note: Ensure processUpkeep() has "return totalCost;" at the end!
+    // 3. CAPTURE FACILITY EXPENSES
+    const upkeepExpense = processUpkeep(); // Ensure processUpkeep() has "return totalCost;" at the end!
     processDailyMaintenance();
     const maintenanceExpense = state.maintenance.dailyMaintenanceCost;
 
     processFenceDegradation();
     processExhibitCleanliness();
-
-    // ✅ 4. SAVE DAILY FINANCIAL REPORT
-    if (!state.dailyReports) state.dailyReports = [];
-    const netProfit = ticketIncome + amenityIncome + animalIncome - staffExpense - upkeepExpense - maintenanceExpense - foodExpense;
-
-    state.dailyReports.unshift({
-        day: state.day,
-        month: state.month,
-        year: state.year,
-        income: { tickets: ticketIncome, amenities: amenityIncome, animals: animalIncome },
-        expenses: { staff: staffExpense, upkeep: upkeepExpense, maintenance: maintenanceExpense, food: foodExpense },
-        net: netProfit
-    });
-
-    // Keep only the last 90 days to prevent localStorage bloat
-    if (state.dailyReports.length > 90) state.dailyReports.length = 90;
 
     if (state.recentDeathPenalty > 0) state.recentDeathPenalty = Math.max(0, state.recentDeathPenalty - 5);
 
@@ -3863,9 +3845,7 @@ function buildExhibit(size, type = 'terrestrial') {
 
     renderExhibits();
 
-    const delta = state.money - startMoney;
-    if (delta !== 0) showFloatingMoney(delta);
-    state.monthlyIncomeTracker = (state.monthlyIncomeTracker || 0) + delta;
+    state.monthlyIncomeTracker = (state.monthlyIncomeTracker || 0) + (state.money - startMoney);
     state.daysSinceNewAnimal++;
 
     const deaths = [];
@@ -3876,11 +3856,8 @@ function buildExhibit(size, type = 'terrestrial') {
             else if (animal.ageDays === 90) addTicker(`🎉 ${animal.name} has reached adulthood!`);
             else if (animal.ageDays === 365) addTicker(`👴 ${animal.name} is now a senior.`);
 
-            if (shouldDieOfOldAge(animal)) {
-                deaths.push({ animal, exhibit, cause: 'old age' });
-            } else if (animal.sick && Math.random() < 0.05) {
-                deaths.push({ animal, exhibit, cause: 'sickness' });
-            }
+            if (shouldDieOfOldAge(animal)) deaths.push({ animal, exhibit, cause: 'old age' });
+            else if (animal.sick && Math.random() < 0.05) deaths.push({ animal, exhibit, cause: 'sickness' });
         }
     }
 
@@ -3892,12 +3869,10 @@ function buildExhibit(size, type = 'terrestrial') {
         state.naturalDeaths = (state.naturalDeaths || 0) + 1;
         state.totalDeaths = (state.totalDeaths || 0) + 1;
         
-        // ✅ UPDATED: Death penalty based on purchase cost (looked up from JSON data)
         const baseAnimalData = data.animals.find(a => a.id === death.animal.id);
         const animalCost = baseAnimalData?.cost || 1000; 
         const deathPenalty = Math.max(50, Math.floor(animalCost * 0.15));
         state.money -= deathPenalty;
-        showFloatingMoney(-deathPenalty);
     }
 
     for (const { exhibit } of allExhibits) tryBreeding(exhibit);
@@ -3910,26 +3885,16 @@ function buildExhibit(size, type = 'terrestrial') {
                     const species = animal.babySpecies || animal.id;
                     const speciesData = data.animals.find(a => a.id === species);
                     const baby = {
-                        id: species,
-                        name: getNextAnimalName(speciesData?.name || species),
-                        gender: Math.random() < 0.5 ? "male" : "female",
-                        ageDays: 0,
-                        dailyIncome: animal.dailyIncome,
-                        foodCost: animal.foodCost,
-                        diet: animal.diet,
-                        variation: null,
-                        compatibleWith: animal.compatibleWith,
-                        minInExhibit: animal.minInExhibit,
-                        maxInExhibit: animal.maxInExhibit,
-                        breedChance: animal.breedChance,
-                        bornInZoo: true,
-                        health: 100
+                        id: species, name: getNextAnimalName(speciesData?.name || species),
+                        gender: Math.random() < 0.5 ? "male" : "female", ageDays: 0,
+                        dailyIncome: animal.dailyIncome, foodCost: animal.foodCost, diet: animal.diet,
+                        variation: null, compatibleWith: animal.compatibleWith,
+                        minInExhibit: animal.minInExhibit, maxInExhibit: animal.maxInExhibit,
+                        breedChance: animal.breedChance, bornInZoo: true, health: 100
                     };
                     exhibit.animals.push(baby);
                     animal.isPregnant = false;
-                    delete animal.daysUntilBirth;
-                    delete animal.babySpecies;
-                    delete animal.babyFather;
+                    delete animal.daysUntilBirth; delete animal.babySpecies; delete animal.babyFather;
                     state.bredAnimals++;
                     addTicker(`🍼 ${baby.name} was born to ${animal.name}!`);
                     showToast(`🎉 ${baby.name} has been born!`, "info");
@@ -3953,15 +3918,8 @@ function buildExhibit(size, type = 'terrestrial') {
     }
 
     state.day++;
-    if (state.day > 30) {
-        state.day = 1;
-        state.month++;
-        showMonthlyReport();
-    }
-    if (state.month > 12) {
-        state.month = 1;
-        state.year++;
-    }
+    if (state.day > 30) { state.day = 1; state.month++; showMonthlyReport(); }
+    if (state.month > 12) { state.month = 1; state.year++; }
 
     checkAchievements();
     updateUI();
@@ -3978,46 +3936,40 @@ function buildExhibit(size, type = 'terrestrial') {
     if (newTier.tierNum > oldTier.tierNum) {
         addTicker(`🎉 Zoo upgraded to ${newTier.emoji} ${newTier.label}!`);
         showToast(`Zoo Rating: ${newTier.emoji} ${newTier.label}!`, "info");
-        const tierBonus = newTier.tierNum * 500;
-        state.money += tierBonus;
-        showFloatingMoney(tierBonus);
+        state.money += newTier.tierNum * 500;
     } else if (newTier.tierNum < oldTier.tierNum) {
         addTicker(`📉 Zoo rating dropped to ${newTier.emoji} ${newTier.label}`);
         showToast(`Zoo rating dropped!`, "warn");
     }
 
+    // ✅ 4. SAVE DAILY FINANCIAL REPORT (Now captures ALL cash flow!)
+    if (!state.dailyReports) state.dailyReports = [];
+    
+    const accountedNet = ticketIncome + amenityIncome + animalIncome - staffExpense - upkeepExpense - maintenanceExpense - foodExpense;
+    const actualDelta = state.money - startMoney;
+    
+    // This captures ALL cash flow from UI actions: buying food, building exhibits, upgrades, research, selling animals, death penalties, etc.
+    const purchasesAndInvestments = actualDelta - accountedNet;
+
+    state.dailyReports.unshift({
+        day: state.day - 1, // Use the day that just ended
+        month: state.month,
+        year: state.year,
+        income: { tickets: ticketIncome, amenities: amenityIncome, animals: animalIncome },
+        expenses: { staff: staffExpense, upkeep: upkeepExpense, maintenance: maintenanceExpense, food: foodExpense },
+        investments: purchasesAndInvestments, 
+        net: actualDelta 
+    });
+
+    if (state.dailyReports.length > 90) state.dailyReports.length = 90;
+
+    // Show the true daily delta as floating money
+    if (actualDelta !== 0) showFloatingMoney(actualDelta);
+
     saveGame();
     submitToLeaderboard();
     triggerRandomEvent();
 }
-            function updateTicketPrice(newPrice) {
-                const price = parseInt(newPrice);
-                if (price < 5 || price > 100) return;
-                state.ticketPrice = price;
-                document.getElementById("ticketPrice").textContent = `${price}`; // ✅ Correct
-                const basePrice = 20;
-                const priceDiff = price - basePrice;
-                const zooRating = state.zooRating || 0;
-                const premiumMultiplier = zooRating >= 80 ? 1.5 : zooRating >= 60 ? 1.2 : 1.0;
-                const adjustedPrice = basePrice * premiumMultiplier;
-                const effectiveDiff = price - adjustedPrice;
-                const visitorImpact = effectiveDiff > 0 ? -3 * effectiveDiff : 2 * Math.abs(effectiveDiff);
-                const satisfactionImpact = effectiveDiff > 0 ? -2 * effectiveDiff : 1 * Math.abs(effectiveDiff);
-                const slider = document.getElementById("ticketPriceSlider");
-                if (effectiveDiff > 10) {
-                    slider.style.background = 'linear-gradient(to right, #22c55e 0%, #ef4444 100%)';
-                    showToast(`⚠️ Price too high! Visitors will drop by ${Math.abs(visitorImpact)}%`, "warn");
-                } else if (effectiveDiff < -5) {
-                    slider.style.background = 'linear-gradient(to right, #22c55e 0%, #3b82f6 100%)';
-                    showToast(`💰 Great value! Visitors will increase by ${visitorImpact}%`, "info");
-                } else {
-                    slider.style.background = 'linear-gradient(to right, #22c55e, #22c55e)';
-                }
-                state.ticketPriceImpact = visitorImpact;
-                state.ticketSatisfactionImpact = satisfactionImpact;
-                saveGame();
-            }
-
             function updateUI() {
     const allAnimals = getAllAnimals();
     
