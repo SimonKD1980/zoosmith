@@ -3797,6 +3797,7 @@ function buildExhibit(size, type = 'terrestrial') {
                 state.monthlyIncomeTracker = 0; // Reset tracker for the new month
                 renderReports();
             }
+            
            function advanceDay() {
     if (state.activeEvent) {
         showToast("Resolve the current event before ending the day!", "warn");
@@ -3824,11 +3825,13 @@ function buildExhibit(size, type = 'terrestrial') {
         return sum + (s?.salary || 0);
     }, 0);
     
-    const animalIncome = getAllAnimals().reduce((sum, a) => sum + calculateAnimalIncome(a), 0);
-    processAnimalIncome();
+    // ✅ FIXED: Animals no longer generate direct daily cash (income is from tickets!)
+    // Setting this to 0 ensures the report math matches the actual bank account changes.
+    const animalIncome = 0; 
+    processAnimalIncome(); // This function should return 0 or do nothing
 
     // 4. CAPTURE FACILITY EXPENSES
-    const upkeepExpense = processUpkeep(); // Ensure processUpkeep() has "return totalCost;" at the end!
+    const upkeepExpense = processUpkeep(); 
     processDailyMaintenance();
     const maintenanceExpense = state.maintenance.dailyMaintenanceCost;
 
