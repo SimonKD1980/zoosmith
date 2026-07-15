@@ -1980,82 +1980,41 @@ function renderShopGrid() {
     grid.innerHTML = '';
 
     filtered.forEach(animal => {
+        const slotCost = getAnimalSlotCost(animal);
+        const slotColor = slotCost >= 3 ? 'danger' : slotCost >= 2 ? 'warn' : 'blue';
         const dietEmoji = animal.diet === 'Carnivore' ? '🥩' : animal.diet === 'Herbivore' ? '🌿' : '🍖';
         const statusEmoji = animal.conservationStatus === 'Endangered' ? '🔴' : 
                             animal.conservationStatus === 'Vulnerable' ? '🟡' : 
                             animal.conservationStatus === 'Critically Endangered' ? '⚫' : '🟢';
         
-        // Calculate actual net income using the JSON foodAmount and diet
+        // ✅ FIXED: Use getActualFoodCost() for accurate display
         const actualFoodCost = getActualFoodCost(animal);
         const netIncome = animal.dailyIncome - actualFoodCost;
-        const hasVariants = animal.variations && animal.variations.length > 1;
 
         const card = document.createElement("div");
         card.className = "premium-card";
-        card.style.overflow = "hidden";
-        card.style.display = "flex";
-        card.style.flexDirection = "column";
-        card.style.padding = "0"; 
-        
         card.innerHTML = `
-            <!-- Image Header -->
-            <div style="position:relative; height: 150px; overflow:hidden; background: linear-gradient(135deg, #1e293b, #0f172a); border-bottom: 1px solid #243042;">
-                <img src="${animal.image}" alt="${animal.name}" style="width:100%; height:100%; object-fit:cover; opacity: 0.85; transition: transform 0.3s;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'" />
-                <div style="position:absolute; top:0; left:0; right:0; bottom:0; background: linear-gradient(to top, rgba(15,23,42,0.95) 0%, rgba(15,23,42,0) 60%);"></div>
-                
-                <div style="position:absolute; top:10px; left:10px; display:flex; gap:6px; flex-wrap:wrap; z-index:2;">
-                    <span style="background:rgba(0,0,0,0.6); backdrop-filter:blur(4px); color:#fff; font-size:0.7rem; padding:4px 8px; border-radius:12px; border:1px solid rgba(255,255,255,0.1);">${statusEmoji} ${animal.conservationStatus}</span>
-                    <span style="background:rgba(168,85,247,0.85); color:#fff; font-size:0.7rem; padding:4px 8px; border-radius:12px; font-weight:600; border:1px solid rgba(255,255,255,0.1);">${animal.category}</span>
-                </div>
-                
-                ${hasVariants ? `<div style="position:absolute; top:10px; right:10px; z-index:2;"><span style="background:rgba(251,191,36,0.95); color:#000; font-size:0.7rem; padding:4px 8px; border-radius:12px; font-weight:800; box-shadow: 0 0 10px rgba(251,191,36,0.5);">✨ RARE</span></div>` : ''}
-            </div>
-
-            <!-- Card Body -->
-            <div class="card-body" style="flex:1; display:flex; flex-direction:column; padding: 14px;">
-                <div style="margin-bottom: 12px;">
-                    <h3 style="margin:0; font-size:1.25rem; font-weight:800; color:var(--text); line-height:1.2;">${animal.name}</h3>
-                    <p style="margin:3px 0 0; font-size:0.75rem; color:var(--muted); font-style:italic;">${animal.scienceName || ''}</p>
-                </div>
-
-                <!-- Stats Grid -->
-                <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-bottom:12px;">
-                    <div style="background:#0b1220; padding:8px; border-radius:8px; border:1px solid #1e293b; text-align:center;">
-                        <div style="font-size:0.65rem; color:var(--muted); text-transform:uppercase; letter-spacing:0.5px;">💰 Cost</div>
-                        <div style="font-size:1rem; font-weight:800; color:var(--danger);">$${animal.cost.toLocaleString()}</div>
+            <img src="${animal.image}" alt="${animal.name}" class="shop-card-img" />
+            <div class="card-body">
+                <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 8px;">
+                    <div>
+                        <h3 style="margin:0; font-size:1.3rem; font-weight:800;">${animal.name}</h3>
+                        <p style="margin:0 0 4px; font-size:0.85rem; color:var(--muted); font-style:italic;">${animal.scienceName || ''}</p>
                     </div>
-                    <div style="background:#0b1220; padding:8px; border-radius:8px; border:1px solid #1e293b; text-align:center;">
-                        <div style="font-size:0.65rem; color:var(--muted); text-transform:uppercase; letter-spacing:0.5px;">📈 Net Income</div>
-                        <div style="font-size:1rem; font-weight:800; color:${netIncome >= 0 ? 'var(--accent)' : 'var(--danger)'};">$${netIncome}/d</div>
-                    </div>
-                    <div style="background:#0b1220; padding:8px; border-radius:8px; border:1px solid #1e293b; text-align:center;">
-                        <div style="font-size:0.65rem; color:var(--muted); text-transform:uppercase; letter-spacing:0.5px;">🌟 Attraction</div>
-                        <div style="font-size:1rem; font-weight:800; color:var(--gold);">${animal.attractionValue}</div>
-                    </div>
-                    <div style="background:#0b1220; padding:8px; border-radius:8px; border:1px solid #1e293b; text-align:center;">
-                        <div style="font-size:0.65rem; color:var(--muted); text-transform:uppercase; letter-spacing:0.5px;">🧹 Dirtiness</div>
-                        <div style="font-size:1rem; font-weight:800; color:${animal.dirtiness >= 7 ? 'var(--danger)' : animal.dirtiness >= 4 ? 'var(--warn)' : 'var(--accent)'};">${animal.dirtiness}/10</div>
-                    </div>
+                    ${animal.category ? `<span class="stat-badge purple">${animal.category}</span>` : ''}
                 </div>
-
-                <!-- Tags -->
-                <div style="display:flex; flex-wrap:wrap; gap:4px; margin-bottom:12px;">
-                    <span class="stat-badge" style="background:rgba(34,197,94,0.15); color:var(--accent); border:1px solid rgba(34,197,94,0.3); font-size:0.7rem;">${dietEmoji} ${animal.diet}</span>
-                    <span class="stat-badge" style="background:rgba(59,130,246,0.15); color:var(--blue); border:1px solid rgba(59,130,246,0.3); font-size:0.7rem;">🌍 ${animal.habitat}</span>
-                    <span class="stat-badge" style="background:rgba(168,85,247,0.15); color:var(--purple); border:1px solid rgba(168,85,247,0.3); font-size:0.7rem;">🐾 ${animal.minInExhibit}-${animal.maxInExhibit}</span>
-                    <span class="stat-badge" style="background:rgba(245,158,11,0.15); color:var(--warn); border:1px solid rgba(245,158,11,0.3); font-size:0.7rem;">📏 ${animal.requiredExhibitSize}</span>
+                <div class="card-stats">
+                    <span class="stat-badge">${dietEmoji} ${animal.diet}</span>
+                    <span class="stat-badge">🌍 ${animal.habitat}</span>
+                    <span class="stat-badge">${statusEmoji} ${animal.conservationStatus}</span>
+                    <span class="stat-badge ${slotColor}">🧑‍🌾 ${slotCost} slot${slotCost > 1 ? 's' : ''}</span>
                 </div>
-
-                <!-- Description -->
-                <p style="font-size:0.8rem; color:var(--muted); line-height:1.4; margin:0 0 14px; flex:1; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden;">${animal.info}</p>
-
-                <!-- Action Button -->
-                <button class="primary-btn" style="width:100%; padding:10px; font-size:0.95rem; font-weight:700; margin-top:auto; display:flex; justify-content:space-between; align-items:center;">
-                    <span>Add to Zoo</span>
-                    <span style="background:rgba(0,0,0,0.2); padding:2px 8px; border-radius:12px; font-size:0.8rem; font-weight:600;">$${animal.cost.toLocaleString()}</span>
-                </button>
-            </div>
-        `;
+                <p class="card-desc">${animal.info}</p>
+                <div style="display:flex; gap:6px; flex-wrap:wrap; margin: 6px 0;">
+                    <span class="stat-badge warn">🍖 Daily Food Cost: $${actualFoodCost}/day</span>
+                </div>
+                <button class="primary-btn">Add to Zoo</button>
+            </div>`;
         
         card.querySelector(".primary-btn").onclick = () => openBuyModal(animal);
         grid.appendChild(card);
@@ -2072,10 +2031,12 @@ function renderShopGrid() {
                 <p style="margin: 0; color: var(--muted); font-size: 0.9rem;">Complete research or achievements to unlock these animals</p>
             </div>
             <div class="grid-layout" id="lockedGrid"></div>`;
+        
         lockedSection.dataset.lockedSection = "true";
         grid.parentElement.appendChild(lockedSection);
 
         const lockedGrid = lockedSection.querySelector('#lockedGrid');
+        
         locked.forEach(animal => {
             let lockReason = '';
             let lockColor = 'var(--muted)';
@@ -2097,15 +2058,14 @@ function renderShopGrid() {
 
             const card = document.createElement("div");
             card.className = "premium-card";
-            card.style.opacity = "0.6";
-            card.style.filter = "grayscale(0.6)";
+            card.style.opacity = "0.5";
+            card.style.filter = "grayscale(0.5)";
             card.style.position = "relative";
-            card.style.overflow = "hidden";
             card.innerHTML = `
                 <div style="position: absolute; top: 10px; right: 10px; z-index: 10; background: rgba(0,0,0,0.8); padding: 6px 12px; border-radius: 20px; font-size: 0.85rem; font-weight: 700; color: ${lockColor};">🔒 Locked</div>
-                <img src="${animal.image}" alt="${animal.name}" class="shop-card-img" style="filter: blur(2px); height: 120px; width: 100%; object-fit: cover;" />
+                <img src="${animal.image}" alt="${animal.name}" class="shop-card-img" style="filter: blur(2px);" />
                 <div class="card-body">
-                    <h3 style="margin:0; font-size:1.2rem; font-weight:800;">${animal.name}</h3>
+                    <h3 style="margin:0; font-size:1.3rem; font-weight:800;">${animal.name}</h3>
                     <p style="margin:4px 0; font-size:0.85rem; color:var(--muted); font-style:italic;">${animal.scienceName || ''}</p>
                     <div style="padding: 10px; background: #0b1220; border-radius: 8px; margin: 8px 0;">${lockReason}</div>
                     <button class="primary-btn" disabled style="opacity: 0.5;">🔒 Locked</button>
@@ -2113,7 +2073,7 @@ function renderShopGrid() {
             lockedGrid.appendChild(card);
         });
     }
-}
+} 
             function renderVisitors() {
                 const box = document.getElementById("visitors");
                 if (!box) return;
