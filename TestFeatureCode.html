@@ -2173,52 +2173,103 @@ function renderShopGrid() {
                 });
             }
             let reportsChartInstance = null;
+            
+function setDailyReportFilter(filter) {
+    state.dailyReportFilter = filter;
+    renderReports();
+    saveGame();
+}
 
-        function renderReports() {
+            
+       function renderReports() {
+    // Ensure filter state exists
+    if (!state.dailyReportFilter) state.dailyReportFilter = '7days';
+
     const box = document.getElementById("reports");
     
-    // ✅ 1. BUILD DAILY BREAKDOWN HTML (Now at the top!)
+    // 1. BUILD DAILY BREAKDOWN HTML (Now at the top!)
     let dailyTableHTML = '';
     if (state.dailyReports && state.dailyReports.length > 0) {
+        // Apply filter
+        let filteredReports = [...state.dailyReports];
+        if (state.dailyReportFilter === '7days') {
+            filteredReports = filteredReports.slice(0, 7);
+        } else if (state.dailyReportFilter === '30days') {
+            filteredReports = filteredReports.slice(0, 30);
+        }
+
+        // Calculate totals for the filtered period
+        const totalTickets = filteredReports.reduce((sum, r) => sum + r.income.tickets, 0);
+        const totalAmenities = filteredReports.reduce((sum, r) => sum + r.income.amenities, 0);
+        const totalAnimals = filteredReports.reduce((sum, r) => sum + r.income.animals, 0);
+        const totalStaff = filteredReports.reduce((sum, r) => sum + r.expenses.staff, 0);
+        const totalUpkeep = filteredReports.reduce((sum, r) => sum + r.expenses.upkeep, 0);
+        const totalMaint = filteredReports.reduce((sum, r) => sum + r.expenses.maintenance, 0);
+        const totalFood = filteredReports.reduce((sum, r) => sum + r.expenses.food, 0);
+        const totalNet = filteredReports.reduce((sum, r) => sum + r.net, 0);
+        const netColor = totalNet >= 0 ? 'var(--accent)' : 'var(--danger)';
+
+        const filterButtons = `
+            <div style="display: flex; gap: 8px; margin-bottom: 15px; flex-wrap: wrap;">
+                <button class="category-tab ${state.dailyReportFilter === '7days' ? 'active' : ''}" onclick="setDailyReportFilter('7days')" style="padding: 6px 12px; background: ${state.dailyReportFilter === '7days' ? 'var(--accent)' : 'var(--card)'}; color: ${state.dailyReportFilter === '7days' ? '#000' : 'var(--text)'}; border: 1px solid #243042; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 0.85rem;">Last 7 Days</button>
+                <button class="category-tab ${state.dailyReportFilter === '30days' ? 'active' : ''}" onclick="setDailyReportFilter('30days')" style="padding: 6px 12px; background: ${state.dailyReportFilter === '30days' ? 'var(--accent)' : 'var(--card)'}; color: ${state.dailyReportFilter === '30days' ? '#000' : 'var(--text)'}; border: 1px solid #243042; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 0.85rem;">Last 30 Days</button>
+                <button class="category-tab ${state.dailyReportFilter === 'all' ? 'active' : ''}" onclick="setDailyReportFilter('all')" style="padding: 6px 12px; background: ${state.dailyReportFilter === 'all' ? 'var(--accent)' : 'var(--card)'}; color: ${state.dailyReportFilter === 'all' ? '#000' : 'var(--text)'}; border: 1px solid #243042; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 0.85rem;">All Time</button>
+            </div>
+        `;
+
         dailyTableHTML = `
             <div class="premium-card" style="grid-column: 1 / -1; margin-bottom: 20px;">
                 <div class="card-header">
                     <h3>📅 Daily Financial Breakdown</h3>
-                    <div class="subtitle">Operational Profit & Loss (Last ${state.dailyReports.length} days)</div>
+                    <div class="subtitle">Operational Profit & Loss</div>
                 </div>
-                <div class="card-body" style="padding: 0; overflow-x: auto; max-height: 500px; overflow-y: auto;">
-                    <table style="width: 100%; border-collapse: collapse; min-width: 850px; font-size: 0.85rem;">
-                        <thead>
-                            <tr style="background: #0b1220; position: sticky; top: 0; z-index: 10;">
-                                <th style="padding: 10px; text-align: left; border-bottom: 2px solid #243042;">Date</th>
-                                <th style="padding: 10px; text-align: right; border-bottom: 2px solid #243042; color: var(--accent);">🎟 Tickets</th>
-                                <th style="padding: 10px; text-align: right; border-bottom: 2px solid #243042; color: var(--accent);">🏪 Amenities</th>
-                                <th style="padding: 10px; text-align: right; border-bottom: 2px solid #243042; color: var(--accent);">🦁 Animals</th>
-                                <th style="padding: 10px; text-align: right; border-bottom: 2px solid #243042; color: var(--danger);">👷 Staff</th>
-                                <th style="padding: 10px; text-align: right; border-bottom: 2px solid #243042; color: var(--danger);">🧾 Upkeep</th>
-                                <th style="padding: 10px; text-align: right; border-bottom: 2px solid #243042; color: var(--danger);">🧹 Maint</th>
-                                <th style="padding: 10px; text-align: right; border-bottom: 2px solid #243042; color: var(--danger);">🍖 Food</th>
-                                <th style="padding: 10px; text-align: right; border-bottom: 2px solid #243042; color: var(--gold); font-weight: 800;">💰 Net</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${state.dailyReports.map(r => {
-                                const netColor = r.net >= 0 ? 'var(--accent)' : 'var(--danger)';
-                                return `
-                                <tr style="border-bottom: 1px solid #1e293b; transition: background 0.2s;" onmouseover="this.style.background='#1e293b'" onmouseout="this.style.background='transparent'">
-                                    <td style="padding: 8px 10px; font-weight: 600; white-space: nowrap;">Y${r.year} M${r.month} D${r.day}</td>
-                                    <td style="padding: 8px 10px; text-align: right; color: var(--accent);">$${r.income.tickets.toLocaleString()}</td>
-                                    <td style="padding: 8px 10px; text-align: right; color: var(--accent);">$${r.income.amenities.toLocaleString()}</td>
-                                    <td style="padding: 8px 10px; text-align: right; color: var(--accent);">$${r.income.animals.toLocaleString()}</td>
-                                    <td style="padding: 8px 10px; text-align: right; color: var(--danger);">-$${r.expenses.staff.toLocaleString()}</td>
-                                    <td style="padding: 8px 10px; text-align: right; color: var(--danger);">-$${r.expenses.upkeep.toLocaleString()}</td>
-                                    <td style="padding: 8px 10px; text-align: right; color: var(--danger);">-$${r.expenses.maintenance.toLocaleString()}</td>
-                                    <td style="padding: 8px 10px; text-align: right; color: var(--danger);">-$${r.expenses.food.toLocaleString()}</td>
-                                    <td style="padding: 8px 10px; text-align: right; font-weight: 800; color: ${netColor};">$${r.net.toLocaleString()}</td>
-                                </tr>`;
-                            }).join('')}
-                        </tbody>
-                    </table>
+                <div class="card-body" style="padding: 15px;">
+                    ${filterButtons}
+                    <div style="overflow-x: auto; max-height: 500px; overflow-y: auto;">
+                        <table style="width: 100%; border-collapse: collapse; min-width: 850px; font-size: 0.85rem;">
+                            <thead>
+                                <tr style="background: #0b1220; position: sticky; top: 0; z-index: 10;">
+                                    <th style="padding: 10px; text-align: left; border-bottom: 2px solid #243042;">Date</th>
+                                    <th style="padding: 10px; text-align: right; border-bottom: 2px solid #243042; color: var(--accent);">🎟 Tickets</th>
+                                    <th style="padding: 10px; text-align: right; border-bottom: 2px solid #243042; color: var(--accent);">🏪 Amenities</th>
+                                    <th style="padding: 10px; text-align: right; border-bottom: 2px solid #243042; color: var(--accent);">🦁 Animals</th>
+                                    <th style="padding: 10px; text-align: right; border-bottom: 2px solid #243042; color: var(--danger);">👷 Staff</th>
+                                    <th style="padding: 10px; text-align: right; border-bottom: 2px solid #243042; color: var(--danger);">🧾 Upkeep</th>
+                                    <th style="padding: 10px; text-align: right; border-bottom: 2px solid #243042; color: var(--danger);">🧹 Maint</th>
+                                    <th style="padding: 10px; text-align: right; border-bottom: 2px solid #243042; color: var(--danger);">🍖 Food</th>
+                                    <th style="padding: 10px; text-align: right; border-bottom: 2px solid #243042; color: var(--gold); font-weight: 800;">💰 Net</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${filteredReports.map(r => {
+                                    const rowNetColor = r.net >= 0 ? 'var(--accent)' : 'var(--danger)';
+                                    return `
+                                    <tr style="border-bottom: 1px solid #1e293b; transition: background 0.2s;" onmouseover="this.style.background='#1e293b'" onmouseout="this.style.background='transparent'">
+                                        <td style="padding: 8px 10px; font-weight: 600; white-space: nowrap;">Y${r.year} M${r.month} D${r.day}</td>
+                                        <td style="padding: 8px 10px; text-align: right; color: var(--accent);">$${r.income.tickets.toLocaleString()}</td>
+                                        <td style="padding: 8px 10px; text-align: right; color: var(--accent);">$${r.income.amenities.toLocaleString()}</td>
+                                        <td style="padding: 8px 10px; text-align: right; color: var(--accent);">$${r.income.animals.toLocaleString()}</td>
+                                        <td style="padding: 8px 10px; text-align: right; color: var(--danger);">-$${r.expenses.staff.toLocaleString()}</td>
+                                        <td style="padding: 8px 10px; text-align: right; color: var(--danger);">-$${r.expenses.upkeep.toLocaleString()}</td>
+                                        <td style="padding: 8px 10px; text-align: right; color: var(--danger);">-$${r.expenses.maintenance.toLocaleString()}</td>
+                                        <td style="padding: 8px 10px; text-align: right; color: var(--danger);">-$${r.expenses.food.toLocaleString()}</td>
+                                        <td style="padding: 8px 10px; text-align: right; font-weight: 800; color: ${rowNetColor};">$${r.net.toLocaleString()}</td>
+                                    </tr>`;
+                                }).join('')}
+                                <tr style="background: #0b1220; font-weight: 800; border-top: 2px solid #243042;">
+                                    <td style="padding: 10px; text-align: left;">TOTAL</td>
+                                    <td style="padding: 10px; text-align: right; color: var(--accent);">$${totalTickets.toLocaleString()}</td>
+                                    <td style="padding: 10px; text-align: right; color: var(--accent);">$${totalAmenities.toLocaleString()}</td>
+                                    <td style="padding: 10px; text-align: right; color: var(--accent);">$${totalAnimals.toLocaleString()}</td>
+                                    <td style="padding: 10px; text-align: right; color: var(--danger);">-$${totalStaff.toLocaleString()}</td>
+                                    <td style="padding: 10px; text-align: right; color: var(--danger);">-$${totalUpkeep.toLocaleString()}</td>
+                                    <td style="padding: 10px; text-align: right; color: var(--danger);">-$${totalMaint.toLocaleString()}</td>
+                                    <td style="padding: 10px; text-align: right; color: var(--danger);">-$${totalFood.toLocaleString()}</td>
+                                    <td style="padding: 10px; text-align: right; color: ${netColor};">$${totalNet.toLocaleString()}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         `;
@@ -2226,7 +2277,7 @@ function renderShopGrid() {
         dailyTableHTML = `<div class="premium-card" style="grid-column: 1 / -1; margin-bottom: 20px;"><div class="card-body" style="text-align:center; color:var(--muted); padding: 30px;">End a day to see your daily financial breakdown!</div></div>`;
     }
 
-    // ✅ 2. INJECT HTML: Daily Table FIRST, then Monthly Chart & Cards
+    // 2. INJECT HTML: Daily Table FIRST, then Monthly Chart & Cards
     box.innerHTML = `
         ${dailyTableHTML}
         <div class="premium-card" style="grid-column: 1 / -1; margin-bottom: 20px;">
@@ -2236,7 +2287,7 @@ function renderShopGrid() {
         <div class="grid-layout" id="reportsGrid" style="grid-column: 1 / -1;"></div>
     `;
     
-    // ✅ 3. RENDER MONTHLY CHART & CARDS (Unchanged logic)
+    // 3. RENDER MONTHLY CHART & CARDS (Unchanged logic)
     const grid = box.querySelector('#reportsGrid');
     if (state.monthlyReports.length === 0) {
         grid.innerHTML = '<div style="text-align:center; padding:40px; color:var(--muted); grid-column: 1/-1;"><h2>📊 No Monthly Reports Yet</h2><p>Advance 30 days to generate your first monthly report!</p></div>';
@@ -4420,6 +4471,7 @@ ${!isActive ? `<button class="primary-btn" style="flex:1; padding: 8px;" onclick
                     hiredStaff: [],
                     achievements: {},
                     animalCounters: {},
+                    dailyReportFilter: '7days',
                     monthlyReports: [],
                     moveState: {
                         active: false,
