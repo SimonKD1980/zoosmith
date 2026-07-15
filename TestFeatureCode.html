@@ -3802,9 +3802,12 @@ function buildExhibit(size, type = 'terrestrial') {
         showToast("Resolve the current event before ending the day!", "warn");
         return;
     }
+    
+    // ✅ 1. CAPTURE MONEY AT START OF DAY PROCESSING
     const startMoney = state.money;
+    const moneyAtStartOfDay = state.moneyAtStartOfDay ?? startMoney;
 
-    // 1. TRACK FOOD CONSUMPTION (Operational cost)
+    // 2. TRACK FOOD CONSUMPTION (Operational cost)
     const foodConsumed = consumeDailyFood();
     const foodExpense = (foodConsumed.hay * FOOD_TYPES.hay.costPerUnit) + 
                         (foodConsumed.meat * FOOD_TYPES.meat.costPerUnit) + 
@@ -3812,7 +3815,7 @@ function buildExhibit(size, type = 'terrestrial') {
 
     processAnimalHealth();
     
-    // 2. CAPTURE INCOMES & STAFF EXPENSES
+    // 3. CAPTURE INCOMES & STAFF EXPENSES
     processDayIncome();
     const ticketIncome = state.dailyVisitors * state.ticketPrice;
     const amenityIncome = state.visitorSpending.total;
@@ -3824,7 +3827,7 @@ function buildExhibit(size, type = 'terrestrial') {
     const animalIncome = getAllAnimals().reduce((sum, a) => sum + calculateAnimalIncome(a), 0);
     processAnimalIncome();
 
-    // 3. CAPTURE FACILITY EXPENSES
+    // 4. CAPTURE FACILITY EXPENSES
     const upkeepExpense = processUpkeep(); // Ensure processUpkeep() has "return totalCost;" at the end!
     processDailyMaintenance();
     const maintenanceExpense = state.maintenance.dailyMaintenanceCost;
@@ -3942,34 +3945,40 @@ function buildExhibit(size, type = 'terrestrial') {
         showToast(`Zoo rating dropped!`, "warn");
     }
 
-    // ✅ 4. SAVE DAILY FINANCIAL REPORT (Now captures ALL cash flow!)
-    if (!state.dailyReports) state.dailyReports = [];
+    // ✅ 5. CALCULATE TRUE DAILY FINANCIAL REPORT
+    const endMoney = state.money;
+    const actualNet = endMoney - moneyAtStartOfDay; // True change in bank balance today
     
-    const accountedNet = ticketIncome + amenityIncome + animalIncome - staffExpense - upkeepExpense - maintenanceExpense - foodExpense;
-    const actualDelta = state.money - startMoney;
-    
-    // This captures ALL cash flow from UI actions: buying food, building exhibits, upgrades, research, selling animals, death penalties, etc.
-    const purchasesAndInvestments = actualDelta - accountedNet;
+    // Sum of all tracked operational categories
+    const trackedNet = ticketIncome + amenityIncome + animalIncome 
+                     - staffExpense - upkeepExpense - maintenanceExpense - foodExpense;
+                     
+    // The "Plug": Captures exhibits, animals, research, bulk food, death penalties, tier bonuses, etc.
+    const miscAndInvestments = actualNet - trackedNet;
 
+    if (!state.dailyReports) state.dailyReports = [];
     state.dailyReports.unshift({
-        day: state.day - 1, // Use the day that just ended
+        day: state.day - 1, // The day that just ended
         month: state.month,
         year: state.year,
         income: { tickets: ticketIncome, amenities: amenityIncome, animals: animalIncome },
         expenses: { staff: staffExpense, upkeep: upkeepExpense, maintenance: maintenanceExpense, food: foodExpense },
-        investments: purchasesAndInvestments, 
-        net: actualDelta 
+        investments: miscAndInvestments, 
+        net: actualNet 
     });
 
     if (state.dailyReports.length > 90) state.dailyReports.length = 90;
 
-    // Show the true daily delta as floating money
-    if (actualDelta !== 0) showFloatingMoney(actualDelta);
+    // ✅ 6. SAVE END-OF-DAY MONEY FOR TOMORROW'S REPORT
+    state.moneyAtStartOfDay = state.money;
+
+    if (actualNet !== 0) showFloatingMoney(actualNet);
 
     saveGame();
     submitToLeaderboard();
     triggerRandomEvent();
 }
+            
             function updateUI() {
     const allAnimals = getAllAnimals();
     
@@ -4407,6 +4416,7 @@ ${!isActive ? `<button class="primary-btn" style="flex:1; padding: 8px;" onclick
             function resetStateToDefault() {
                 state = {
                     money: 10000,
+                    moneyAtStartOfDay: 10000,
                     food: {
                         hay: 30,
                         meat: 20,
