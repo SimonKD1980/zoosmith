@@ -2176,51 +2176,12 @@ function renderShopGrid() {
 
         function renderReports() {
     const box = document.getElementById("reports");
-    box.innerHTML = `<div class="premium-card" style="grid-column: 1 / -1; margin-bottom: 20px;"><div class="card-header"><h3>📈 Monthly Financial Overview</h3></div><div class="card-body" style="height: 300px; position: relative;"><canvas id="reportsChart"></canvas></div></div><div class="grid-layout" id="reportsGrid" style="grid-column: 1 / -1;"></div>`;
     
-    const grid = box.querySelector('#reportsGrid');
-    if (state.monthlyReports.length === 0) {
-        grid.innerHTML = '<div style="text-align:center; padding:40px; color:var(--muted); grid-column: 1/-1;"><h2>📊 No Monthly Reports Yet</h2><p>Advance 30 days to generate your first monthly report!</p></div>';
-    } else {
-        if (reportsChartInstance) reportsChartInstance.destroy();
-        const ctx = document.getElementById('reportsChart').getContext('2d');
-        const sortedReports = [...state.monthlyReports].reverse();
-        reportsChartInstance = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: sortedReports.map(r => `M${r.month} Y${r.year}`),
-                datasets: [
-                    { label: 'Income ($)', data: sortedReports.map(r => r.income), borderColor: '#22c55e', backgroundColor: 'rgba(34, 197, 94, 0.1)', tension: 0.3, fill: true, yAxisID: 'y' },
-                    { label: 'Visitors', data: sortedReports.map(r => r.visitors), borderColor: '#3b82f6', backgroundColor: 'rgba(59, 130, 246, 0.1)', tension: 0.3, fill: true, yAxisID: 'y1' }
-                ]
-            },
-            options: {
-                responsive: true, maintainAspectRatio: false,
-                plugins: { legend: { labels: { color: '#e5e7eb' } } },
-                scales: {
-                    x: { ticks: { color: '#9ca3af' }, grid: { color: '#243042' } },
-                    y: { type: 'linear', display: true, position: 'left', ticks: { color: '#9ca3af', callback: v => '$' + v.toLocaleString() }, grid: { color: '#243042' } },
-                    y1: { type: 'linear', display: true, position: 'right', ticks: { color: '#9ca3af' }, grid: { drawOnChartArea: false } }
-                }
-            }
-        });
-        state.monthlyReports.forEach(report => {
-            const card = document.createElement("div");
-            card.className = "report-card";
-            card.innerHTML = `<div class="report-header"><h3>📅 Month ${report.month}, Year ${report.year}</h3></div><div class="report-body">
-            <div class="report-stat visitors"><div class="label">Attraction</div><div class="value">${report.attraction}</div></div>
-            <div class="report-stat visitors"><div class="label">Avg Visitors/Day</div><div class="value">${report.visitors}</div></div>
-            <div class="report-stat income"><div class="label">Monthly Income</div><div class="value">$${report.income.toLocaleString()}</div></div>
-            <div class="report-stat happiness"><div class="label">Guest Happiness</div><div class="value">${report.guestHappiness}%</div></div></div>`;
-            grid.appendChild(card);
-        });
-    }
-
-    // ✅ NEW: DAILY BREAKDOWN SPREADSHEET
+    // ✅ 1. BUILD DAILY BREAKDOWN HTML (Now at the top!)
     let dailyTableHTML = '';
     if (state.dailyReports && state.dailyReports.length > 0) {
         dailyTableHTML = `
-            <div class="premium-card" style="grid-column: 1 / -1; margin-top: 20px;">
+            <div class="premium-card" style="grid-column: 1 / -1; margin-bottom: 20px;">
                 <div class="card-header">
                     <h3>📅 Daily Financial Breakdown</h3>
                     <div class="subtitle">Operational Profit & Loss (Last ${state.dailyReports.length} days)</div>
@@ -2262,11 +2223,57 @@ function renderShopGrid() {
             </div>
         `;
     } else {
-        dailyTableHTML = `<div class="premium-card" style="grid-column: 1 / -1; margin-top: 20px;"><div class="card-body" style="text-align:center; color:var(--muted); padding: 30px;">End a day to see your daily financial breakdown!</div></div>`;
+        dailyTableHTML = `<div class="premium-card" style="grid-column: 1 / -1; margin-bottom: 20px;"><div class="card-body" style="text-align:center; color:var(--muted); padding: 30px;">End a day to see your daily financial breakdown!</div></div>`;
     }
+
+    // ✅ 2. INJECT HTML: Daily Table FIRST, then Monthly Chart & Cards
+    box.innerHTML = `
+        ${dailyTableHTML}
+        <div class="premium-card" style="grid-column: 1 / -1; margin-bottom: 20px;">
+            <div class="card-header"><h3>📈 Monthly Financial Overview</h3></div>
+            <div class="card-body" style="height: 300px; position: relative;"><canvas id="reportsChart"></canvas></div>
+        </div>
+        <div class="grid-layout" id="reportsGrid" style="grid-column: 1 / -1;"></div>
+    `;
     
-    // Append the daily table to the bottom of the reports section
-    box.insertAdjacentHTML('beforeend', dailyTableHTML);
+    // ✅ 3. RENDER MONTHLY CHART & CARDS (Unchanged logic)
+    const grid = box.querySelector('#reportsGrid');
+    if (state.monthlyReports.length === 0) {
+        grid.innerHTML = '<div style="text-align:center; padding:40px; color:var(--muted); grid-column: 1/-1;"><h2>📊 No Monthly Reports Yet</h2><p>Advance 30 days to generate your first monthly report!</p></div>';
+    } else {
+        if (reportsChartInstance) reportsChartInstance.destroy();
+        const ctx = document.getElementById('reportsChart').getContext('2d');
+        const sortedReports = [...state.monthlyReports].reverse();
+        reportsChartInstance = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: sortedReports.map(r => `M${r.month} Y${r.year}`),
+                datasets: [
+                    { label: 'Income ($)', data: sortedReports.map(r => r.income), borderColor: '#22c55e', backgroundColor: 'rgba(34, 197, 94, 0.1)', tension: 0.3, fill: true, yAxisID: 'y' },
+                    { label: 'Visitors', data: sortedReports.map(r => r.visitors), borderColor: '#3b82f6', backgroundColor: 'rgba(59, 130, 246, 0.1)', tension: 0.3, fill: true, yAxisID: 'y1' }
+                ]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { labels: { color: '#e5e7eb' } } },
+                scales: {
+                    x: { ticks: { color: '#9ca3af' }, grid: { color: '#243042' } },
+                    y: { type: 'linear', display: true, position: 'left', ticks: { color: '#9ca3af', callback: v => '$' + v.toLocaleString() }, grid: { color: '#243042' } },
+                    y1: { type: 'linear', display: true, position: 'right', ticks: { color: '#9ca3af' }, grid: { drawOnChartArea: false } }
+                }
+            }
+        });
+        state.monthlyReports.forEach(report => {
+            const card = document.createElement("div");
+            card.className = "report-card";
+            card.innerHTML = `<div class="report-header"><h3>📅 Month ${report.month}, Year ${report.year}</h3></div><div class="report-body">
+            <div class="report-stat visitors"><div class="label">Attraction</div><div class="value">${report.attraction}</div></div>
+            <div class="report-stat visitors"><div class="label">Avg Visitors/Day</div><div class="value">${report.visitors}</div></div>
+            <div class="report-stat income"><div class="label">Monthly Income</div><div class="value">$${report.income.toLocaleString()}</div></div>
+            <div class="report-stat happiness"><div class="label">Guest Happiness</div><div class="value">${report.guestHappiness}%</div></div></div>`;
+            grid.appendChild(card);
+        });
+    }
 }
             function renderStaff() {
                 const box = document.getElementById("staff");
