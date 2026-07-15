@@ -1,0 +1,4428 @@
+            /* ==========================================================================
+🦁 ZOOSMITH V0.4.0 - MAIN GAME SCRIPT
+Rewritten for stability, unified exhibit handling, and bug fixes.
+
+Sections in this file, in order:
+  1. Constants & Configuration      9. Day Cycle, Income & Upkeep
+  2. Global State & Data Objects   10. Animal Care (Food/Breeding/Health/Fences)
+  3. Data Loading (JSON fetch)     11. UI Rendering: Supplies & Exhibits
+  4. Utility & Helper Functions    12. UI Rendering: Other Tabs
+  5. Staff & Animal Helpers        13. Modals & Interactions
+  6. Research & Achievements       14. Events & Leaderboard
+  7. Zoo Rating Calculation        15. Save/Load, Tutorial & Core Loop
+  8. Visitor Logic & Amenities     16. Initialization & Event Listeners
+
+General flow: initGame() (§16) loads JSON data, then renders the UI.
+Each real-world day advances via advanceDay() (§15), which calls out to
+the day-cycle (§9) and animal-care (§10) functions to update state before
+refreshAllUI() (§15) re-renders every tab.
+========================================================================== */
+
+            /* --------------------------------------------------------------------------
+            📦 1. CONSTANTS & CONFIGURATION
+            -------------------------------------------------------------------------- */
+            // Tunable game-balance numbers and static lookup tables (exhibit sizes, food types, tiers, rating bands). No logic lives here.
+            const ANIMAL_UPKEEP_BASE = 2;
+            const ANIMAL_UPKEEP_RATE = 0.15;
+            const EXHIBIT_SIZES = {
+                small: {
+                    cost: 1000,
+                    buildDays: 3,
+                    label: "Small",
+                    emoji: "🟢"
+                },
+                medium: {
+                    cost: 2500,
+                    buildDays: 6,
+                    label: "Medium",
+                    emoji: "🟡"
+                },
+                large: {
+                    cost: 5000,
+                    buildDays: 10,
+                    label: "Large",
+                    emoji: "🔴"
+                }
+            };
+            const SIZE_RANK = {
+                small: 1,
+                medium: 2,
+                large: 3
+            };
+
+            const FOOD_TYPES = {
+                hay: {
+                    name: "Hay",
+                    icon: "🌾",
+                    costPerUnit: 2,
+                    diet: "Herbivore",
+                    storageCap: 200,
+                    color: "#fbbf24"
+                },
+                meat: {
+                    name: "Meat",
+                    icon: "🥩",
+                    costPerUnit: 5,
+                    diet: "Carnivore",
+                    storageCap: 100,
+                    color: "#ef4444"
+                },
+                produce: {
+                    name: "Produce",
+                    icon: "🥬",
+                    costPerUnit: 3,
+                    diet: "Omnivore",
+                    storageCap: 150,
+                    color: "#22c55e"
+                }
+            };
+
+            const TIER_INFO = {
+                basic: {
+                    label: "Basic",
+                    color: "#22c55e",
+                    emoji: "🟢"
+                },
+                advanced: {
+                    label: "Advanced",
+                    color: "#3b82f6",
+                    emoji: "🔵"
+                },
+                exotic: {
+                    label: "Exotic",
+                    color: "#a855f7",
+                    emoji: "🟣"
+                },
+                legendary: {
+                    label: "Legendary",
+                    color: "#fbbf24",
+                    emoji: "🌟"
+                }
+            };
+
+            const ZOO_RATING_TIERS = {
+                1: {
+                    min: 0,
+                    max: 19,
+                    label: "Struggling",
+                    emoji: "⭐",
+                    color: "#dc2626"
+                },
+                2: {
+                    min: 20,
+                    max: 39,
+                    label: "Developing",
+                    emoji: "⭐⭐",
+                    color: "#f59e0b"
+                },
+                3: {
+                    min: 40,
+                    max: 59,
+                    label: "Good",
+                    emoji: "⭐⭐⭐",
+                    color: "#3b82f6"
+                },
+                4: {
+                    min: 60,
+                    max: 79,
+                    label: "Excellent",
+                    emoji: "⭐⭐⭐⭐",
+                    color: "#a855f7"
+                },
+                5: {
+                    min: 80,
+                    max: 100,
+                    label: "World-Class",
+                    emoji: "⭐⭐⭐⭐⭐",
+                    color: "#fbbf24"
+                }
+            };
+
+            /* --------------------------------------------------------------------------
+            🌍 2. GLOBAL STATE & DATA OBJECTS
+            -------------------------------------------------------------------------- */
+            // The `state` object (the save-game) and `data` object (loaded JSON content) that everything else reads and mutates.
+            let data = {
+                animals: [],
+                upgrades: {},
+                facilities: {},
+                staff: [],
+                amenities: {},
+                achievements: [],
+                researchProjects: {},
+                exhibitTypes: {}
+            };
+            let currentCategory = 'all';
+            let currentSearch = '';
+            let state = {
+                money: 10000,
+                food: {
+                    hay: 30,
+                    meat: 20,
+                    produce: 15
+                },
+                day: 1,
+                month: 1,
+                year: 1,
+                ticketPrice: 20,
+                exhibits: {},
+                builtEnclosures: {},
+                hiredStaff: [],
+                achievements: {},
+                animalCounters: {},
+                monthlyReports: [],
+                moveState: {
+                    active: false,
+                    fromExhibit: null,
+                    animalIndex: null
+                },
+                uiMode: "normal",
+                pendingAnimal: null,
+                activeUpgradeExhibit: null,
+                bredAnimals: 0,
+                animalsSold: 0,
+                daysSinceNewAnimal: 0,
+                dailyVisitors: 0,
+                visitorSpending: {
+                    food: 0,
+                    gifts: 0,
+                    total: 0
+                },
+                visitorComplaints: [],
+                amenities: {},
+                visitorSatisfaction: 0,
+                maintenance: {
+                    dailyMaintenanceCost: 0
+                },
+                completedResearch: [],
+                activeResearch: null,
+                maintenanceWorkers: 0,
+                maintenanceLevel: 0,
+                tutorialStep: 0,
+                tutorialSkipped: false,
+                recentDeathPenalty: 0,
+                zooRating: 0,
+                unnaturalDeaths: 0,
+                naturalDeaths: 0,
+                totalDeaths: 0,
+                ticketPriceImpact: 0,
+                ticketSatisfactionImpact: 0,
+                zooName: "My Zoo",
+                monthlyIncomeTracker: 0
+            };
+
+            /* --------------------------------------------------------------------------
+            📥 3. DATA LOADING (Fetch JSON files)
+            -------------------------------------------------------------------------- */
+            // Async fetchers that populate `data` from the game's JSON content files (animals, staff, research, etc.) on startup.
+            // Normalizes a value into an array, wrapping single items and passing existing arrays through unchanged.
+            function toArray(value) {
+                if (!value) return [];
+                if (Array.isArray(value)) return value;
+                return [value];
+            }
+            // Fetches the animal catalog (animals.json) into the global data object.
+            async function loadShop() {
+                try {
+                    const res = await fetch("animals.json?nocache=" + Date.now());
+                    data.animals = await res.json();
+                    renderShop();
+                } catch (e) {
+                    console.error("Failed to load animals", e);
+                }
+            }
+            // Fetches available research projects (research.json) into the global data object.
+            async function loadResearch() {
+                try {
+                    const res = await fetch("research.json?nocache=" + Date.now());
+                    if (!res.ok) throw new Error(`File not found or server error (Status: ${res.status})`);
+                    const arr = await res.json();
+                    if (!Array.isArray(arr)) throw new Error("research.json must be an array [ ... ]");
+                    data.researchProjects = {};
+                    arr.forEach(item => data.researchProjects[item.id] = item);
+                    renderResearch();
+                    renderShop();
+                } catch (e) {
+                    console.error("Failed to load research:", e);
+                    showToast("❌ Error loading research.json! Check Console (F12)", "error");
+                }
+            }
+            // Fetches exhibit upgrade definitions (upgrades.json) into the global data object.
+            async function loadUpgrades() {
+                try {
+                    const res = await fetch("upgrades.json?nocache=" + Date.now());
+                    const arr = await res.json();
+                    data.upgrades = {};
+                    arr.forEach(item => data.upgrades[item.id] = item);
+                } catch (e) {
+                    console.error("Failed to load upgrades", e);
+                }
+            }
+        
+            // Fetches hireable staff type definitions (staff.json) into the global data object.
+            async function loadStaff() {
+                try {
+                    const res = await fetch("staff.json?nocache=" + Date.now());
+                    data.staff = await res.json();
+                    renderStaff();
+                } catch (e) {
+                    console.error("Failed to load staff", e);
+                }
+            }
+            // Fetches amenity definitions (amenities.json) into the global data object.
+            async function loadAmenities() {
+                try {
+                    const res = await fetch("amenities.json?nocache=" + Date.now());
+                    const arr = await res.json();
+                    data.amenities = {};
+                    arr.forEach(item => data.amenities[item.id] = item);
+                    renderAmenities();
+                } catch (e) {
+                    console.error("Failed to load amenities", e);
+                }
+            }
+            // Fetches achievement definitions (achievements.json) into the global data object.
+            async function loadAchievements() {
+                try {
+                    const res = await fetch("achievements.json?nocache=" + Date.now());
+                    data.achievements = await res.json();
+                    renderAchievements();
+                } catch (e) {
+                    console.error("Failed to load achievements", e);
+                    data.achievements = [];
+                }
+            }
+            // Fetches exhibit type definitions (exhibit_types.json) into the global data object.
+            async function loadExhibitTypes() {
+                try {
+                    const res = await fetch("exhibit_types.json?nocache=" + Date.now());
+                    const arr = await res.json();
+                    data.exhibitTypes = {};
+                    arr.forEach(item => data.exhibitTypes[item.id] = item);
+                } catch (e) {
+                    console.error("Failed to load exhibit types", e);
+                }
+            }
+
+            /* --------------------------------------------------------------------------
+            🛠️ 4. UTILITY & HELPER FUNCTIONS
+            -------------------------------------------------------------------------- */
+            // Small, reusable helpers with no side effects beyond their own return value: exhibit lookups, naming, toasts, save export/import.
+            // Assigns a default grid position to any exhibit that doesn't have saved map coordinates yet.
+            function autoLayoutExhibits() {
+                const allExhibits = getAllExhibits();
+                const cols = 3;
+                allExhibits.forEach(({ exhibit }, i) => {
+                    // Catches undefined, null, and NaN to prevent invalid CSS
+                    if (exhibit.mapX == null || exhibit.mapY == null || isNaN(exhibit.mapX) || isNaN(exhibit.mapY)) {
+                        const col = i % cols;
+                        const row = Math.floor(i / cols);
+                        exhibit.mapX = 3 + col * 32;
+                        exhibit.mapY = 3 + row * 26;
+                    }
+                });
+            }
+
+            // Updates an exhibit's map coordinates, clamping them so the tile stays on-screen.
+            function setExhibitPosition(exhibitId, x, y) {
+                x = Math.max(0, Math.min(75, x));
+                y = Math.max(0, Math.min(85, y));
+
+                if (state.exhibits[exhibitId]) {
+                    state.exhibits[exhibitId].mapX = x;
+                    state.exhibits[exhibitId].mapY = y;
+                    return;
+                }
+                for (const houseId in state.houses) {
+                    if (state.houses[houseId].exhibits[exhibitId]) {
+                        state.houses[houseId].exhibits[exhibitId].mapX = x;
+                        state.houses[houseId].exhibits[exhibitId].mapY = y;
+                        return;
+                    }
+                }
+            }
+
+            // Checks whether an exhibit's size meets or exceeds a required minimum size.
+            function exhibitSizeOk(exhibitSize, requiredSize) {
+                return SIZE_RANK[exhibitSize] >= SIZE_RANK[requiredSize];
+            }
+
+            // Maps an animal's diet type to its corresponding food type key.
+            function getDietFoodType(diet) {
+                if (diet === "Herbivore") return "hay";
+                if (diet === "Carnivore") return "meat";
+                if (diet === "Omnivore") return "produce";
+                return "hay";
+            }
+
+            // Calculates an animal's daily food cost, doubling the amount if it's pregnant.
+            function getActualFoodCost(animal) {
+                const foodType = getDietFoodType(animal.diet);
+                const foodData = FOOD_TYPES[foodType] || FOOD_TYPES.hay; // Fallback to hay
+                const baseAmount = animal.foodAmount || 1;
+                const units = animal.isPregnant ? baseAmount * 2 : baseAmount;
+                return foodData.costPerUnit * units;
+            }
+
+            // UNIFIED EXHIBIT HELPER: Seamlessly handles both regular and house exhibits
+            function getExhibitContext(exhibitId) {
+    if (state.exhibits[exhibitId]) return { exhibit: state.exhibits[exhibitId], houseId: null };
+    return null;
+}
+
+// Returns a flat array of every animal across all exhibits.
+function getAllAnimals() {
+    return Object.values(state.exhibits).flatMap(ex => ex.animals || []);
+}
+// Returns every exhibit wrapped with metadata (isHouse/houseId) for uniform iteration.
+function getAllExhibits() {
+    const exhibits = [];
+    for (const id in state.exhibits) {
+        exhibits.push({ exhibit: state.exhibits[id], isHouse: false, houseId: null });
+    }
+    return exhibits;
+}
+
+            // Counts how many animals of a given species id currently exist in the zoo.
+            function countAnimals(id) {
+                return getAllAnimals().filter(a => a.id === id).length;
+            }
+// Prompts the player for a new name and renames the specified animal, with validation.
+function renameAnimal(exhibitId, animalIndex) {
+    const ctx = getExhibitContext(exhibitId);
+    if (!ctx) return;
+    const exhibit = ctx.exhibit;
+    const animal = exhibit.animals[animalIndex];
+    if (!animal) return;
+
+    const newName = prompt(`✏️ Rename "${animal.name}"`, animal.name);
+    
+    // Validate input
+    if (newName === null) return; // User cancelled
+    const trimmed = newName.trim();
+    if (!trimmed) return showToast("Name cannot be empty!", "error");
+    if (trimmed.length > 30) return showToast("Name too long! (30 characters max)", "error");
+    if (trimmed === animal.name) return; // No change
+
+    const oldName = animal.name;
+    animal.name = trimmed;
+    
+    addTicker(`✏️ Renamed ${oldName} → ${trimmed}`);
+    showToast(`Renamed to "${trimmed}"!`, "info");
+    
+    updateUI();
+    
+    saveGame();
+}
+            // Generates the next auto-incrementing display name for a newly purchased species.
+            function getNextAnimalName(speciesName) {
+    if (!state.animalCounters[speciesName]) state.animalCounters[speciesName] = 1;
+    const suggestedName = `${speciesName} ${state.animalCounters[speciesName]}`;
+    state.animalCounters[speciesName]++;
+    return suggestedName;
+}
+
+            // Randomly rolls an animal's coat/color variation based on each variation's spawn chance.
+            function pickVariation(animal) {
+                if (!animal.variations || animal.variations.length === 0) return null;
+                const roll = Math.random() * 100;
+                let total = 0;
+                for (const v of animal.variations) {
+                    total += v.chance;
+                    if (roll < total) return v;
+                }
+                return animal.variations[0];
+            }
+
+            // Displays a message in the scrolling event ticker and logs it to the console.
+            function addTicker(message) {
+                document.getElementById("ticker").textContent = message;
+                console.log("[Zoo Event]", message);
+            }
+
+            // Shows a temporary toast notification of the given type (info/warn/error).
+            function showToast(message, type = 'info') {
+                const container = document.getElementById('toast-container');
+                const toast = document.createElement('div');
+                toast.className = `toast ${type}`;
+                toast.textContent = message;
+                container.appendChild(toast);
+                setTimeout(() => toast.remove(), 3000);
+            }
+
+            // Displays a floating +/- money indicator near the stats bar for visual feedback.
+            function showFloatingMoney(amount) {
+                if (amount === 0) return;
+                const header = document.querySelector('.stats-bar');
+                if (!header) return;
+                const el = document.createElement('span');
+                el.className = `floating-money ${amount >= 0 ? 'positive' : 'negative'}`;
+                el.textContent = (amount >= 0 ? '+' : '') + '$' + Math.abs(amount).toLocaleString();
+                header.style.position = 'relative';
+                header.appendChild(el);
+                el.style.left = (Math.random() * 100) + 'px';
+                el.style.top = '0px';
+                setTimeout(() => el.remove(), 1500);
+            }
+
+            // Opens the settings modal.
+            function openSettingsModal() {
+                document.getElementById('settingsModal').classList.add('active');
+            }
+
+            // Closes the settings modal.
+            function closeSettingsModal() {
+                document.getElementById('settingsModal').classList.remove('active');
+            }
+
+            // Resets the current zoo profile back to its starting state, after confirmation.
+            function resetZoo() {
+                if (!confirm("Are you sure you want to reset your CURRENT zoo? This cannot be undone.")) return;
+
+                // Clear the current profile
+                const profiles = getProfiles();
+                const activeId = getActiveProfileId();
+                if (profiles[activeId]) {
+                    delete profiles[activeId];
+                    saveProfiles(profiles);
+                }
+
+                // Create a brand new zoo
+                const newId = 'zoo_' + Date.now();
+                setActiveProfileId(newId);
+                resetStateToDefault();
+                state.zooName = "My New Zoo";
+                state.tutorialStep = 1;
+                state.tutorialSkipped = false;
+
+                // Save and refresh
+                saveGame();
+                loadGame(); // This ensures all state properties are properly initialized
+                refreshAllUI();
+                closeSettingsModal();
+                showToast("Current zoo has been reset! 🔄", "info");
+            }
+
+            // Serializes the active zoo profile to JSON and triggers a file download.
+            function exportSave() {
+                const profiles = getProfiles();
+                const activeId = getActiveProfileId();
+                const exportData = {
+                    version: "1.0",
+                    exportDate: new Date().toISOString(),
+                    profiles: profiles,
+                    activeProfileId: activeId
+                };
+                const dataStr = JSON.stringify(exportData, null, 2);
+                const dataBlob = new Blob([dataStr], {
+                    type: 'application/json'
+                });
+                const url = URL.createObjectURL(dataBlob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = `zoosmith_save_${Date.now()}.json`;
+                link.click();
+                URL.revokeObjectURL(url);
+                showToast("Save exported successfully! 💾", "info");
+            }
+
+            // Opens a file picker and restores a zoo profile from a previously exported save file.
+            function importSave() {
+                const input = document.createElement('input');
+                input.type = 'file';
+                input.accept = 'application/json';
+                input.onchange = (e) => {
+                    const file = e.target.files[0];
+                    if (!file) return;
+                    const reader = new FileReader();
+                    reader.onload = (event) => {
+                        try {
+                            const data = JSON.parse(event.target.result);
+                            if (!data.profiles || !data.activeProfileId) {
+                                throw new Error("Invalid save file format");
+                            }
+                            if (!confirm("This will replace all your current zoos. Continue?")) return;
+                            localStorage.setItem("zooProfiles", JSON.stringify(data.profiles));
+                            localStorage.setItem("activeZooProfileId", data.activeProfileId);
+                            resetStateToDefault();
+                            loadGame();
+                            refreshAllUI();
+                            closeSettingsModal();
+                            showToast("Save imported successfully! 🎉", "info");
+                        } catch (err) {
+                            showToast("Failed to import save: Invalid file format", "error");
+                            console.error("Import error:", err);
+                        }
+                    };
+                    reader.readAsText(file);
+                };
+                input.click();
+            }
+
+            /* --------------------------------------------------------------------------
+            🧑‍🌾 5. STAFF & ANIMAL HELPERS
+            -------------------------------------------------------------------------- */
+            // Read-only calculations about individual animals (age, health, income) and staffing capacity/demand.
+
+            // Determines an animal's life stage (baby/juvenile/adult/senior) and its income multiplier from its age.
+            function getLifeStage(animal) {
+                const age = animal.ageDays || 0;
+                if (age < 30) return {
+                    stage: 'baby',
+                    emoji: '🍼',
+                    label: 'Baby',
+                    incomeMultiplier: 0.5,
+                    canBreed: false
+                };
+                if (age < 90) return {
+                    stage: 'juvenile',
+                    emoji: '🐾',
+                    label: 'Juvenile',
+                    incomeMultiplier: 0.75,
+                    canBreed: false
+                };
+                if (age < 365) return {
+                    stage: 'adult',
+                    emoji: '🦁',
+                    label: 'Adult',
+                    incomeMultiplier: 1.0,
+                    canBreed: true
+                };
+                return {
+                    stage: 'senior',
+                    emoji: '👴',
+                    label: 'Senior',
+                    incomeMultiplier: 0.8,
+                    canBreed: true
+                };
+            }
+// Picks a CSS animation class for an animal sprite based on its age, health, and happiness.
+function getAnimalAnimClass(animal, exhibitHappiness) {
+    const health = animal.health ?? 100;
+    const age = animal.ageDays || 0;
+    
+    // 1. Babies always hop
+    if (age < 30) return 'anim-hop'; 
+    
+    // 2. Sick or very unhappy animals pace nervously
+    if (health < 40 || exhibitHappiness < 40) return 'anim-pace'; 
+    
+    // 3. Extremely happy and healthy animals bounce
+    if (health >= 90 && exhibitHappiness >= 90) return 'anim-bounce'; 
+    
+    return '';
+}
+            // Formats an animal's age in days as a human-readable years/months string.
+            function getAnimalAgeDisplay(animal) {
+                const age = animal.ageDays || 0;
+                const years = Math.floor(age / 360);
+                const months = Math.floor((age % 360) / 30);
+                const days = age % 30;
+                if (years > 0) return `${years}y ${months}m`;
+                if (months > 0) return `${months}m ${days}d`;
+                return `${days}d`;
+            }
+
+            // Calculates an animal's daily income, adjusted by its life-stage income multiplier.
+            function calculateAnimalIncome(animal) {
+                return Math.floor((animal.dailyIncome || 0) * getLifeStage(animal).incomeMultiplier);
+            }
+
+            // Rolls a chance for an elderly animal to die of natural causes; risk rises with age.
+            function shouldDieOfOldAge(animal) {
+                const age = animal.ageDays || 0;
+                if (age < 600) return false;
+                return Math.random() < ((age - 600) / 400) * 0.01;
+            }
+
+            // Returns how many exhibit capacity slots an animal occupies, based on its required exhibit size.
+            function getAnimalSlotCost(animal) {
+                const size = animal.requiredExhibitSize || "small";
+                if (size === "large") return 3;
+                if (size === "medium") return 2;
+                return 1;
+            }
+
+            // --- KEEPER LOGIC ---
+function getKeeperCapacity() {
+    let capacity = 0;
+    state.hiredStaff.forEach(instance => {
+        const staffData = data.staff.find(s => s.id === instance.typeId);
+        const slots = staffData?.keeperSlots ?? 0; // ✅ Changed from || 5 to ?? 0
+        if (staffData?.role?.toLowerCase().includes('keeper') || slots > 0) {
+            capacity += slots;
+        }
+    });
+    return capacity;
+}
+
+            // Calculates total keeper slots demanded by all exhibits containing animals.
+            function getKeeperDemand() {
+                let demand = 0;
+                const allExhibits = getAllExhibits();
+                for (const {
+                        exhibit
+                    }
+                    of allExhibits) {
+                    if (exhibit.buildDaysRemaining > 0) continue; // Don't count building exhibits
+                    const size = exhibit.size || 'small';
+                    if (size === 'large') demand += 3;
+                    else if (size === 'medium') demand += 2;
+                    else demand += 1; // small
+                }
+                return demand;
+            }
+
+            // --- CLEANER LOGIC ---
+function getCleanerCapacity() {
+    let capacity = 0;
+    state.hiredStaff.forEach(instance => {
+        const staffData = data.staff.find(s => s.id === instance.typeId);
+        const slots = staffData?.cleanerSlots ?? 0; // ✅ Changed from || 10 to ?? 0
+        if (staffData?.role?.toLowerCase().includes('cleaner') || staffData?.role?.toLowerCase().includes('janitor') || slots > 0) {
+            capacity += slots;
+        }
+    });
+    return capacity;
+}
+
+            // Calculates total cleaner slots demanded by placed bins and toilets.
+            function getCleanerDemand() {
+                let demand = 0;
+                // Bins = 1 slot, Toilets = 2 slots
+                if (state.amenities['bin'] > 0) demand += (state.amenities['bin'] * 1);
+                if (state.amenities['restroom'] > 0) demand += (state.amenities['restroom'] * 2); // Assuming 'restroom' is the toilet ID
+                // Add other toilet IDs here if you have them (e.g., 'toilet', 'latrine')
+                return demand;
+            }
+
+            // --- UPDATED UNDERSTAFFED CHECK ---
+            function isUnderstaffed() {
+                // You are understaffed if you don't have enough keepers OR cleaners
+                return getKeeperDemand() > getKeeperCapacity() || getCleanerDemand() > getCleanerCapacity();
+            }
+
+// Returns true if keeper demand currently exceeds keeper capacity.
+function isKeepersUnderstaffed() {
+    return getKeeperDemand() > getKeeperCapacity();
+}
+            
+            // Returns the number of unused keeper capacity slots.
+            function getAvailableSlots() {
+                return getKeeperCapacity() - getKeeperDemand();
+            }
+
+            // Aggregates the combined passive effects (happiness boosts, cleaning power, etc.) of all hired staff.
+            function getStaffEffects() {
+                const effects = {
+                    visitorHappiness: 0,
+                    animalHappiness: 0,
+                    breedingBonus: 0,
+                    cleanPark: 0,
+                    cleanExhibits: 0,
+                    maintenanceLevel: 0
+                };
+
+                // ✅ Updated for V0.7.0 object-based hiring
+                state.hiredStaff.forEach(staffInstance => {
+                    const staff = data.staff.find(s => s.id === staffInstance.typeId);
+                    if (staff && staff.effects) {
+                        for (const effect in staff.effects) {
+                            if (effect !== 'maxStaff' && effect !== 'keeperSlots' && effect !== 'cleanerSlots' && effects[effect] !== undefined) {
+                                effects[effect] += staff.effects[effect];
+                            }
+                        }
+                    }
+                });
+
+                return effects;
+            }
+
+            // Counts how many hired staff instances match a given staff type id.
+            function countStaff(staffId) {
+                return state.hiredStaff.filter(id => id === staffId).length;
+            }
+
+            // Compiles aggregate zoo statistics (species owned, upgrades, etc.) used for achievement checks.
+            function getGameStats() {
+                const allAnimals = getAllAnimals();
+                const species = new Set(allAnimals.map(a => a.id));
+                const totalUpgrades = getAllExhibits().reduce((sum, {
+                    exhibit
+                }) => sum + (exhibit.upgrades?.length || 0), 0);
+                const maxHappiness = Math.max(0, ...getAllExhibits().map(({
+                    exhibit
+                }) => getExhibitHappiness(exhibit)));
+                const totalAmenities = Object.values(state.amenities).reduce((sum, count) => sum + count, 0);
+                return {
+                    totalAnimals: allAnimals.length,
+                    speciesCount: species.size,
+                    money: state.money,
+                    exhibitsCount: Object.keys(state.exhibits).length,
+                    totalUpgrades: totalUpgrades,
+                    maxHappiness: maxHappiness,
+                    totalDays: (state.year - 1) * 360 + (state.month - 1) * 30 + state.day,
+                    bredAnimals: state.bredAnimals,
+                    animalsSold: state.animalsSold,
+                    hasRareVariant: allAnimals.some(a => a.variation?.rare),
+                    totalAmenities: totalAmenities,
+                    visitorSatisfaction: state.visitorSatisfaction
+                };
+            }
+
+            /* --------------------------------------------------------------------------
+            🔬 6. RESEARCH & ACHIEVEMENTS
+            -------------------------------------------------------------------------- */
+            // Research project progression and achievement-unlock evaluation.
+            // Checks whether a research project has already been completed.
+            function isResearchComplete(projectId) {
+                return state.completedResearch.includes(projectId);
+            }
+
+            // Checks whether a research project is unlocked, not yet completed, and no other research is active.
+            function canStartResearch(projectId) {
+                const project = data.researchProjects[projectId];
+                if (!project) return false;
+                if (isResearchComplete(projectId) || state.activeResearch) return false;
+                if (project.requires && !isResearchComplete(project.requires)) return false;
+                return state.money >= project.cost;
+            }
+
+            // Begins a new research project if its prerequisites and cost are satisfied.
+            function startResearch(projectId) {
+                const project = data.researchProjects[projectId];
+                if (!project) return;
+                if (!canStartResearch(projectId)) {
+                    if (state.activeResearch) return showToast("Lab is busy with another project!", "warn");
+                    if (state.money < project.cost) return showToast(`Need $${project.cost.toLocaleString()}!`, "error");
+                    if (project.requires && !isResearchComplete(project.requires)) return showToast("Prerequisite research not complete!", "error");
+                    return;
+                }
+                state.money -= project.cost;
+                showFloatingMoney(-project.cost);
+                state.activeResearch = {
+                    projectId: project.id,
+                    daysRemaining: project.days
+                };
+                addTicker(`🔬 Started research: ${project.name}`);
+                showToast(`Research begun: ${project.name} (${project.days} days)`, "info");
+                updateUI();
+                renderResearch();
+                saveGame();
+            }
+
+            // Evaluates a single achievement requirement (e.g. species collection, rare variant) against current stats.
+            function evaluateCheck(check, stats) {
+                if (!check) return false;
+                if (check.type === 'hasRareVariant') return stats.hasRareVariant === true;
+                if (check.type === 'speciesCollection') {
+                    const totalSpecies = data.animals.length;
+                    if (totalSpecies === 0) return false;
+                    return (stats.speciesCount / totalSpecies) * 100 >= check.value;
+                }
+                const value = stats[check.type];
+                if (typeof value === 'number' && typeof check.value === 'number') return value >= check.value;
+                return false;
+            }
+
+            // Iterates all achievements and unlocks any whose requirements are newly satisfied.
+            function checkAchievements() {
+                const stats = getGameStats();
+                let changed = false;
+                for (const a of data.achievements) {
+                    if (!a.check) continue;
+                    if (!state.achievements[a.id] && evaluateCheck(a.check, stats)) {
+                        state.achievements[a.id] = true;
+                        addTicker(`🏆 Achievement unlocked: ${a.name}`);
+                        changed = true;
+                    }
+                }
+                if (changed) {
+                    renderAchievements();
+                    renderShop();
+                }
+            }
+
+            /* --------------------------------------------------------------------------
+            ⭐ 7. ZOO RATING CALCULATION
+            -------------------------------------------------------------------------- */
+            // Derives the zoo's overall star rating and tier label from current game state.
+            // Looks up the rating tier (label/color/emoji) that a numeric zoo rating falls into.
+            function getZooRatingTier(rating) {
+                for (const tierNum in ZOO_RATING_TIERS) {
+                    const tier = ZOO_RATING_TIERS[tierNum];
+                    if (rating >= tier.min && rating <= tier.max) return {
+                        tierNum: parseInt(tierNum),
+                        ...tier
+                    };
+                }
+                return {
+                    tierNum: 1,
+                    ...ZOO_RATING_TIERS[1]
+                };
+            }
+
+            // Computes the overall zoo star rating from species diversity, animal welfare, and other factors.
+            function calculateZooRating() {
+                const allAnimals = getAllAnimals();
+                const totalSpecies = data.animals.length || 1;
+                const speciesCount = new Set(allAnimals.map(a => a.id)).size;
+                const varietyScore = Math.min(100, (speciesCount / Math.max(5, totalSpecies * 0.3)) * 100);
+                let avgHealth = 0;
+                if (allAnimals.length > 0) avgHealth = allAnimals.reduce((sum, a) => sum + (a.health ?? 100), 0) / allAnimals.length;
+                const satisfactionScore = state.visitorSatisfaction;
+                const staffEffects = getStaffEffects();
+                const cleanlinessScore = Math.min(100, staffEffects.cleanPark + staffEffects.cleanExhibits);
+                const deathPenalty = Math.min(100, (state.unnaturalDeaths || 0) * 10);
+                const deathScore = allAnimals.length > 0 ? (100 - deathPenalty) : 0;
+                const amenityTypes = ['restroom', 'bin', 'bench', 'food_stand', 'gift_shop'];
+                const amenitiesOwned = amenityTypes.filter(id => (state.amenities[id] || 0) > 0).length;
+                const amenitiesScore = (amenitiesOwned / amenityTypes.length) * 100;
+                const rating = Math.round((varietyScore * 0.20) + (avgHealth * 0.20) + (satisfactionScore * 0.15) + (cleanlinessScore * 0.10) + (deathScore * 0.25) + (amenitiesScore * 0.10));
+                return Math.max(0, Math.min(100, rating));
+            }
+
+            /* --------------------------------------------------------------------------
+            👥 8. VISITOR LOGIC & AMENITIES
+            -------------------------------------------------------------------------- */
+            // Attraction, visitor counts, and visitor spending/happiness simulation.
+            // Computes the zoo's overall attraction score, used to determine visitor turnout.
+            function calculateAttraction() {
+                let score = 0;
+                const allExhibits = getAllExhibits();
+                for (const {
+                        exhibit
+                    }
+                    of allExhibits) {
+                    exhibit.animals.forEach(animal => score += animal.attractionValue || 10);
+                    score += getExhibitHappiness(exhibit) * 0.5;
+                }
+                return score;
+            }
+
+// Calculates how many visitors arrive today based on the zoo's attraction score.
+function generateVisitors() {
+    const attraction = calculateAttraction();
+    if (attraction <= 0) return 0;
+    
+    const hasRestroom = (state.amenities.restroom || 0) > 0;
+    const hasFood = (state.amenities.food_stand || 0) > 0 || (state.amenities.cafe || 0) > 0 || (state.amenities.restaurant || 0) > 0;
+    
+    // ✅ FIX 1: Make amenities mandatory for a healthy baseline of visitors
+    let baseVisitors;
+    if (hasRestroom && hasFood) {
+        baseVisitors = 10; // Good reward for having both
+    } else if (hasRestroom || hasFood) {
+        baseVisitors = 2;  // Penalty for missing one
+    } else {
+        baseVisitors = 0;  // Hard lock: No basic amenities = No visitors
+    }
+    
+    // ✅ FIX 2: Reduce the animal multiplier (changed from 2 to 1.2)
+    // This prevents players from just hoarding animals and ignoring infrastructure
+    let visitors = baseVisitors + Math.floor(1.2 * Math.sqrt(attraction));
+    
+    const decayFactor = Math.min(1, state.daysSinceNewAnimal / 20);
+    visitors = Math.floor(visitors * (1 - (decayFactor * 0.4)));
+    
+    const priceImpact = state.ticketPriceImpact || 0;
+    const priceMultiplier = Math.max(0.1, 1 + (priceImpact / 100));
+    visitors = Math.floor(visitors * priceMultiplier);
+    
+    visitors = Math.max(0, Math.floor(visitors * (state.visitorSatisfaction / 100)));
+    return visitors;
+}
+
+            // Simulates visitor spending and complaints for the given number of daily visitors.
+            function processVisitorBehavior(visitors) {
+                state.visitorComplaints = [];
+                state.visitorSpending = {
+                    food: 0,
+                    gifts: 0,
+                    total: 0
+                };
+                const staffEffects = getStaffEffects();
+                const cleanlinessFactor = Math.min(0.8, staffEffects.cleanPark / 100);
+                if (visitors >= 5) {
+                    if (!(state.amenities.restroom > 0)) {
+                        state.visitorComplaints.push({
+                            icon: '🚻',
+                            text: 'Visitors are asking where the restrooms are!',
+                            type: 'warning',
+                            time: new Date().toLocaleTimeString()
+                        });
+                        state.visitorSatisfaction -= 5;
+                    }
+                    if (!(state.amenities.bench > 0)) {
+                        state.visitorComplaints.push({
+                            icon: '🪑',
+                            text: 'Tired visitors have nowhere to sit.',
+                            type: 'info',
+                            time: new Date().toLocaleTimeString()
+                        });
+                        state.visitorSatisfaction -= 3;
+                    }
+                    if (!(state.amenities.bin > 0)) {
+                        state.visitorComplaints.push({
+                            icon: '🗑️',
+                            text: 'No bins! Trash is starting to pile up.',
+                            type: 'info',
+                            time: new Date().toLocaleTimeString()
+                        });
+                        state.visitorSatisfaction -= 3;
+                    }
+                    const hasFood = (state.amenities.food_stand || 0) > 0 || (state.amenities.cafe || 0) > 0 || (state.amenities.restaurant || 0) > 0;
+                    if (!hasFood) {
+                        state.visitorComplaints.push({
+                            icon: '🍔',
+                            text: 'Hungry visitors can\'t find anywhere to eat!',
+                            type: 'warning',
+                            time: new Date().toLocaleTimeString()
+                        });
+                        state.visitorSatisfaction -= 5;
+                    }
+                }
+                for (const id in data.amenities) {
+                    const amenity = data.amenities[id];
+                    const count = state.amenities[id] || 0;
+                    if (amenity.capacity > 0 && count > 0) {
+                        const totalCapacity = count * amenity.capacity;
+                        if (id === 'restroom') {
+                            if (totalCapacity * 15 < Math.ceil(visitors * 0.8)) {
+                                state.visitorComplaints.push({
+                                    icon: amenity.icon,
+                                    text: `Long ${amenity.name.toLowerCase()} lines!`,
+                                    type: "warning",
+                                    time: new Date().toLocaleTimeString()
+                                });
+                                state.visitorSatisfaction -= 2 * (1 - cleanlinessFactor);
+                            }
+                        } else if (id === 'bin') {
+                            if (count < Math.ceil(visitors / amenity.capacity) && visitors > 8) {
+                                state.visitorComplaints.push({
+                                    icon: amenity.icon,
+                                    text: `Trash overflowing!`,
+                                    type: "warning",
+                                    time: new Date().toLocaleTimeString()
+                                });
+                                state.visitorSatisfaction -= 3 * (1 - cleanlinessFactor);
+                            }
+                        } else {
+                            if (totalCapacity < Math.ceil(visitors * 0.20) * 0.5) {
+                                state.visitorComplaints.push({
+                                    icon: amenity.icon,
+                                    text: `Some tired visitors couldn't find a seat.`,
+                                    type: "warning",
+                                    time: new Date().toLocaleTimeString()
+                                });
+                                state.visitorSatisfaction -= 3 * (1 - cleanlinessFactor);
+                            }
+                        }
+                    }
+                }
+                for (const id in data.amenities) {
+                    const amenity = data.amenities[id];
+                    const count = state.amenities[id] || 0;
+                    if (amenity.revenue > 0 && count > 0) {
+                        let buyerPercentage = 0.3;
+                        if (id.includes('food') || id.includes('restaurant') || id.includes('cafe')) buyerPercentage = 0.50;
+                        else if (id.includes('gift') || id.includes('shop') || id.includes('store')) buyerPercentage = 0.20;
+                        const actualBuyers = Math.min(Math.floor(visitors * buyerPercentage), count * (amenity.maxCustomers || 50));
+                        const revenue = actualBuyers * amenity.revenue;
+                        if (revenue > 0) {
+                            if (id.includes('food') || id.includes('restaurant') || id.includes('cafe')) state.visitorSpending.food += revenue;
+                            else state.visitorSpending.gifts += revenue;
+                            state.money += revenue;
+                            showFloatingMoney(revenue);
+                        }
+                    }
+                }
+                state.visitorSpending.total = state.visitorSpending.food + state.visitorSpending.gifts;
+                let baseSatisfaction = 0;
+                if ((state.amenities.restroom || 0) > 0) baseSatisfaction += 20;
+                if ((state.amenities.bin || 0) > 0) baseSatisfaction += 15;
+                if ((state.amenities.bench || 0) > 0) baseSatisfaction += 15;
+                if ((state.amenities.food_stand || 0) > 0) baseSatisfaction += 20;
+                if ((state.amenities.gift_shop || 0) > 0) baseSatisfaction += 10;
+                baseSatisfaction += Math.min(20, Object.values(state.amenities).reduce((sum, count) => sum + count, 0) * 2);
+                const penalty = state.visitorComplaints.reduce((sum, c) => sum + (c.type === 'warning' ? 5 : c.type === 'info' ? 2 : 3), 0);
+                const priceSatisfactionImpact = state.ticketSatisfactionImpact || 0;
+                state.visitorSatisfaction = Math.max(0, Math.min(100, baseSatisfaction - penalty + priceSatisfactionImpact));
+            }
+
+            // Estimates overall guest happiness from attraction, exhibit quality, and amenities.
+            function calculateGuestHappiness() {
+                let happiness = 50;
+                if (calculateAttraction() > 50) happiness += 10;
+                const allExhibits = getAllExhibits();
+                const avgAnimalHappiness = allExhibits.length ? allExhibits.reduce((sum, {
+                    exhibit
+                }) => sum + getExhibitHappiness(exhibit), 0) / allExhibits.length : 0;
+                if (avgAnimalHappiness > 80) happiness += 15;
+                const staffEffects = getStaffEffects();
+                happiness += staffEffects.visitorHappiness + staffEffects.cleanPark * 0.3;
+                return Math.max(0, Math.min(100, Math.round(happiness)));
+            }
+
+            /* --------------------------------------------------------------------------
+            📅 9. DAY CYCLE, INCOME & UPKEEP
+            -------------------------------------------------------------------------- */
+            // The daily income/expense calculations that feed into advanceDay().
+            // Generates today's visitors and adds their ticket revenue to the zoo's funds.
+            function processDayIncome() {
+                const visitors = generateVisitors();
+                state.dailyVisitors = visitors;
+                state.money += visitors * state.ticketPrice;
+                let totalCost = 0;
+state.hiredStaff.forEach(staffInstance => {
+    const staffData = data.staff.find(s => s.id === staffInstance.typeId);
+    if (staffData) totalCost += staffData.salary;
+});
+                state.money -= totalCost;
+                processVisitorBehavior(visitors);
+            }
+
+            // Sums and applies the daily income generated by every animal in the zoo.
+            function processAnimalIncome() {
+                let totalIncome = 0;
+                const allAnimals = getAllAnimals();
+                for (const animal of allAnimals) totalIncome += calculateAnimalIncome(animal);
+                if (totalIncome > 0) state.money += totalIncome;
+            }
+
+// Deducts daily upkeep costs for all exhibits/animals from the zoo's funds.
+function processUpkeep() {
+    let totalCost = 0;
+    const allExhibits = getAllExhibits(); // ✅ Use the unified helper
+    
+    for (const { exhibit } of allExhibits) {
+        // ✅ BEST PRACTICE: Skip exhibits still under construction
+        // (Aligns with processFenceDegradation and processExhibitCleanliness)
+        if (exhibit.buildDaysRemaining > 0) continue; 
+        
+        let base = 5;
+        if (exhibit.size === 'medium') base = 15;
+        if (exhibit.size === 'large') base = 30;
+        
+        base += (exhibit.animals.length * 2); // Vet/waste cost per animal
+        totalCost += base;
+    }
+    
+    state.money -= totalCost;
+    if (totalCost > 0) addTicker(`🧾 Facility upkeep: -$${totalCost}`);
+}
+
+            // Starts construction of a new house-type building, if unlocked and affordable.
+            function buildHouse(typeId) {
+                const houseType = data.houses[typeId];
+                if (!houseType) return showToast("Invalid house type!", "error");
+                if (houseType.unlockResearch && !isResearchComplete(houseType.unlockResearch)) {
+                    return showToast(`🔒 ${houseType.name} requires research!`, "error");
+                }
+                if (state.money < houseType.cost) return showToast("Not enough money!", "error");
+                state.money -= houseType.cost;
+                showFloatingMoney(-houseType.cost);
+                const id = typeId + "_" + Date.now();
+                state.houses[id] = {
+                    id: id,
+                    typeId: typeId,
+                    name: houseType.name,
+                    exhibits: {},
+                    upgrades: [],
+                    buildDaysRemaining: houseType.buildDays
+                };
+                addTicker(`🏗 Started building ${houseType.emoji} ${houseType.name}`);
+                updateUI();
+                
+            }
+
+            // NOTE: buildExhibit() used to be defined here too, duplicating the version in
+            // section 13 (near closeBuildModal). Since `function` declarations of the same
+            // name overwrite each other, this copy was silently dead code — removed to avoid
+            // confusion. See buildExhibit() below the build-modal helpers for the live version.
+
+            /* --------------------------------------------------------------------------
+            🍖 10. ANIMAL CARE (Food, Breeding, Health, Fences)
+            -------------------------------------------------------------------------- */
+            // Daily animal-welfare simulation: feeding, breeding, health, cleanliness, and fence upkeep.
+            // Feeds all animals from food storage each day, applying hunger penalties if keepers can't keep up or food runs out.
+            function consumeDailyFood() {
+                const hungryAnimals = [];
+                const allAnimals = getAllAnimals();
+    if (isKeepersUnderstaffed()) { 
+        allAnimals.forEach(animal => {
+            animal.wasHungry = true;
+            hungryAnimals.push(animal.name);
+        });
+        if (hungryAnimals.length > 0) {
+            addTicker(`⚠️ No keepers! ${hungryAnimals.length} animals went unfed.`);
+            showToast("No keepers to feed the animals! Hire staff!", "error");
+        }
+        return { hay: 0, meat: 0, produce: 0 };
+    }
+                const consumption = {
+                    hay: 0,
+                    meat: 0,
+                    produce: 0
+                };
+
+allAnimals.forEach(animal => {
+    const baseAmount = animal.foodAmount || 1;
+    const amount = animal.isPregnant ? baseAmount * 2 : baseAmount;
+    consumption[getDietFoodType(animal.diet)] += amount;
+});
+                
+                for (const foodType in consumption) {
+                    const needed = consumption[foodType];
+                    const available = state.food[foodType] || 0;
+                    if (available >= needed) {
+                        state.food[foodType] -= needed;
+                    } else {
+                        state.food[foodType] = 0;
+                        let hungryCount = 0;
+                        allAnimals.forEach(animal => {
+                            if (getDietFoodType(animal.diet) === foodType) {
+                                hungryCount++;
+                                animal.wasHungry = true;
+                            }
+                        });
+                        if (hungryCount > 0) hungryAnimals.push(`${FOOD_TYPES[foodType].icon} ${hungryCount} animals hungry!`);
+                    }
+                }
+                if (hungryAnimals.length > 0) {
+                    addTicker(`⚠️ ${hungryAnimals.join(', ')}`);
+                    showToast("Animals are hungry! Buy more food!", "error");
+                }
+                return consumption;
+            }
+
+            // Checks compatible male/female pairs in an exhibit and rolls a chance to produce offspring.
+            function tryBreeding(exhibit) {
+                const animals = exhibit.animals;
+                if (!animals || animals.length < 2) return;
+                const groups = {};
+                animals.forEach(a => {
+                    if (!groups[a.id]) groups[a.id] = [];
+                    groups[a.id].push(a);
+                });
+                for (const species in groups) {
+                    const group = groups[species];
+                    const females = group.filter(a => {
+                        const stage = getLifeStage(a);
+                        return a.gender === "female" && !a.isPregnant && stage.canBreed;
+                    });
+                    const matureMales = group.filter(a => getLifeStage(a).canBreed && a.gender === "male");
+                    if (matureMales.length === 0 || females.length === 0 || getExhibitHappiness(exhibit) < 100) continue;
+                    const chance = (group[0].breedChance ?? 0.1) * (1 + getStaffEffects().breedingBonus);
+                    if (Math.random() < chance) {
+                        const mother = females[Math.floor(Math.random() * females.length)];
+                        const father = matureMales[Math.floor(Math.random() * matureMales.length)];
+                        const gestationDays = data.animals.find(a => a.id === species)?.gestationDays || 10;
+                        mother.isPregnant = true;
+                        mother.daysUntilBirth = gestationDays;
+                        mother.babySpecies = species;
+                        mother.babyFather = father.name;
+                        state.daysSinceNewAnimal = 0;
+                        addTicker(`🤰 ${mother.name} is pregnant! Baby due in ${gestationDays} days.`);
+                        showToast(`${mother.name} is expecting! 🍼`, "info");
+                    }
+                }
+            }
+
+            // Calculates an exhibit's overall happiness score from herd size, health, food, staffing, cleanliness, and upgrades.
+            function getExhibitHappiness(exhibit) {
+                if (!exhibit || !exhibit.animals?.length) return 0;
+                let totalHappiness = 0;
+                const upgrades = exhibit.upgrades || [];
+    const understaffed = isKeepersUnderstaffed(); 
+    const staffEffects = getStaffEffects();
+
+                // Get exhibit cleanliness once (defaults to 100 if missing from old saves)
+                const cleanliness = exhibit.cleanliness ?? 100;
+
+                exhibit.animals.forEach(animal => {
+                    let happiness = 30; // Base happiness (Starts low, must earn up to 100)
+                    const count = exhibit.animals.filter(a => a.id === animal.id).length;
+
+                    // 1. Amount of animals (Herd Size)
+                    if (count < animal.minInExhibit) happiness = (count / animal.minInExhibit) * 30;
+                    else if (count > animal.maxInExhibit) happiness -= (count - animal.maxInExhibit) * 15;
+                    else happiness += 20;
+
+                    // 2. Health
+                    const health = animal.health ?? 100;
+                    happiness += (health / 10);
+
+                    // 3. Food
+                    if (animal.wasHungry) {
+                        happiness -= 30;
+                        delete animal.wasHungry;
+                    }
+
+                    // 4. Staffing
+                    if (understaffed) happiness -= 20;
+
+                    // 5. Exhibit Cleanliness (NEW!)
+                    if (cleanliness < 50) {
+                        happiness -= (50 - cleanliness) * 0.5; // Lose up to 25 happiness if filthy
+                    }
+
+                    // 6. Shelter, Decorations, Facilities
+                    toArray(animal.preferredShelter).forEach(pref => {
+                        if (upgrades.includes(pref)) happiness += 15;
+                        else happiness -= 10;
+                    });
+                    toArray(animal.preferredDecorations).forEach(pref => {
+                        if (upgrades.includes(pref)) happiness += 5;
+                        else happiness -= 3;
+                    });
+                    toArray(animal.preferredFacilities).forEach(pref => {
+                        if (upgrades.includes(pref)) happiness += 5;
+                        else happiness -= 3;
+                    });
+
+                    // Disliked items
+                    toArray(animal.dislikedShelter).forEach(pref => {
+                        if (upgrades.includes(pref)) happiness -= 20;
+                    });
+                    toArray(animal.dislikedDecorations).forEach(pref => {
+                        if (upgrades.includes(pref)) happiness -= 10;
+                    });
+                    toArray(animal.dislikedFacilities).forEach(pref => {
+                        if (upgrades.includes(pref)) happiness -= 10;
+                    });
+
+                    totalHappiness += happiness;
+                });
+
+                let avgHappiness = Math.round(totalHappiness / exhibit.animals.length);
+                avgHappiness += staffEffects.cleanExhibits * 0.5;
+                avgHappiness += staffEffects.animalHappiness;
+
+                return Math.max(0, Math.min(100, avgHappiness));
+            }
+
+            // Advances exhibit construction countdowns and completes any exhibits that finish building today.
+            function processDailyMaintenance() {
+                for (const id in state.exhibits) {
+                    const ex = state.exhibits[id];
+                    if (ex.buildDaysRemaining > 0) {
+                        ex.buildDaysRemaining--;
+                        if (ex.buildDaysRemaining === 0) {
+                            state.builtEnclosures[id] = true;
+                            addTicker(`✅ ${ex.name} is now complete!`);
+                            showToast(`${ex.name} finished building! 🎉`, "info");
+                        }
+                    }
+                }
+                let maintenanceCost = 0;
+                for (const id in data.amenities) {
+                    const count = state.amenities[id] || 0;
+                    const amenity = data.amenities[id];
+                    if (count > 0 && amenity.maintenanceCost > 0) maintenanceCost += count * amenity.maintenanceCost;
+                }
+                state.maintenance.dailyMaintenanceCost = maintenanceCost;
+                state.money -= maintenanceCost;
+                if (maintenanceCost > 0) addTicker(`🧹 Daily maintenance: -$${maintenanceCost}`);
+            }
+
+            // Reduces exhibit cleanliness based on animal dirtiness, offset by janitor cleaning power.
+            function processExhibitCleanliness() {
+                const staffEffects = getStaffEffects();
+                const janitorCleaningPower = staffEffects.cleanExhibits || 0; // Global deep cleaning from janitors
+                const allExhibits = getAllExhibits();
+
+                for (const {
+                        exhibit
+                    }
+                    of allExhibits) {
+                    if (exhibit.buildDaysRemaining > 0) continue;
+                    if (exhibit.cleanliness === undefined) exhibit.cleanliness = 100;
+
+                    // 1. Animals make it dirty (based on JSON dirtiness value)
+                    let dirtAmount = 0;
+                    exhibit.animals.forEach(animalInstance => {
+                        const baseAnimal = data.animals.find(a => a.id === animalInstance.id);
+                        const dirtLevel = baseAnimal ? (baseAnimal.dirtiness || 2) : 2;
+                        dirtAmount += dirtLevel;
+                    });
+                    exhibit.cleanliness -= dirtAmount;
+
+                    // 2. ✅ NEW: Keepers assigned to THIS exhibit clean it (+2 per keeper)
+                    const assignedKeepers = state.hiredStaff.filter(s =>
+                        s.assignments &&
+                        s.assignments.includes(exhibit.id) &&
+                        isKeeperRole(s.typeId)
+                    );
+                    const keeperCleaningBonus = assignedKeepers.length * 2;
+                    exhibit.cleanliness += keeperCleaningBonus;
+
+                    // 3. Janitors' global deep cleaning power
+                    if (janitorCleaningPower > 0) {
+                        exhibit.cleanliness += janitorCleaningPower;
+                    }
+
+                    // 4. Clamp between 0 and 100
+                    exhibit.cleanliness = Math.max(0, Math.min(100, exhibit.cleanliness));
+                }
+            }
+
+            // Gradually degrades exhibit fence condition over time, offset by maintenance staff.
+            function processFenceDegradation() {
+    const allExhibits = getAllExhibits();
+    const staffEffects = getStaffEffects();
+    const maintenanceLevel = staffEffects.maintenanceLevel || 0; // ✅ Get from staff
+
+    for (const { exhibit } of allExhibits) {
+        if (exhibit.buildDaysRemaining > 0) continue;
+        let degradation = 0.5 + exhibit.animals.length * 0.2;
+        exhibit.animals.forEach(animal => {
+            const size = animal.requiredExhibitSize || "small";
+            if (size === "large") degradation += 0.3;
+            else if (size === "medium") degradation += 0.15;
+        });
+                    
+      degradation *= (1 - maintenanceLevel * 0.2); 
+        
+        if (maintenanceLevel >= 2) exhibit.fenceCondition = Math.min(100, exhibit.fenceCondition + maintenanceLevel * 5);
+        exhibit.fenceCondition = Math.max(0, exhibit.fenceCondition - degradation);
+                    if (exhibit.fenceCondition < 10 && exhibit.animals.length > 0) triggerEscape(exhibit);
+                    else if (exhibit.fenceCondition < 30 && Math.random() < 0.3 && exhibit.animals.length > 0) triggerEscape(exhibit);
+                    else if (exhibit.fenceCondition < 50 && Math.random() < 0.1 && exhibit.animals.length > 0) triggerEscape(exhibit);
+                }
+            }
+
+            // Updates each animal's health based on staffing, food, and exhibit conditions, applying old-age death checks.
+            function processAnimalHealth() {
+    const understaffed = isKeepersUnderstaffed(); 
+    const allExhibits = getAllExhibits();
+                for (const {
+                        exhibit
+                    }
+                    of allExhibits) {
+                    const deaths = [];
+                    for (const animal of exhibit.animals) {
+                        if (animal.health === undefined) animal.health = 100;
+                        let healthChange = understaffed ? -5 : 2;
+                        if (animal.wasHungry) {
+                            healthChange -= 10;
+                            delete animal.wasHungry;
+                        }
+                        if (animal.sick) healthChange -= 3;
+                        animal.health = Math.max(0, Math.min(100, animal.health + healthChange));
+                        if (animal.health < 40 && !animal.sick && !animal.wasSickNotified) {
+                            animal.sick = true;
+                            animal.wasSickNotified = true;
+                            addTicker(`🤒 ${animal.name} has fallen ill!`);
+                            showToast(`${animal.name} is sick!`, "warn");
+                        }
+                        if (animal.health >= 70 && animal.sick) {
+                            animal.sick = false;
+                            delete animal.wasSickNotified;
+                            addTicker(`💚 ${animal.name} has recovered!`);
+                        }
+                        if (animal.health <= 0) deaths.push(animal);
+                    }
+                    for (const deadAnimal of deaths) {
+                        exhibit.animals = exhibit.animals.filter(a => a !== deadAnimal);
+                        addTicker(`⚰️ ${deadAnimal.name} died from neglect.`);
+                        showToast(`💔 ${deadAnimal.name} has died. Zoo rating dropped!`, 'error');
+                        state.visitorSatisfaction = Math.max(0, state.visitorSatisfaction - 10);
+                        state.unnaturalDeaths = (state.unnaturalDeaths || 0) + 1;
+                        state.totalDeaths = (state.totalDeaths || 0) + 1;
+                    }
+                }
+            }
+
+            // Handles an animal escaping from its exhibit due to a damaged fence, removing it from the zoo.
+            function triggerEscape(exhibit) {
+                if (!exhibit || exhibit.animals.length === 0) return;
+                const escapedAnimal = exhibit.animals[Math.floor(Math.random() * exhibit.animals.length)];
+                exhibit.animals = exhibit.animals.filter(a => a !== escapedAnimal);
+                addTicker(`🚨 ${escapedAnimal.name} escaped from ${exhibit.name}!`);
+                showToast(`🚨 ${escapedAnimal.name} escaped!`, "error");
+                state.visitorSatisfaction = Math.max(0, state.visitorSatisfaction - 15);
+                if (Math.random() < 0.5) {
+                    const recoveryCost = Math.floor(escapedAnimal.dailyIncome * 20);
+                    if (state.money >= recoveryCost) {
+                        state.money -= recoveryCost;
+                        showFloatingMoney(-recoveryCost);
+                        exhibit.animals.push(escapedAnimal);
+                        showToast(`✅ Recovered ${escapedAnimal.name} for $${recoveryCost}`, "info");
+                    } else {
+                        showToast(`💸 ${escapedAnimal.name} is gone forever...`, "error");
+                        state.unnaturalDeaths++;
+                        state.totalDeaths++;
+                    }
+                } else {
+                    showToast(`💸 ${escapedAnimal.name} is gone forever...`, "error");
+                    state.unnaturalDeaths++;
+                    state.totalDeaths++;
+                }
+            }
+
+            /* --------------------------------------------------------------------------
+            🎨 11. UI RENDERING: SUPPLIES & EXHIBITS
+            -------------------------------------------------------------------------- */
+            // DOM rendering for the Supplies and Exhibits tabs.
+            // Renders the Supplies tab: food inventory, daily consumption, and restock controls.
+            function renderSupplies() {
+                const box = document.getElementById("supplies");
+                const consumption = {
+                    hay: 0,
+                    meat: 0,
+                    produce: 0
+                };
+                const animalCounts = {
+                    hay: 0,
+                    meat: 0,
+                    produce: 0
+                };
+                const allAnimals = getAllAnimals();allAnimals.forEach(animal => {
+    const baseAmount = animal.foodAmount || 1;
+    const amount = animal.isPregnant ? baseAmount * 2 : baseAmount;
+    consumption[getDietFoodType(animal.diet)] += amount;
+    animalCounts[getDietFoodType(animal.diet)]++;
+});
+                let cardsHTML = '';
+                for (const foodType in FOOD_TYPES) {
+                    const food = FOOD_TYPES[foodType];
+                    const current = state.food[foodType] || 0;
+                    const cap = food.storageCap;
+                    const percent = Math.min(100, (current / cap) * 100);
+                    const dailyUse = consumption[foodType];
+                    const daysLeft = dailyUse > 0 ? Math.floor(current / dailyUse) : '∞';
+                    const isLow = current < dailyUse * 3;
+                    const isEmpty = current === 0 && dailyUse > 0;
+                    cardsHTML += `<div class="premium-card" style="${isEmpty ? 'border-color: var(--danger); box-shadow: 0 0 20px rgba(239, 68, 68, 0.3);' : isLow ? 'border-color: var(--warn);' : ''}">
+<div class="card-header" style="background: linear-gradient(135deg, ${food.color}22, #0f172a);"><span style="font-size: 2.5rem;">${food.icon}</span><h3>${food.name}</h3><div class="subtitle">For ${food.diet}s • $${food.costPerUnit}/unit</div></div>
+<div class="card-body">
+<div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px;">
+<div><div style="font-size: 2rem; font-weight: 900; color: ${isEmpty ? 'var(--danger)' : isLow ? 'var(--warn)' : 'var(--accent)'};">${current}</div><div style="font-size: 0.8rem; color: var(--muted);">/ ${cap} units</div></div>
+<div style="text-align: right;"><div style="font-size: 0.85rem; color: var(--muted);">Days left:</div><div style="font-size: 1.3rem; font-weight: 800; color: ${daysLeft < 3 && daysLeft !== '∞' ? 'var(--warn)' : 'var(--text)'};">${daysLeft}${daysLeft !== '∞' ? ' days' : ''}</div></div>
+</div>
+<div class="happiness-bar" style="height: 10px;"><div style="height: 100%; width: ${percent}%; background: linear-gradient(90deg, ${food.color}, ${food.color}cc); transition: width 0.3s;"></div></div>
+<div style="display: flex; justify-content: space-between; font-size: 0.85rem; color: var(--muted); margin-top: 8px;"><span>📊 ${dailyUse}/day</span><span>🐾 ${animalCounts[foodType]} animals</span></div>
+${isEmpty ? `<div style="padding: 8px; background: rgba(239, 68, 68, 0.15); border-radius: 8px; text-align: center; color: var(--danger); font-weight: 700; margin: 8px 0;">⚠️ OUT OF STOCK</div>` : isLow ? `<div style="padding: 8px; background: rgba(245, 158, 11, 0.15); border-radius: 8px; text-align: center; color: var(--warn); font-weight: 700; margin: 8px 0;">⚠️ LOW STOCK</div>` : ''}
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 8px;">
+<button class="secondary-btn" style="padding: 8px; font-size: 0.85rem;" onclick="buyFood('${foodType}', 10)">+10<br><small>$${food.costPerUnit * 10}</small></button>
+<button class="secondary-btn" style="padding: 8px; font-size: 0.85rem;" onclick="buyFood('${foodType}', 25)">+25<br><small>$${food.costPerUnit * 25}</small></button>
+<button class="secondary-btn" style="padding: 8px; font-size: 0.85rem;" onclick="buyFood('${foodType}', 50)">+50<br><small>$${Math.floor(food.costPerUnit * 50 * 0.9)}</small></button>
+<button class="primary-btn" style="padding: 8px; font-size: 0.85rem;" onclick="buyFood('${foodType}', 100)">+100<br><small>$${Math.floor(food.costPerUnit * 100 * 0.8)} (20% off)</small></button>
+</div>
+</div></div>`;
+                }
+                box.innerHTML = `<div class="premium-card" style="grid-column: 1 / -1; margin-bottom: 10px;"><div class="card-header"><h3>🍽 Food Supply Management</h3><div class="subtitle">Buy food to keep your animals fed. Pregnant animals eat double!</div></div></div><div class="grid-layout">${cardsHTML}</div>`;
+            }
+
+            // Purchases additional units of a given food type, deducting the cost from zoo funds.
+            function buyFood(foodType, amount) {
+                try {
+                    const food = FOOD_TYPES[foodType];
+                    if (!food) return showToast("Unknown food type!", "error");
+                    if (!state.food) state.food = {
+                        hay: 0,
+                        meat: 0,
+                        produce: 0
+                    };
+                    if (state.food[foodType] === undefined) state.food[foodType] = 0;
+                    const current = state.food[foodType];
+                    const spaceAvailable = food.storageCap - current;
+                    if (spaceAvailable <= 0) return showToast(`${food.name} storage is full!`, "error");
+                    const actualAmount = Math.min(amount, spaceAvailable);
+                    let unitCost = food.costPerUnit;
+                    if (actualAmount >= 100) unitCost *= 0.8;
+                    else if (actualAmount >= 50) unitCost *= 0.9;
+                    const totalCost = Math.floor(unitCost * actualAmount);
+                    if (state.money < totalCost) return showToast(`Not enough money! Need $${totalCost}`, "error");
+                    state.money -= totalCost;
+                    state.food[foodType] = current + actualAmount;
+                    showFloatingMoney(-totalCost);
+                    showToast(`Bought ${actualAmount} ${food.name}${actualAmount !== amount ? ` (capped at ${actualAmount})` : ''}`, "info");
+                    updateUI();
+                    renderSupplies();
+                } catch (e) {
+                    console.error("buyFood error:", e);
+                    showToast("Error buying food.", "error");
+                }
+            }
+
+    // Renders the Exhibits tab, drawing every exhibit tile with its animals, status bars, and controls.
+    function renderExhibits() {
+    if (state.uiMode === "move") return;
+    const box = document.getElementById("exhibits");
+    box.innerHTML = "";
+    const ids = Object.keys(state.exhibits);
+    if (ids.length === 0) {
+        box.innerHTML = '<div style="text-align:center; padding:40px; color:var(--muted); grid-column: 1 / -1;"><h2>🏞 No Exhibits Yet</h2><p>Click "Build Exhibit" to get started!</p></div>';
+        return;
+    }
+
+    ids.forEach((id) => {
+        const group = state.exhibits[id];
+        if (!group.id) group.id = id;
+        const isBuilt = !!state.builtEnclosures[id];
+        const isBuilding = group.buildDaysRemaining > 0;
+        const happiness = getExhibitHappiness(group);
+        const upgradeCount = group.upgrades?.length || 0;
+        const sizeInfo = EXHIBIT_SIZES[group.size] || EXHIBIT_SIZES.small;
+        const dailyFoodCost = group.animals.reduce((sum, a) => sum + getActualFoodCost(a), 0);
+        const dailyExhibitCost = 5 + dailyFoodCost;
+
+        const fenceCondition = group.fenceCondition ?? 100;
+        const fenceColor = fenceCondition >= 70 ? 'var(--accent)' : fenceCondition >= 50 ? 'var(--warn)' : fenceCondition >= 30 ? 'var(--danger)' : '#dc2626';
+        const fenceEmoji = fenceCondition >= 70 ? '✅' : fenceCondition >= 50 ? '⚠️' : fenceCondition >= 30 ? '🔶' : '🔴';
+
+        const cleanliness = group.cleanliness ?? 100;
+        const assignedKeepersForExhibit = state.hiredStaff.filter(s => s.assignments && s.assignments.includes(group.id) && isKeeperRole(s.typeId));
+        const keeperCleaningBonus = assignedKeepersForExhibit.length * 2;
+        const cleanlinessColor = cleanliness >= 70 ? 'var(--accent)' : cleanliness >= 50 ? 'var(--warn)' : cleanliness >= 30 ? 'var(--danger)' : '#dc2626';
+        const cleanlinessEmoji = cleanliness >= 70 ? '✨' : cleanliness >= 50 ? '🧹' : cleanliness >= 30 ? '⚠️' : '🦠';
+
+        const div = document.createElement("div");
+        div.className = "exhibitCard";
+        let statusBadge = "";
+        if (isBuilding) {
+            const progress = ((sizeInfo.buildDays - group.buildDaysRemaining) / sizeInfo.buildDays) * 100;
+            statusBadge = `<div style="font-size:0.8rem; margin-top:4px; color: var(--warn);">🏗 Building... ${group.buildDaysRemaining} day${group.buildDaysRemaining !== 1 ? 's' : ''} left</div><div class="happiness-bar" style="margin-top:6px;"><div class="happiness-fill" style="width:${progress}%; background: linear-gradient(90deg, var(--warn), var(--accent));"></div></div>`;
+        } else if (isBuilt) statusBadge = `<div style="font-size:0.8rem; opacity:0.8; margin-top:4px;">✅ Built (${sizeInfo.label})</div>`;
+        else statusBadge = `<div style="font-size:0.8rem; opacity:0.8; margin-top:4px;">⚠️ Not Built</div>`;
+
+        const pregnantCount = group.animals.filter(a => a.isPregnant).length;
+        const sickAnimals = group.animals.filter(a => (a.health ?? 100) < 40);
+        const criticalAnimals = group.animals.filter(a => (a.health ?? 100) < 20);
+        let healthWarningHTML = '';
+        if (criticalAnimals.length > 0) healthWarningHTML = `<div style="padding: 8px; background: rgba(220, 38, 38, 0.2); border: 1px solid var(--danger); border-radius: 8px; color: var(--danger); font-weight: 700; text-align: center; margin: 6px 0;">💀 ${criticalAnimals.length} animal${criticalAnimals.length > 1 ? 's' : ''} in CRITICAL condition!</div>`;
+        else if (sickAnimals.length > 0) healthWarningHTML = `<div style="padding: 8px; background: rgba(245, 158, 11, 0.15); border: 1px solid var(--warn); border-radius: 8px; color: var(--warn); font-weight: 700; text-align: center; margin: 6px 0;">🤒 ${sickAnimals.length} animal${sickAnimals.length > 1 ? 's' : ''} sick - hire keepers!</div>`;
+       else if (isKeepersUnderstaffed() && group.animals.length > 0) healthWarningHTML = `<div style="padding: 6px; background: rgba(245, 158, 11, 0.1); border-radius: 8px; color: var(--warn); font-size: 0.8rem; text-align: center; margin: 6px 0;">⚠️ Health declining - no keepers</div>`;
+        let cleanlinessWarningHTML = '';
+        if (cleanliness < 50) cleanlinessWarningHTML = `<div style="padding: 8px; background: rgba(239, 68, 68, 0.15); border: 1px solid var(--danger); border-radius: 8px; color: #fca5a5; font-weight: 700; font-size: 0.85rem; text-align: center; margin: 6px 0;">🦠 Exhibit is dirty - Happiness declining!</div>`;
+
+        const animalList = group.animals.length > 0 ? group.animals.map((a, i) => {
+            const stage = getLifeStage(a);
+            const pregnantTag = a.isPregnant ? '🤰 ' : '';
+            const sickTag = a.sick ? '🤒 ' : '';
+            const health = a.health ?? 100;
+            const healthEmoji = health >= 80 ? '' : health >= 50 ? ' 💛' : health >= 20 ? ' 🧡' : ' ❤️‍🩹';
+            const animClass = getAnimalAnimClass(a, happiness);
+            
+            return `<span class="animalTag" data-exhibit="${group.id}" data-index="${i}" title="Age: ${getAnimalAgeDisplay(a)} | Health: ${Math.round(health)}%">
+                <span class="${animClass}">${sickTag}${pregnantTag}${stage.emoji}</span> ${a.name}${healthEmoji}
+            </span>`;
+        }).join("") : "<em style='color:var(--muted)'>No animals yet</em>";
+
+        let exhibitThoughtsHTML = '';
+        let allThoughts = [];
+        group.animals.forEach(a => {
+            const thoughts = generateAnimalThoughts(a, group);
+            thoughts.forEach(t => allThoughts.push({ ...t, animalName: a.name }));
+        });
+        const priority = { critical: 1, problem: 2, want: 3, info: 4, happy: 5 };
+        allThoughts.sort((a, b) => priority[a.type] - priority[b.type]);
+        const topThoughts = allThoughts.slice(0, 2);
+
+        if (topThoughts.length > 0) {
+            exhibitThoughtsHTML = `
+            <div style="margin-top: 10px; padding: 10px; background: rgba(11, 18, 32, 0.6); border-radius: 10px; border: 1px solid #334155;">
+                <div style="font-size: 0.75rem; color: var(--muted); text-transform: uppercase; margin-bottom: 6px; font-weight: 700;">💭 Exhibit Thoughts</div>
+                ${topThoughts.map(t => `
+                    <div class="thought-bubble ${t.type}" style="margin-bottom: 4px; padding: 6px 10px; font-size: 0.8rem;">
+                        <span class="thought-icon" style="font-size: 1rem;">${t.icon}</span>
+                        <span class="thought-text" style="font-size: 0.8rem;"><strong>${t.animalName}:</strong> ${t.text}</span>
+                    </div>
+                `).join('')}
+            </div>`;
+        }
+                        
+        const exhibitType = data.exhibitTypes[group.type] || data.exhibitTypes.terrestrial || { emoji: '🏞️', name: 'Standard Exhibit' };
+        const assignedKeepers = state.hiredStaff.filter(s => s.assignments && s.assignments.includes(group.id));
+        const keeperSlotsNeeded = group.size === 'large' ? 3 : group.size === 'medium' ? 2 : 1;
+        let assignmentHTML = '';
+        if (assignedKeepers.length > 0) {
+            assignmentHTML = `<div style="margin-top:8px; padding:8px; background:rgba(59, 130, 246, 0.1); border-radius:8px; border:1px solid rgba(59, 130, 246, 0.3);">
+                <div style="font-size:0.75rem; color:var(--blue); font-weight:700; margin-bottom:4px;">🧤 Assigned Keepers (${assignedKeepers.length})</div>
+                <div style="display:flex; flex-wrap:wrap; gap:4px;">
+                    ${assignedKeepers.map(s => {
+                        const sData = data.staff.find(x => x.id === s.typeId);
+                        return `<span style="font-size:0.75rem; background:#0b1220; padding:3px 8px; border-radius:12px; color:var(--text);">${sData?.icon || '👤'} ${sData?.name || 'Keeper'}</span>`;
+                    }).join('')}
+                </div>
+            </div>`;
+        }
+        const assignBtnHTML = `<button class="secondary-btn" style="width:100%; margin-top:8px; padding:8px; font-size:0.85rem;" onclick="openAssignStaffModal('${group.id}', 'exhibit')">🧑‍🌾 Manage Keepers (${keeperSlotsNeeded} slots needed)</button>`;
+        
+        // ✅ FULLY RESTORED TEMPLATE LITERAL
+        div.innerHTML = `
+            <div class="exhibit-header">
+                <h3 class="exhibit-name" onclick="renameExhibit('${group.id}')" title="Click to rename">${exhibitType.emoji} ${group.name} <span style="font-size: 0.7rem; opacity: 0.6; margin-left: 6px;">️</span></h3>
+                <div style="font-size:0.75rem; opacity:0.7; margin-top:2px;">${sizeInfo.emoji} ${sizeInfo.label} • ${exhibitType.name}</div>
+                ${statusBadge}
+            </div>
+            <div class="exhibit-body">
+                <div class="exhibit-stat"><span>🐾 Animals</span><strong>${group.animals.length}</strong></div>
+                <div class="exhibit-stat"><span>😊 Happiness</span><strong style="color:${happiness >= 80 ? 'var(--accent)' : happiness >= 50 ? 'var(--warn)' : 'var(--danger)'}">${happiness}%</strong></div>
+                <div class="exhibit-stat"><span>${fenceEmoji} Fence Condition</span><strong style="color: ${fenceColor};">${Math.round(fenceCondition)}%</strong></div>
+                <div class="happiness-bar" style="margin-bottom: 8px;"><div style="height: 100%; width: ${fenceCondition}%; background: ${fenceColor}; transition: width 0.3s;"></div></div>
+                <div class="exhibit-stat"><span>${cleanlinessEmoji} Cleanliness</span><strong style="color: ${cleanlinessColor};">${Math.round(cleanliness)}%</strong></div>
+                ${keeperCleaningBonus > 0 ? `<div style="font-size:0.7rem; color:var(--blue); text-align:center; margin-top:-4px;">🧤 Keepers cleaning +${keeperCleaningBonus}/day</div>` : ''}
+                <div class="happiness-bar" style="margin-bottom: 8px;"><div style="height: 100%; width: ${cleanliness}%; background: ${cleanlinessColor}; transition: width 0.3s;"></div></div>
+                ${pregnantCount > 0 ? `<div class="exhibit-stat"><span>🤰 Pregnant</span><strong style="color: var(--purple);">${pregnantCount}</strong></div>` : ''}
+                <div class="happiness-bar"><div class="happiness-fill" style="width:${happiness}%"></div></div>
+                <div class="exhibit-stat"><span>🍖 Daily Food</span><strong style="color: var(--warn);">$${dailyFoodCost}</strong></div>
+                <div class="exhibit-stat"><span>🧾 Total Upkeep</span><strong style="color: var(--danger);">$${dailyExhibitCost}/day</strong></div>
+                <div class="exhibit-stat"><span>🏗 Upgrades</span><strong>${upgradeCount}</strong></div>
+                ${healthWarningHTML}
+                ${cleanlinessWarningHTML}
+                ${assignmentHTML}
+                <div class="animalList">${animalList}</div>
+                ${exhibitThoughtsHTML}
+                ${assignBtnHTML}
+                ${!isBuilding ? `<div style="display:flex; gap:6px; margin-top:8px;">
+                    <button class="secondary-btn" style="flex:1; padding:8px; font-size:0.85rem;" onclick="openUpgradeMenu('${group.id}')">🏗 Upgrades</button>
+                    <button class="secondary-btn" style="flex:1; padding:8px; font-size:0.85rem; background: linear-gradient(135deg, #f59e0b, #d97706); color: white;" onclick="repairFence('${group.id}')">🔧 Repair</button>
+                    <button class="danger-btn" style="flex:1; padding:8px; font-size:0.85rem;" onclick="demolishExhibit('${group.id}')">🗑 Remove</button>
+                </div>` : `<div style="margin-top:8px; padding:10px; background: rgba(245, 158, 11, 0.1); border-radius: 8px; text-align:center; color: var(--warn); font-size:0.85rem;"> Cannot modify while under construction</div>`}
+            </div>`;
+
+        box.appendChild(div);
+    });
+}
+            // Removes an exhibit permanently, provided it currently contains no animals.
+            function demolishExhibit(id) {
+                const group = state.exhibits[id];
+                if (!group) return;
+                if (group.animals.length > 0) return showToast("Cannot demolish exhibit with animals inside!", "error");
+                const sizeInfo = EXHIBIT_SIZES[group.size] || EXHIBIT_SIZES.small;
+                const refund = Math.floor(sizeInfo.cost * 0.5);
+                state.money += refund;
+                showFloatingMoney(refund);
+                delete state.exhibits[id];
+                delete state.builtEnclosures[id];
+                addTicker(`💰 Demolished ${group.name} (refunded $${refund})`);
+                updateUI();
+                renderExhibits();
+                saveGame();
+            }
+
+            // Prompts the player for a new name and renames the specified exhibit.
+            function renameExhibit(exhibitId) {
+                const ctx = getExhibitContext(exhibitId);
+                if (!ctx) return;
+                const exhibit = ctx.exhibit;
+                const newName = prompt(`Rename "${exhibit.name}" to:`, exhibit.name);
+                if (newName === null) return;
+                const trimmed = newName.trim();
+                if (trimmed.length === 0) return showToast("Name cannot be empty!", "error");
+                if (trimmed.length > 30) return showToast("Name must be 30 characters or less!", "error");
+                if (trimmed === exhibit.name) return;
+                exhibit.name = trimmed;
+                addTicker(`✏️ Renamed exhibit to "${trimmed}"`);
+                showToast(`Exhibit renamed to "${trimmed}"`, "info");
+                updateUI();
+                renderExhibits();
+                
+                saveGame();
+            }
+
+// Fully restores an exhibit's fence condition at a cost, if the player can afford it.
+function repairFence(exhibitId) {
+    const ctx = getExhibitContext(exhibitId);
+    if (!ctx) return;
+    const exhibit = ctx.exhibit;
+
+    // ✅ FIXED: Use the aggregated staff effects instead of the dead counter
+    const staffEffects = getStaffEffects();
+    if (staffEffects.maintenanceLevel === 0) {
+        return showToast("You need to hire maintenance staff first! Go to the Staff tab.", "error");
+    }
+
+    const damage = 100 - exhibit.fenceCondition;
+    const sizeMultiplier = exhibit.size === "large" ? 3 : exhibit.size === "medium" ? 2 : 1;
+    const repairCost = Math.floor(damage * 10 * sizeMultiplier);
+    if (state.money < repairCost) return showToast(`Need $${repairCost} to repair fence!`, "error");
+
+    state.money -= repairCost;
+    showFloatingMoney(-repairCost);
+    exhibit.fenceCondition = 100;
+    addTicker(`🔧 Repaired ${exhibit.name} fence (-$${repairCost})`);
+    showToast(`✅ Fence repaired!`, "info");
+    updateUI();
+    renderExhibits();
+    
+}
+            /* --------------------------------------------------------------------------
+            🎨 12. UI RENDERING: OTHER TABS
+            -------------------------------------------------------------------------- */
+            // DOM rendering for the Shop, Visitors, Amenities, Achievements, Reports, Staff, and Research tabs.
+            // Renders the Shop tab's category filter bar and delegates to renderShopGrid for the animal listings.
+            function renderShop() {
+                const shop = document.getElementById("shop");
+                const categories = [...new Set(data.animals.map(a => a.category || 'Other'))].sort();
+                shop.innerHTML = `<div style="margin-bottom: 20px;">
+<div style="margin-bottom: 15px;"><input type="text" id="animalSearch" placeholder="🔍 Search animals..." value="${currentSearch}" style="width: 100%; padding: 12px; font-size: 16px; background: var(--card); color: var(--text); border: 1px solid #243042; border-radius: 10px;"/></div>
+<div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px;">
+<button class="category-tab ${currentCategory === 'all' ? 'active' : ''}" onclick="filterByCategory('all')" style="padding: 8px 16px; background: ${currentCategory === 'all' ? 'var(--accent)' : 'var(--card)'}; color: ${currentCategory === 'all' ? '#000' : 'var(--text)'}; border: 1px solid #243042; border-radius: 8px; cursor: pointer; font-weight: 600;">🌍 All (${data.animals.length})</button>
+${categories.map(cat => { const count = data.animals.filter(a => a.category === cat).length; const isActive = currentCategory === cat; return `<button class="category-tab ${isActive ? 'active' : ''}" onclick="filterByCategory('${cat}')" style="padding: 8px 16px; background: ${isActive ? 'var(--accent)' : 'var(--card)'}; color: ${isActive ? '#000' : 'var(--text)'}; border: 1px solid #243042; border-radius: 8px; cursor: pointer; font-weight: 600;">${cat} (${count})</button>`; }).join('')}
+</div></div><div class="grid-layout" id="shopGrid"></div>`;
+                const searchInput = document.getElementById('animalSearch');
+if (!searchInput.dataset.listenerAttached) {
+    searchInput.dataset.listenerAttached = 'true';
+    searchInput.addEventListener('input', (e) => {
+        currentSearch = e.target.value.toLowerCase();
+        renderShopGrid();
+    });
+}
+                renderShopGrid();
+            }
+
+            // Sets the active shop category filter and re-renders the shop.
+            function filterByCategory(category) {
+                currentCategory = category;
+                renderShop();
+            }
+
+// Renders the grid of purchasable animals for the currently selected shop category.
+function renderShopGrid() {
+    const grid = document.getElementById('shopGrid');
+    if (!grid) return;
+    
+    const existingLocked = grid.parentElement.querySelector('[data-locked-section]');
+    if (existingLocked) existingLocked.remove();
+    
+    const unlocked = [];
+    const locked = [];
+    data.animals.forEach(animal => {
+        const achievementMet = !animal.unlock || state.achievements[animal.unlock];
+        const researchMet = !animal.researchRequired || isResearchComplete(animal.researchRequired);
+        if (achievementMet && researchMet) unlocked.push(animal);
+        else locked.push(animal);
+    });
+    
+    let filtered = unlocked;
+    if (currentCategory !== 'all') filtered = filtered.filter(a => a.category === currentCategory);
+    if (currentSearch) filtered = filtered.filter(a => 
+        a.name.toLowerCase().includes(currentSearch) || 
+        a.scienceName?.toLowerCase().includes(currentSearch) || 
+        a.habitat?.toLowerCase().includes(currentSearch)
+    );
+    
+    if (filtered.length === 0 && locked.length === 0) {
+        grid.innerHTML = '<div style="text-align:center; padding:40px; color:var(--muted); grid-column: 1/-1;"><h3>No animals found</h3></div>';
+        return;
+    }
+    
+    grid.innerHTML = '';
+    
+    filtered.forEach(animal => {
+        const slotCost = getAnimalSlotCost(animal);
+        const slotColor = slotCost >= 3 ? 'danger' : slotCost >= 2 ? 'warn' : 'blue';
+        const dietEmoji = animal.diet === 'Carnivore' ? '🥩' : animal.diet === 'Herbivore' ? '🌿' : '🍖';
+        const statusEmoji = animal.conservationStatus === 'Endangered' ? '🔴' : 
+                           animal.conservationStatus === 'Vulnerable' ? '🟡' : 
+                           animal.conservationStatus === 'Critically Endangered' ? '⚫' : '🟢';
+        
+        // ✅ FIXED: Use getActualFoodCost() for accurate display
+        const actualFoodCost = getActualFoodCost(animal);
+        const netIncome = animal.dailyIncome - actualFoodCost;
+        
+        const card = document.createElement("div");
+        card.className = "premium-card";
+        card.innerHTML = `
+            <img src="${animal.image}" alt="${animal.name}" class="shop-card-img" />
+            <div class="card-body">
+                <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 8px;">
+                    <div>
+                        <h3 style="margin:0; font-size:1.3rem; font-weight:800;">${animal.name}</h3>
+                        <p style="margin:0 0 4px; font-size:0.85rem; color:var(--muted); font-style:italic;">${animal.scienceName || ''}</p>
+                    </div>
+                    ${animal.category ? `<span class="stat-badge purple">${animal.category}</span>` : ''}
+                </div>
+                <div class="card-stats">
+                    <span class="stat-badge">${dietEmoji} ${animal.diet}</span>
+                    <span class="stat-badge">🌍 ${animal.habitat}</span>
+                    <span class="stat-badge">${statusEmoji} ${animal.conservationStatus}</span>
+                    <span class="stat-badge ${slotColor}">🧑‍🌾 ${slotCost} slot${slotCost > 1 ? 's' : ''}</span>
+                </div>
+                <p class="card-desc">${animal.info}</p>
+                <div class="card-price">$${animal.cost.toLocaleString()}<small>📈 Earns $${animal.dailyIncome}/day</small></div>
+                <div style="display:flex; gap:6px; flex-wrap:wrap; margin: 6px 0;">
+                    <span class="stat-badge warn">🍖 Food: $${actualFoodCost}/day</span>
+                    <span class="stat-badge green">💰 Net: $${netIncome}/day</span>
+                </div>
+                <button class="primary-btn">Add to Zoo</button>
+            </div>`;
+        card.querySelector(".primary-btn").onclick = () => openBuyModal(animal);
+        grid.appendChild(card);
+    });
+    
+    // Locked animals section
+    if (locked.length > 0) {
+        const lockedSection = document.createElement("div");
+        lockedSection.style.gridColumn = "1 / -1";
+        lockedSection.style.marginTop = "30px";
+        lockedSection.innerHTML = `
+            <div style="text-align: center; padding: 20px; background: var(--card); border-radius: var(--radius); border: 1px solid #243042; margin-bottom: 20px;">
+                <h3 style="margin: 0 0 8px 0; color: var(--muted);">🔒 ${locked.length} Animal${locked.length !== 1 ? 's' : ''} Locked</h3>
+                <p style="margin: 0; color: var(--muted); font-size: 0.9rem;">Complete research or achievements to unlock these animals</p>
+            </div>
+            <div class="grid-layout" id="lockedGrid"></div>`;
+        lockedSection.dataset.lockedSection = "true";
+        grid.parentElement.appendChild(lockedSection);
+        
+        const lockedGrid = lockedSection.querySelector('#lockedGrid');
+        locked.forEach(animal => {
+            let lockReason = '';
+            let lockColor = 'var(--muted)';
+            
+            if (animal.researchRequired && !isResearchComplete(animal.researchRequired)) {
+                const project = data.researchProjects[animal.researchRequired];
+                const tier = project ? TIER_INFO[project.tier] : TIER_INFO.basic;
+                lockReason = `<div style="font-size: 0.8rem; color: var(--muted); margin-bottom: 4px;">Requires research:</div>
+                    <div style="font-weight: 700; color: ${tier.color};">${project?.icon || '🔬'} ${project?.name || 'Unknown'}</div>
+                    ${project ? `<div style="font-size: 0.8rem; color: var(--muted); margin-top: 4px;">💰 $${project.cost.toLocaleString()} • ⏱ ${project.days} days</div>` : ''}`;
+                lockColor = tier.color;
+            } else if (animal.unlock && !state.achievements[animal.unlock]) {
+                const achievement = data.achievements.find(a => a.id === animal.unlock);
+                lockReason = `<div style="font-size: 0.8rem; color: var(--muted); margin-bottom: 4px;">Requires achievement:</div>
+                    <div style="font-weight: 700; color: var(--gold);">🏆 ${achievement?.name || animal.unlock}</div>
+                    ${achievement ? `<div style="font-size: 0.8rem; color: var(--muted); margin-top: 4px;">${achievement.desc || ''}</div>` : ''}`;
+                lockColor = 'var(--gold)';
+            }
+            
+            const card = document.createElement("div");
+            card.className = "premium-card";
+            card.style.opacity = "0.5";
+            card.style.filter = "grayscale(0.5)";
+            card.style.position = "relative";
+            card.innerHTML = `
+                <div style="position: absolute; top: 10px; right: 10px; z-index: 10; background: rgba(0,0,0,0.8); padding: 6px 12px; border-radius: 20px; font-size: 0.85rem; font-weight: 700; color: ${lockColor};">🔒 Locked</div>
+                <img src="${animal.image}" alt="${animal.name}" class="shop-card-img" style="filter: blur(2px);" />
+                <div class="card-body">
+                    <h3 style="margin:0; font-size:1.3rem; font-weight:800;">${animal.name}</h3>
+                    <p style="margin:4px 0; font-size:0.85rem; color:var(--muted); font-style:italic;">${animal.scienceName || ''}</p>
+                    <div style="padding: 10px; background: #0b1220; border-radius: 8px; margin: 8px 0;">${lockReason}</div>
+                    <button class="primary-btn" disabled style="opacity: 0.5;">🔒 Locked</button>
+                </div>`;
+            lockedGrid.appendChild(card);
+        });
+    }
+}
+
+            // Renders the Visitors tab: ticket pricing, visitor stats, and complaints.
+            function renderVisitors() {
+                const box = document.getElementById("visitors");
+                if (!box) return;
+
+                const totalSpending = state.visitorSpending.total;
+
+                // ✅ CORRECT HTML BLOCK (Note the closing backtick ` at the end)
+                box.innerHTML = `
+        <div class="premium-card" style="grid-column: 1 / -1; margin-bottom: 10px;">
+            <div class="card-header"><h3>🎟️ Ticket & Marketing Management</h3></div>
+            <div class="card-body">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <span style="font-weight: 700;">Ticket Price:</span>
+                    <span style="font-weight: 800; color: var(--accent); font-size: 1.2rem;">$<span id="ticketPrice">${state.ticketPrice}</span></span>
+                </div>
+                <input type="range" id="ticketPriceSlider" min="5" max="100" value="${state.ticketPrice}" style="width: 100%; cursor: pointer;" oninput="updateTicketPrice(this.value)">
+                <div style="display: flex; justify-content: space-between; font-size: 0.8rem; color: var(--muted); margin-top: 10px;">
+                    <span>✨ Zoo Novelty: <strong style="color: var(--purple);" id="novelty">${state.daysSinceNewAnimal === 0 ? '100%' : 'Decaying...'}</strong></span>
+                    <span>🧑‍🌾 Staffing: <strong id="staffSlots" style="color: var(--accent);">0/0</strong></span>
+                </div>
+            </div>
+        </div>
+        <div class="visitor-overview">
+            <div class="visitor-stat-card"><h4>👥 Today's Visitors</h4><div class="stat-value blue">${state.dailyVisitors.toLocaleString()}</div></div>
+            <div class="visitor-stat-card"><h4>😊 Satisfaction</h4><div class="stat-value ${state.visitorSatisfaction >= 80 ? 'green' : state.visitorSatisfaction >= 50 ? 'warn' : 'danger'}">${state.visitorSatisfaction}%</div></div>
+            <div class="visitor-stat-card"><h4>💵 Total Spending</h4><div class="stat-value gold">$${totalSpending.toLocaleString()}</div></div>
+            <div class="visitor-stat-card"><h4>🎫 Ticket Price</h4><div class="stat-value">$${state.ticketPrice}</div></div>
+        </div>
+    `; // <--- Make sure this backtick and semicolon are here!
+
+                // Initialize slider value
+                const slider = document.getElementById('ticketPriceSlider');
+                if (slider) slider.value = state.ticketPrice;
+
+            } // <--- Make sure this closing brace is here!
+            // Renders the Amenities tab listing purchasable park amenities and owned counts.
+            function renderAmenities() {
+                const box = document.getElementById("amenities");
+                if (!data.amenities || Object.keys(data.amenities).length === 0) {
+                    box.innerHTML = '<div style="text-align:center; padding:40px; color:var(--muted);">Loading amenities...</div>';
+                    return;
+                }
+                box.innerHTML = '<div class="grid-layout"></div>';
+                const grid = box.querySelector('.grid-layout');
+                const summaryParts = Object.keys(data.amenities).map(id => {
+                    const count = state.amenities[id] || 0;
+                    return `${count} ${data.amenities[id].name.toLowerCase()}${count !== 1 ? 's' : ''}`;
+                });
+                const summary = document.createElement("div");
+                summary.className = "premium-card";
+                summary.style.gridColumn = "1 / -1";
+                summary.innerHTML = `<div class="card-header"><h3>🏪 Zoo Amenities Overview</h3><div class="subtitle">Current: ${summaryParts.join(', ') || 'None'}</div></div>`;
+                grid.appendChild(summary);
+                for (const id in data.amenities) {
+                    const amenity = data.amenities[id];
+                    const count = state.amenities[id] || 0;
+                    const card = document.createElement("div");
+                    card.className = "premium-card";
+                    let statsHTML = '';
+                    if (amenity.revenue > 0) statsHTML += `<div class="stat-badge green">💰 Earns $${amenity.revenue}/visitor</div>`;
+                    if (amenity.capacity > 0) statsHTML += `<div class="stat-badge blue">👥 Capacity: ${amenity.capacity}</div>`;
+                    if (amenity.maxCustomers > 0) statsHTML += `<div class="stat-badge warn">📊 Max ${amenity.maxCustomers}/day</div>`;
+                    if (amenity.maintenanceCost > 0) statsHTML += `<div class="stat-badge danger">🧹 $${amenity.maintenanceCost}/day upkeep</div>`;
+                    card.innerHTML = `<div class="card-header"><span class="facility-icon">${amenity.icon}</span><h3>${amenity.name}</h3><div class="subtitle">${count} built</div></div><div class="card-body"><p class="card-desc">${amenity.description}</p><div style="display: flex; flex-wrap: wrap; gap: 6px;">${statsHTML}</div><div class="card-price">$${amenity.cost.toLocaleString()}</div><button class="primary-btn" onclick="buyAmenity('${id}')">Build ${amenity.name}</button></div>`;
+                    // --- ADD THIS INSIDE renderAmenities() loop ---
+                    const demand = (id === 'restroom' || id === 'toilet') ? 2 : 1;
+                    const assignedCleaners = state.hiredStaff.filter(s => s.assignments && s.assignments.includes(id));
+                    if (assignedCleaners.length > 0 || count > 0) {
+                        const assignBtn = document.createElement('button');
+                        assignBtn.className = 'secondary-btn';
+                        assignBtn.style.marginTop = '10px';
+                        assignBtn.style.fontSize = '0.85rem';
+                        assignBtn.textContent = `🧹 Manage Cleaners (${demand} slot${demand>1?'s':''}/unit)`;
+                        assignBtn.onclick = () => openAssignStaffModal(id, 'amenity');
+                        card.querySelector('.card-body').appendChild(assignBtn);
+
+                        if (assignedCleaners.length > 0) {
+                            const status = document.createElement('div');
+                            status.style.cssText = 'font-size:0.75rem; color:var(--blue); margin-top:6px; text-align:center;';
+                            status.textContent = `✅ ${assignedCleaners.length} cleaner${assignedCleaners.length>1?'s':''} assigned`;
+                            card.querySelector('.card-body').appendChild(status);
+                        }
+                    }
+                    // ----------------------------------------------
+
+                    grid.appendChild(card);
+                }
+            }
+
+            // Renders the Achievements tab showing unlocked and locked achievements.
+            function renderAchievements() {
+                const box = document.getElementById("achievements");
+                box.innerHTML = '<div class="grid-layout"></div>';
+                const grid = box.querySelector('.grid-layout');
+                if (!data.achievements || data.achievements.length === 0) {
+                    box.innerHTML = '<div style="text-align:center; padding:40px; color:var(--muted);">Loading achievements...</div>';
+                    return;
+                }
+                data.achievements.forEach(a => {
+                    const unlocked = state.achievements[a.id];
+                    const card = document.createElement("div");
+                    card.className = `achievement-card ${unlocked ? 'unlocked' : 'locked'}`;
+                    card.innerHTML = `<span class="achievement-icon">${unlocked ? a.icon : '🔒'}</span><h3>${a.name}</h3><p>${a.desc}</p><div class="achievement-status ${unlocked ? 'done' : 'pending'}">${unlocked ? '✓ Completed' : 'Locked'}</div>`;
+                    grid.appendChild(card);
+                });
+            }
+            let reportsChartInstance = null;
+
+            // Renders the Reports tab with monthly financial and zoo performance summaries.
+            function renderReports() {
+                const box = document.getElementById("reports");
+                box.innerHTML = `<div class="premium-card" style="grid-column: 1 / -1; margin-bottom: 20px;"><div class="card-header"><h3>📈 Financial Overview</h3></div><div class="card-body" style="height: 300px; position: relative;"><canvas id="reportsChart"></canvas></div></div><div class="grid-layout" id="reportsGrid" style="grid-column: 1 / -1;"></div>`;
+                const grid = box.querySelector('#reportsGrid');
+                if (state.monthlyReports.length === 0) {
+                    grid.innerHTML = '<div style="text-align:center; padding:40px; color:var(--muted); grid-column: 1/-1;"><h2>📊 No Reports Yet</h2><p>Advance the day to generate your first monthly report!</p></div>';
+                    return;
+                }
+                if (reportsChartInstance) reportsChartInstance.destroy();
+                const ctx = document.getElementById('reportsChart').getContext('2d');
+                const sortedReports = [...state.monthlyReports].reverse();
+                reportsChartInstance = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: sortedReports.map(r => `M${r.month} Y${r.year}`),
+                        datasets: [{
+                                label: 'Income ($)',
+                                data: sortedReports.map(r => r.income),
+                                borderColor: '#22c55e',
+                                backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                                tension: 0.3,
+                                fill: true,
+                                yAxisID: 'y'
+                            },
+                            {
+                                label: 'Visitors',
+                                data: sortedReports.map(r => r.visitors),
+                                borderColor: '#3b82f6',
+                                backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                                tension: 0.3,
+                                fill: true,
+                                yAxisID: 'y1'
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                labels: {
+                                    color: '#e5e7eb'
+                                }
+                            }
+                        },
+                        scales: {
+                            x: {
+                                ticks: {
+                                    color: '#9ca3af'
+                                },
+                                grid: {
+                                    color: '#243042'
+                                }
+                            },
+                            y: {
+                                type: 'linear',
+                                display: true,
+                                position: 'left',
+                                ticks: {
+                                    color: '#9ca3af',
+                                    callback: v => '$' + v.toLocaleString()
+                                },
+                                grid: {
+                                    color: '#243042'
+                                }
+                            },
+                            y1: {
+                                type: 'linear',
+                                display: true,
+                                position: 'right',
+                                ticks: {
+                                    color: '#9ca3af'
+                                },
+                                grid: {
+                                    drawOnChartArea: false
+                                }
+                            }
+                        }
+                    }
+                });
+                state.monthlyReports.forEach(report => {
+                    const card = document.createElement("div");
+                    card.className = "report-card";
+                    card.innerHTML = `<div class="report-header"><h3>📅 Month ${report.month}, Year ${report.year}</h3></div><div class="report-body">
+<div class="report-stat visitors"><div class="label">Attraction</div><div class="value">${report.attraction}</div></div>
+<div class="report-stat visitors"><div class="label">Avg Visitors/Day</div><div class="value">${report.visitors}</div></div>
+<div class="report-stat income"><div class="label">Monthly Income</div><div class="value">$${report.income.toLocaleString()}</div></div>
+<div class="report-stat happiness"><div class="label">Guest Happiness</div><div class="value">${report.guestHappiness}%</div></div></div>`;
+                    grid.appendChild(card);
+                });
+            }
+
+            // Renders the Staff tab listing hired and hireable staff members.
+            function renderStaff() {
+                const box = document.getElementById("staff");
+                if (!box) return;
+                box.innerHTML = '<div class="grid-layout"></div>';
+                const grid = box.querySelector('.grid-layout');
+
+                const summary = document.createElement("div");
+                summary.className = "premium-card";
+                summary.style.gridColumn = "1 / -1";
+
+                // ✅ NEW: Calculate Keeper & Cleaner Capacity vs Demand
+                const keeperCapacity = getKeeperCapacity();
+                const keeperDemand = getKeeperDemand();
+                const keeperAvailable = keeperCapacity - keeperDemand;
+
+                const cleanerCapacity = getCleanerCapacity();
+                const cleanerDemand = getCleanerDemand();
+                const cleanerAvailable = cleanerCapacity - cleanerDemand;
+
+                // Calculate total daily salary (adapted for object structure)
+                const totalSalary = state.hiredStaff.reduce((sum, staffInstance) => {
+                    const staffData = data.staff.find(s => s.id === staffInstance.typeId);
+                    return sum + (staffData?.salary || 0);
+                }, 0);
+
+                summary.innerHTML = `
+        <div class="card-header">
+            <h3>👷 Staff Overview</h3>
+            <div class="subtitle">${state.hiredStaff.length} staff members hired • $${totalSalary}/day in salaries</div>
+        </div>
+        <div class="card-body" style="padding: 12px 16px;">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
+                <div style="padding: 10px; background: #0b1220; border-radius: 8px; text-align: center;">
+                    <div style="font-size: 0.75rem; color: var(--muted); text-transform: uppercase;">🧤 Keeper Slots</div>
+                    <div style="font-size: 1.2rem; font-weight: 800; color: var(--accent);">${keeperCapacity} / ${keeperDemand} Used</div>
+                    <div style="font-size: 0.8rem; color: ${keeperAvailable < 0 ? 'var(--danger)' : 'var(--muted)'};">${keeperAvailable} available</div>
+                </div>
+                <div style="padding: 10px; background: #0b1220; border-radius: 8px; text-align: center;">
+                    <div style="font-size: 0.75rem; color: var(--muted); text-transform: uppercase;">🧹 Cleaner Slots</div>
+                    <div style="font-size: 1.2rem; font-weight: 800; color: var(--blue);">${cleanerCapacity} / ${cleanerDemand} Used</div>
+                    <div style="font-size: 0.8rem; color: ${cleanerAvailable < 0 ? 'var(--danger)' : 'var(--muted)'};">${cleanerAvailable} available</div>
+                </div>
+            </div>
+            ${isUnderstaffed() ? `<div style="padding: 10px; background: rgba(239, 68, 68, 0.15); border-radius: 8px; text-align: center; color: var(--danger); font-weight: 700;">⚠️ UNDERSTAFFED - Assign staff to exhibits and amenities!</div>` : ''}
+        </div>
+    `;
+                grid.appendChild(summary);
+
+                // ✅ Render individual staff cards (adapted for object-based hiring)
+                data.staff.forEach(staff => {
+                    const hiredInstances = state.hiredStaff.filter(s => s.typeId === staff.id);
+                    const hiredCount = hiredInstances.length;
+                    const maxStaff = staff.effects?.maxStaff || 99;
+                    const isMaxed = hiredCount >= maxStaff;
+
+                    const card = document.createElement("div");
+                    card.className = "premium-card";
+
+                    let effectsHTML = '';
+                    if (staff.effects) {
+                        const effects = Object.entries(staff.effects)
+                            .filter(([key]) => !['maxStaff', 'maintenanceLevel', 'keeperSlots', 'cleanerSlots'].includes(key))
+                            .map(([key, val]) => {
+                                const label = key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
+                                return `<span style="background: rgba(34, 197, 94, 0.1); color: var(--accent); padding: 3px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: 600;">${label}: +${val}</span>`;
+                            }).join('');
+                        if (effects) effectsHTML = `<div style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px;">${effects}</div>`;
+                    }
+
+                    card.innerHTML = `
+            <div class="card-header">
+                <span class="staff-icon" style="font-size: 2rem;">${staff.icon || '👤'}</span>
+                <div>
+                    <h3>${staff.name}</h3>
+                    <div class="subtitle">${staff.role || 'Staff'} • Hired: ${hiredCount}/${maxStaff}</div>
+                </div>
+            </div>
+            <div class="card-body">
+                <p class="card-desc">${staff.description || 'A valuable addition to your team.'}</p>
+                ${effectsHTML}
+                <div class="card-price">$${staff.cost.toLocaleString()} (hire) • $${staff.salary || 0}/day</div>
+                <div style="display: flex; gap: 8px; margin-top: 10px;">
+                    <button class="primary-btn" style="flex: 1;" ${isMaxed ? 'disabled' : ''}>${isMaxed ? 'Max Hired' : 'Hire'}</button>
+                    <button class="danger-btn" style="flex: 1;" ${hiredCount === 0 ? 'disabled' : ''}>${hiredCount === 0 ? 'None Hired' : 'Fire One'}</button>
+                </div>
+            </div>
+        `;
+
+                    // ✅ Attach click handlers using the new object structure
+                    if (!isMaxed) {
+                        card.querySelector(".primary-btn").onclick = () => hireStaff(staff.id);
+                    }
+                    if (hiredCount > 0) {
+                        card.querySelector(".danger-btn").onclick = () => {
+                            // Fires the oldest instance of this staff type
+                            const instanceToFire = hiredInstances[0];
+                            fireStaff(instanceToFire.uid);
+                        };
+                    }
+
+                    grid.appendChild(card);
+                });
+            }
+
+            // Renders the Research tab showing available, active, and completed research projects.
+            function renderResearch() {
+                const box = document.getElementById("research");
+                if (!box) return;
+                if (!data.researchProjects || Object.keys(data.researchProjects).length === 0) {
+                    box.innerHTML = '<div style="text-align:center; padding:40px; color:var(--muted);">🔬 Loading research data...</div>';
+                    return;
+                }
+                const animals = data.animals || [];
+                const tiers = ['basic', 'advanced', 'exotic', 'legendary'];
+                const completedCount = (state.completedResearch || []).length;
+                const totalCount = Object.keys(data.researchProjects).length;
+                const unlockedAnimals = animals.filter(a => !a.researchRequired || isResearchComplete(a.researchRequired)).length;
+                const totalAnimals = animals.length;
+                let activeResearchHTML = '';
+                if (state.activeResearch) {
+                    const project = data.researchProjects[state.activeResearch.projectId];
+                    if (project) {
+                        const totalDays = project.days;
+                        const remaining = state.activeResearch.daysRemaining;
+                        const progress = ((totalDays - remaining) / totalDays) * 100;
+                        const tier = TIER_INFO[project.tier];
+                        activeResearchHTML = `<div class="premium-card" style="grid-column: 1 / -1; border-color: ${tier.color}; box-shadow: 0 0 20px ${tier.color}33;"><div class="card-header" style="background: linear-gradient(135deg, ${tier.color}22, #0f172a);"><div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;"><div><span style="font-size: 2rem; margin-right: 10px;">${project.icon}</span><h3 style="display: inline; margin: 0;">Currently Researching: ${project.name}</h3></div><span class="stat-badge" style="background: ${tier.color}; color: #000; border-color: ${tier.color};">${tier.emoji} ${tier.label}</span></div></div><div class="card-body"><div style="display: flex; justify-content: space-between; margin-bottom: 10px; flex-wrap: wrap; gap: 10px;"><div style="font-size: 1.1rem; font-weight: 700;">⏱ ${remaining} day${remaining !== 1 ? 's' : ''} remaining</div><div style="font-size: 1.1rem; font-weight: 700; color: var(--accent);">${Math.round(progress)}% complete</div></div><div class="research-progress-bar" style="height: 14px;"><div class="research-progress-fill" style="width: ${progress}%;"></div></div><div style="margin-top: 12px; padding: 10px; background: #0b1220; border-radius: 8px;"><div style="font-size: 0.85rem; color: var(--muted); margin-bottom: 6px;">🔓 Unlocks:</div><div class="research-unlock-list">${(project.unlocks || []).map(id => { const animal = animals.find(a => a.id === id); return animal ? `<span class="stat-badge green">${animal.name}</span>` : ''; }).join('')}</div></div></div></div>`;
+                    }
+                } else {
+                    activeResearchHTML = `<div class="premium-card" style="grid-column: 1 / -1;"><div class="card-body" style="text-align: center; padding: 20px;"><div style="font-size: 2.5rem; margin-bottom: 8px;">🔬</div><h3 style="margin: 0 0 4px 0;">No Active Research</h3><p style="color: var(--muted); margin: 0; font-size: 0.9rem;">Select a project from the tree below to begin</p></div></div>`;
+                }
+                let treeHTML = '';
+                tiers.forEach((tierKey) => {
+                    const tier = TIER_INFO[tierKey];
+                    const tierProjects = Object.values(data.researchProjects).filter(p => p.tier === tierKey);
+                    if (tierProjects.length === 0) return;
+                    const sorted = [...tierProjects].sort((a, b) => {
+                        if (!a.requires && b.requires) return -1;
+                        if (a.requires && !b.requires) return 1;
+                        return 0;
+                    });
+                    let nodesHTML = '';
+                    sorted.forEach(project => {
+                        const completed = isResearchComplete(project.id);
+                        const isActive = state.activeResearch?.projectId === project.id;
+                        const prereqMet = !project.requires || isResearchComplete(project.requires);
+                        const canAfford = state.money >= project.cost;
+                        const canStart = canStartResearch(project.id);
+                        let statusClass = 'locked';
+                        let statusText = '🔒 Locked';
+                        let statusColor = 'var(--muted)';
+                        let statusBg = '#243042';
+                        if (completed) {
+                            statusClass = 'completed';
+                            statusText = '✅ Complete';
+                            statusColor = 'var(--accent)';
+                            statusBg = 'rgba(34, 197, 94, 0.15)';
+                        } else if (isActive) {
+                            statusClass = 'active';
+                            statusText = '🔄 In Progress';
+                            statusColor = 'var(--warn)';
+                            statusBg = 'rgba(245, 158, 11, 0.15)';
+                        } else if (prereqMet && canAfford && !state.activeResearch) {
+                            statusClass = 'ready';
+                            statusText = '✨ Ready';
+                            statusColor = 'var(--blue)';
+                            statusBg = 'rgba(59, 130, 246, 0.15)';
+                        } else if (prereqMet) {
+                            statusClass = '';
+                            statusText = !canAfford ? '💰 Need Funds' : '⏳ Lab Busy';
+                            statusColor = 'var(--warn)';
+                            statusBg = 'rgba(245, 158, 11, 0.1)';
+                        } else {
+                            const prereqProject = data.researchProjects[project.requires];
+                            statusText = `🔒 Requires: ${prereqProject?.name || '???'}`;
+                        }
+                        const onclickAttr = canStart ? `onclick="startResearch('${project.id}')"` : '';
+                        nodesHTML += `<div class="research-node ${statusClass}" ${onclickAttr} style="cursor: ${canStart ? 'pointer' : 'default'};"><div class="research-node-header"><span class="research-node-icon">${project.icon}</span><h4 class="research-node-title">${project.name}</h4></div><span class="research-node-status" style="background: ${statusBg}; color: ${statusColor};">${statusText}</span><p class="research-node-desc">${project.desc}</p><div class="research-node-stats"><span class="stat-badge warn">💰 $${project.cost.toLocaleString()}</span><span class="stat-badge blue">⏱ ${project.days} days</span>${project.requires ? `<span class="stat-badge purple">🔗 ${data.researchProjects[project.requires]?.name || '???'}</span>` : ''}</div>${(project.unlocks && project.unlocks.length > 0) ? `<div class="research-node-unlocks"><div class="research-node-unlocks-title">🔓 Unlocks ${project.unlocks.length} animal${project.unlocks.length !== 1 ? 's' : ''}</div><div class="research-unlock-list">${project.unlocks.map(id => { const animal = animals.find(a => a.id === id); if (!animal) return ''; const unlocked = !animal.researchRequired || isResearchComplete(animal.researchRequired); return `<span class="stat-badge ${unlocked ? 'green' : ''}">${unlocked ? '✅' : '🔒'} ${animal.name}</span>`; }).join('')}</div></div>` : ''}</div>`;
+                    });
+                    treeHTML += `<div class="research-tier"><span class="research-tier-arrow">→</span><div class="research-tier-header" style="color: ${tier.color}; border-color: ${tier.color};">${tier.emoji} ${tier.label}</div>${nodesHTML}</div>`;
+                });
+                box.innerHTML = `<div class="premium-card" style="grid-column: 1 / -1; margin-bottom: 10px;"><div class="card-header"><h3>🌳 Research Tree</h3><div class="subtitle">Unlock new animals by progressing through the research tree</div></div><div class="card-body" style="padding: 12px 16px;"><div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px;"><div style="padding: 10px; background: #0b1220; border-radius: 8px; text-align: center;"><div style="font-size: 0.75rem; color: var(--muted); text-transform: uppercase;">Research Done</div><div style="font-size: 1.5rem; font-weight: 800; color: var(--accent);">${completedCount}/${totalCount}</div></div><div style="padding: 10px; background: #0b1220; border-radius: 8px; text-align: center;"><div style="font-size: 0.75rem; color: var(--muted); text-transform: uppercase;">Animals Unlocked</div><div style="font-size: 1.5rem; font-weight: 800; color: var(--blue);">${unlockedAnimals}/${totalAnimals}</div></div><div style="padding: 10px; background: #0b1220; border-radius: 8px; text-align: center;"><div style="font-size: 0.75rem; color: var(--muted); text-transform: uppercase;">Total Invested</div><div style="font-size: 1.5rem; font-weight: 800; color: var(--warn);">$${(state.completedResearch || []).reduce((sum, id) => sum + (data.researchProjects[id]?.cost || 0), 0).toLocaleString()}</div></div></div></div></div>${activeResearchHTML}<div class="premium-card" style="grid-column: 1 / -1;"><div class="card-header"><h3>🗺️ Progression Path</h3><div class="subtitle">Scroll horizontally to see all tiers →</div></div><div class="card-body"><div class="research-tree">${treeHTML}</div></div></div>`;
+            }
+
+            /* --------------------------------------------------------------------------
+            🖱️ 13. MODALS & INTERACTIONS
+            -------------------------------------------------------------------------- */
+            // Modal open/close handlers and the click-driven flows for buying, upgrading, staffing, and moving animals.
+            // Opens the animal purchase modal for the selected species.
+            function openBuyModal(animal) {
+                const modal = document.getElementById("buyModal");
+                const select = document.getElementById("exhibitSelect");
+                select.innerHTML = "";
+                const ids = Object.keys(state.exhibits);
+                let compatibleExhibits = 0;
+                const requiredType = animal.requiredExhibitType || 'terrestrial';
+                for (const id of ids) {
+                    const exhibit = state.exhibits[id];
+                    if (exhibit.type !== requiredType) continue;
+                    if (!exhibitSizeOk(exhibit.size, animal.requiredExhibitSize || "small")) continue;
+                    const opt = document.createElement("option");
+                    opt.value = id;
+                    const exhibitType = data.exhibitTypes[exhibit.type] || data.exhibitTypes.terrestrial || {
+                        emoji: '🏞️',
+                        name: 'Exhibit'
+                    };
+                    opt.textContent = `${exhibitType.emoji} ${exhibit.name}`;
+                    select.appendChild(opt);
+                    compatibleExhibits++;
+                }
+                if (compatibleExhibits === 0) {
+                    const typeName = data.exhibitTypes[requiredType]?.name || 'Standard';
+                    return showToast(`No compatible exhibits! Build one first.`, "error");
+                }
+                state.pendingAnimal = animal;
+                modal.classList.add("active");
+            }
+
+            // Closes the animal purchase modal.
+            function closeBuyModal() {
+                document.getElementById("buyModal").classList.remove("active");
+                state.pendingAnimal = null;
+            }
+            document.getElementById("confirmBuyBtn").onclick = () => {
+                const exhibitId = document.getElementById("exhibitSelect").value;
+                const gender = document.getElementById("genderSelect").value;
+                const animal = state.pendingAnimal;
+
+                if (state.money < animal.cost) return showToast("Not enough money!", "error");
+
+                const ctx = getExhibitContext(exhibitId);
+                if (!ctx) return showToast("Exhibit not found!", "error");
+                const exhibit = ctx.exhibit;
+
+                if (exhibit.buildDaysRemaining > 0) return showToast("Exhibit is still under construction!", "error");
+
+                const incompatible = exhibit.animals.some(existing => existing.id !== animal.id && !animal.compatibleWith?.includes(existing.id));
+                if (incompatible) return showToast("This animal cannot live with current exhibit animals!", "error");
+
+                const slotCost = getAnimalSlotCost(animal);
+                const available = getAvailableSlots();
+                if (available < slotCost) showToast(`⚠️ No keepers available! ${animal.name} will be unhappy without staff.`, "warn");
+
+                state.money -= animal.cost;
+                showFloatingMoney(-animal.cost);
+                exhibit.animals.push({
+                    id: animal.id,
+                    name: getNextAnimalName(animal.name),
+                    gender,
+                    dailyIncome: animal.dailyIncome,
+                    variation: pickVariation(animal),
+                    foodCost: animal.foodCost,
+                    diet: animal.diet,
+                    foodAmount: animal.foodAmount || 1,
+                    compatibleWith: animal.compatibleWith,
+                    minInExhibit: animal.minInExhibit,
+                    maxInExhibit: animal.maxInExhibit,
+                    preferredShelter: animal.preferredShelter || [],
+                    preferredDecorations: animal.preferredDecorations || [],
+                    preferredFacilities: animal.preferredFacilities || [],
+                    dislikedShelter: animal.dislikedShelter || [],
+                    dislikedDecorations: animal.dislikedDecorations || [],
+                    dislikedFacilities: animal.dislikedFacilities || [],
+                    bornInZoo: false,
+                    health: 100
+                });
+                state.daysSinceNewAnimal = 0;
+                addTicker(`✨ A new ${animal.name} arrived! Visitor excitement is high!`);
+                closeBuyModal();
+                updateUI();
+                renderExhibits();
+                
+            };
+
+            // Generates flavor-text thought bubbles describing an animal's current needs and mood.
+            function generateAnimalThoughts(animal, exhibit) {
+                const thoughts = [];
+                const upgrades = exhibit.upgrades || [];
+                const exhibitAnimals = exhibit.animals;
+                const sameSpeciesCount = exhibitAnimals.filter(a => a.id === animal.id).length;
+                const health = animal.health ?? 100;
+                if (health < 20) thoughts.push({
+                    icon: '💀',
+                    text: "I'm barely alive... please help me!",
+                    type: 'critical'
+                });
+                else if (health < 40) thoughts.push({
+                    icon: '🤒',
+                    text: "I'm feeling really sick and weak...",
+                    type: 'critical'
+                });
+                else if (health < 60) thoughts.push({
+                    icon: '😷',
+                    text: "I'm not feeling very well today.",
+                    type: 'problem'
+                });
+                if (animal.wasHungry) thoughts.push({
+                    icon: '😫',
+                    text: "I'm starving! Please feed me!",
+                    type: 'critical'
+                });    
+                
+                if (isKeepersUnderstaffed()) thoughts.push({
+        icon: '😰',
+        text: "Where are the keepers? Nobody's looking after us!",
+        type: 'critical'
+    });
+
+                if (sameSpeciesCount < animal.minInExhibit) {
+                    const needed = animal.minInExhibit - sameSpeciesCount;
+                    thoughts.push({
+                        icon: '😔',
+                        text: `I'm lonely... I need ${needed} more friend${needed > 1 ? 's' : ''} of my kind.`,
+                        type: 'want'
+                    });
+                } else if (sameSpeciesCount === animal.minInExhibit) {
+                    thoughts.push({
+                        icon: '🙂',
+                        text: `I have just enough friends here.`,
+                        type: 'happy'
+                    });
+                }
+                if (sameSpeciesCount > animal.maxInExhibit) {
+                    thoughts.push({
+                        icon: '😰',
+                        text: "It's way too crowded here! I need more space.",
+                        type: 'problem'
+                    });
+                }
+                toArray(animal.preferredShelter).forEach(pref => {
+                    if (!upgrades.includes(pref)) {
+                        const upgrade = data.upgrades[pref];
+                        thoughts.push({
+                            icon: '🏠',
+                            text: `I'd love a ${upgrade?.name?.replace(/^[^\s]+\s/, '') || pref} to rest in.`,
+                            type: 'want'
+                        });
+                    }
+                });
+                toArray(animal.preferredDecorations).forEach(pref => {
+                    if (!upgrades.includes(pref)) {
+                        const upgrade = data.upgrades[pref];
+                        thoughts.push({
+                            icon: '🌳',
+                            text: `Some ${upgrade?.name?.replace(/^[^\s]+\s/, '') || pref} would make this place feel like home.`,
+                            type: 'want'
+                        });
+                    }
+                });
+                toArray(animal.preferredFacilities).forEach(pref => {
+                    if (!upgrades.includes(pref)) {
+                        const upgrade = data.upgrades[pref];
+                        thoughts.push({
+                            icon: '🍽️',
+                            text: `I could really use a ${upgrade?.name?.replace(/^[^\s]+\s/, '') || pref}.`,
+                            type: 'want'
+                        });
+                    }
+                });
+                toArray(animal.dislikedShelter).forEach(pref => {
+                    if (upgrades.includes(pref)) {
+                        const upgrade = data.upgrades[pref];
+                        thoughts.push({
+                            icon: '😠',
+                            text: `I don't like the ${upgrade?.name?.replace(/^[^\s]+\s/, '') || pref} here.`,
+                            type: 'problem'
+                        });
+                    }
+                });
+                toArray(animal.dislikedDecorations).forEach(pref => {
+                    if (upgrades.includes(pref)) {
+                        const upgrade = data.upgrades[pref];
+                        thoughts.push({
+                            icon: '😠',
+                            text: `Please remove the ${upgrade?.name?.replace(/^[^\s]+\s/, '') || pref}.`,
+                            type: 'problem'
+                        });
+                    }
+                });
+                toArray(animal.dislikedFacilities).forEach(pref => {
+                    if (upgrades.includes(pref)) {
+                        const upgrade = data.upgrades[pref];
+                        thoughts.push({
+                            icon: '😠',
+                            text: `The ${upgrade?.name?.replace(/^[^\s]+\s/, '') || pref} bothers me.`,
+                            type: 'problem'
+                        });
+                    }
+                });
+                if (animal.isPregnant) {
+                    thoughts.push({
+                        icon: '🤰',
+                        text: `I'm expecting! Baby due in ${animal.daysUntilBirth} day${animal.daysUntilBirth !== 1 ? 's' : ''}.`,
+                        type: 'info'
+                    });
+                }
+                const stage = getLifeStage(animal);
+                if (stage.stage === 'baby') thoughts.push({
+                    icon: '🍼',
+                    text: "I'm just a baby! Everything is so new and exciting!",
+                    type: 'info'
+                });
+                else if (stage.stage === 'juvenile') thoughts.push({
+                    icon: '🐾',
+                    text: "I'm growing up so fast!",
+                    type: 'info'
+                });
+                else if (stage.stage === 'senior') thoughts.push({
+                    icon: '👴',
+                    text: "I've lived a long, good life here.",
+                    type: 'info'
+                });
+                const hasProblems = thoughts.some(t => t.type === 'critical' || t.type === 'problem' || t.type === 'want');
+                if (!hasProblems && health >= 80) {
+                    const happyThoughts = [
+                        "Life is great here! I couldn't ask for more.",
+                        "I feel safe and happy in my home.",
+                        "This is the best zoo ever!",
+                        "I love living here with my friends."
+                    ];
+                    thoughts.push({
+                        icon: '😊',
+                        text: happyThoughts[Math.floor(Math.random() * happyThoughts.length)],
+                        type: 'happy'
+                    });
+                }
+                return thoughts.slice(0, 6);
+            }
+
+            // Opens the detailed info modal for a specific animal.
+            function openAnimalInfo(animal, exhibitId, index) {
+                const ctx = getExhibitContext(exhibitId);
+                if (!ctx) return;
+                const exhibit = ctx.exhibit;
+                const content = document.getElementById("animalInfoContent");
+                let pregnancyInfo = "";
+                if (animal.isPregnant) pregnancyInfo = `<div style="margin-top: 15px; padding: 12px; background: rgba(168, 85, 247, 0.1); border: 1px solid var(--purple); border-radius: 8px;"><h4 style="margin: 0 0 8px 0; color: var(--purple);">🤰 Pregnant</h4><p style="margin: 0; font-size: 0.9rem;">Due in <strong>${animal.daysUntilBirth}</strong> day${animal.daysUntilBirth !== 1 ? 's' : ''}<br>Father: <strong>${animal.babyFather || 'Unknown'}</strong><br><span style="color: var(--warn); font-size: 0.8rem;">🍖 +50% food cost during pregnancy</span></p></div>`;
+                const stage = getLifeStage(animal);
+                const actualIncome = calculateAnimalIncome(animal);
+                const ageDisplay = getAnimalAgeDisplay(animal);
+                const thoughts = generateAnimalThoughts(animal, exhibit);
+                const thoughtsHTML = thoughts.length > 0 ? `
+<div class="thoughts-container">
+<div class="thoughts-title">💭 What ${animal.name} is thinking:</div>
+${thoughts.map(t => `
+<div class="thought-bubble ${t.type}">
+<span class="thought-icon">${t.icon}</span>
+<span class="thought-text">${t.text}</span>
+</div>
+`).join('')}
+</div>
+` : '';
+                content.innerHTML = `<h2>${animal.name}</h2><p>${stage.emoji} Life Stage: <strong>${stage.label}</strong> • Age: <strong>${ageDisplay}</strong></p>
+<p>💰 Income: $${actualIncome}/day ${stage.incomeMultiplier !== 1 ? `<small style="color:var(--muted);">(base $${animal.dailyIncome} × ${stage.incomeMultiplier})</small>` : ''}</p>
+<p>🍖 Food: $${getActualFoodCost(animal)}/day ${animal.isPregnant ? '<small style="color:var(--warn);">(×2 pregnant)</small>' : ''}</p>
+<p>👥 Needs: ${animal.minInExhibit} - ${animal.maxInExhibit}</p><p>🏞 Exhibit: ${exhibit.name ?? "Unknown"}</p>
+${thoughtsHTML}
+${animal.variation ? `<p>✨ Variant: ${animal.variation.name}</p>` : ""}<p>🍼 Born in zoo: ${animal.bornInZoo ? "Yes" : "No"}</p>
+${(() => { const h = animal.health ?? 100; const color = h >= 80 ? 'var(--accent)' : h >= 50 ? 'var(--warn)' : h >= 20 ? 'var(--danger)' : '#dc2626'; const emoji = h >= 80 ? '💚' : h >= 50 ? '💛' : h >= 20 ? '🧡' : '❤️‍🩹'; const status = h >= 80 ? 'Healthy' : h >= 50 ? 'Unwell' : h >= 20 ? 'Sick' : 'Critical'; return `<div style="margin: 10px 0; padding: 12px; background: #0b1220; border-radius: 8px; border: 1px solid ${color};"><div style="display: flex; justify-content: space-between; margin-bottom: 6px;"><span>${emoji} Health</span><strong style="color: ${color};">${Math.round(h)}% (${status})</strong></div><div class="happiness-bar" style="height: 10px;"><div style="height: 100%; width: ${h}%; background: ${color}; transition: width 0.3s;"></div></div>${isKeepersUnderstaffed() ? '<div style="margin-top: 8px; font-size: 0.8rem; color: var(--danger);">⚠️ Health declining - no keepers on staff!</div>' : ''}</div>`; })()}
+${animal.sick ? `<p style="color:var(--danger);">🤒 Currently sick - health declining faster</p>` : ''}
+${stage.canBreed ? '<p style="color:var(--accent);">✅ Can breed</p>' : '<p style="color:var(--muted);">🔒 Too young to breed</p>'}${pregnancyInfo}
+<div style="margin-top: 15px; display: flex; gap: 10px;"><button id="sellAnimalBtn" class="buildBtn">💸 Sell Animal</button><button id="moveFromInfoBtn" class="moveBtn">🔄 Move Animal</button></div>`;
+                document.getElementById("sellAnimalBtn").onclick = () => sellAnimal(animal, exhibitId);
+                document.getElementById("moveFromInfoBtn").onclick = () => {
+                    closeAnimalInfo();
+                    setTimeout(() => {
+                        state.uiMode = "move";
+                        state.moveState.active = true;
+                        state.moveState.fromExhibit = exhibitId;
+                        state.moveState.animalIndex = index;
+                        renderMoveSelection();
+                    }, 50);
+                };
+                document.getElementById("animalInfoModal").classList.add("active");
+            }
+
+            // Closes the animal info modal.
+            function closeAnimalInfo() {
+                document.getElementById("animalInfoModal").classList.remove("active");
+            }
+
+            // Sells an animal for a price based on its income, refunding money to the player.
+            function sellAnimal(animal, exhibitId) {
+                const ctx = getExhibitContext(exhibitId);
+                if (ctx) ctx.exhibit.animals = ctx.exhibit.animals.filter(a => a !== animal);
+                const basePrice = animal.dailyIncome * 5;
+                const stage = getLifeStage(animal);
+                let ageMultiplier = 1.0;
+                if (stage.stage === 'baby') ageMultiplier = 0.3;
+                else if (stage.stage === 'juvenile') ageMultiplier = 0.6;
+                else if (stage.stage === 'senior') ageMultiplier = 0.7;
+                const health = animal.health ?? 100;
+                let healthMultiplier = 1.0;
+                if (health < 20) healthMultiplier = 0.3;
+                else if (health < 50) healthMultiplier = 0.5;
+                else if (health < 80) healthMultiplier = 0.8;
+                if (animal.sick) healthMultiplier *= 0.5;
+                let pregnancyBonus = 0;
+                if (animal.isPregnant) pregnancyBonus = Math.floor(basePrice * 0.3);
+                const salePrice = Math.floor(basePrice * ageMultiplier * healthMultiplier) + pregnancyBonus;
+                state.money += salePrice;
+                showFloatingMoney(salePrice);
+                state.animalsSold++;
+                const breakdown = [];
+                if (ageMultiplier !== 1.0) breakdown.push(`age ${Math.round(ageMultiplier * 100)}%`);
+                if (healthMultiplier !== 1.0) breakdown.push(`health ${Math.round(healthMultiplier * 100)}%`);
+                if (pregnancyBonus > 0) breakdown.push(`+pregnancy bonus`);
+                addTicker(`💸 Sold ${animal.name} for $${salePrice}${breakdown.length > 0 ? ` (${breakdown.join(', ')})` : ''}`);
+                closeAnimalInfo();
+                updateUI();
+                renderExhibits();
+                
+            }
+
+            // Opens the exhibit upgrade modal, populating it with available upgrade categories.
+            function openUpgradeMenu(exhibitId) {
+
+                state.activeUpgradeExhibit = exhibitId;
+                const ctx = getExhibitContext(exhibitId);
+                if (!ctx) return;
+                const exhibit = ctx.exhibit;
+                const box = document.getElementById("upgradeOptions");
+                box.innerHTML = "";
+
+                // 1. Find all currently unlocked animals
+                const unlockedAnimals = data.animals.filter(animal => {
+                    const achievementMet = !animal.unlock || state.achievements[animal.unlock];
+                    const researchMet = !animal.researchRequired || isResearchComplete(animal.researchRequired);
+                    return achievementMet && researchMet;
+                });
+
+                // 2. Collect all upgrade IDs that are preferred by these unlocked animals
+                const relevantUpgradeIds = new Set();
+                unlockedAnimals.forEach(animal => {
+                    toArray(animal.preferredShelter).forEach(id => relevantUpgradeIds.add(id));
+                    toArray(animal.preferredDecorations).forEach(id => relevantUpgradeIds.add(id));
+                    toArray(animal.preferredFacilities).forEach(id => relevantUpgradeIds.add(id));
+                });
+
+                const allUpgrades = Object.values(data.upgrades);
+                if (allUpgrades.length === 0) {
+                    box.innerHTML = "<p>No upgrades available.</p>";
+                    document.getElementById("upgradeModal").classList.add("active");
+                    return;
+                }
+
+                const categories = {
+                    shelter: {
+                        label: "🏠 Shelters",
+                        items: []
+                    },
+                    decoration: {
+                        label: "🌳 Decorations",
+                        items: []
+                    },
+                    facility: {
+                        label: "🍽️ Facilities",
+                        items: []
+                    }
+                };
+
+                // 3. Only add upgrades if they are relevant to an unlocked animal OR if you already own them
+                allUpgrades.forEach(up => {
+                    const isRelevant = relevantUpgradeIds.has(up.id);
+                    const isOwned = exhibit.upgrades.includes(up.id);
+
+                    if (isRelevant || isOwned) {
+                        const type = up.type || "decoration";
+                        if (categories[type]) categories[type].items.push(up);
+                        else categories.decoration.items.push(up);
+                    }
+                });
+
+                const tabIds = Object.keys(categories);
+
+                // If all categories are empty (no relevant upgrades and no owned upgrades)
+                if (tabIds.every(id => categories[id].items.length === 0)) {
+                    box.innerHTML = "<p style='text-align:center; padding:20px; color:var(--muted);'>No upgrades available for your unlocked animals.</p>";
+                    document.getElementById("upgradeModal").classList.add("active");
+                    return;
+                }
+
+                box.innerHTML = `
+    <div style="display:flex; gap:6px; margin-bottom:12px; flex-wrap:wrap;">
+        ${tabIds.map((id, i) => `
+        <button class="upgrade-tab ${i === 0 ? 'active' : ''}"
+        onclick="switchUpgradeTab('${id}')"
+        style="flex:1; min-width:100px; padding:10px; background:${i === 0 ? 'var(--accent)' : 'var(--card)'}; color:${i === 0 ? '#000' : 'var(--text)'}; border:1px solid #243042; border-radius:8px; font-weight:600; cursor:pointer;">
+        ${categories[id].label}
+        <span style="display:block; font-size:0.75rem; opacity:0.8;">${categories[id].items.length} items</span>
+        </button>
+        `).join('')}
+    </div>
+    <div id="upgradeListContainer"></div>
+    `;
+
+                window._upgradeCategories = categories;
+                window._currentExhibit = exhibit;
+                switchUpgradeTab(tabIds[0]);
+                document.getElementById("upgradeModal").classList.add("active");
+            }
+
+            // Switches the active category tab within the exhibit upgrade modal.
+            function switchUpgradeTab(type) {
+                const container = document.getElementById("upgradeListContainer");
+                const categories = window._upgradeCategories;
+                const exhibit = window._currentExhibit;
+                const items = categories[type].items;
+                const owned = items.filter(up => exhibit.upgrades.includes(up.id));
+                const available = items.filter(up => !exhibit.upgrades.includes(up.id));
+                let html = '';
+                if (owned.length > 0) {
+                    html += `<div style="font-size:0.75rem; color:var(--muted); text-transform:uppercase; letter-spacing:1px; margin:8px 0 6px;">✅ Owned (${owned.length})</div>`;
+                    html += owned.map(up => `
+<button class="card" style="background:rgba(34, 197, 94, 0.1); border-color:var(--accent);"
+onclick="sellUpgradeFromModal('${up.id}')">
+<strong>${up.name}</strong><br>
+<small style="color:var(--accent);">Click to sell for $${Math.floor(up.cost * 0.5)}</small>
+</button>
+`).join('');
+                }
+                if (available.length > 0) {
+                    html += `<div style="font-size:0.75rem; color:var(--muted); text-transform:uppercase; letter-spacing:1px; margin:12px 0 6px;">🛒 Available (${available.length})</div>`;
+                    html += available.map(up => `
+<button class="card" onclick="buyUpgradeFromModal('${up.id}')">
+<strong>${up.name}</strong><br>
+<small style="color:var(--accent);">$${up.cost.toLocaleString()}</small>
+</button>
+`).join('');
+                }
+                if (html === '') {
+                    html = '<p style="text-align:center; color:var(--muted); padding:20px;">No upgrades in this category.</p>';
+                }
+                container.innerHTML = html;
+                document.querySelectorAll('.upgrade-tab').forEach(tab => {
+                    const isActive = tab.textContent.includes(categories[type].label);
+                    tab.style.background = isActive ? 'var(--accent)' : 'var(--card)';
+                    tab.style.color = isActive ? '#000' : 'var(--text)';
+                });
+            }
+
+            // Closes the exhibit upgrade modal.
+            function closeUpgradeModal() {
+                document.getElementById("upgradeModal").classList.remove("active");
+                state.activeUpgradeExhibit = null;
+            }
+
+            // Purchases and applies the selected upgrade to the active exhibit.
+            function buyUpgradeFromModal(upgradeId) {
+                const ctx = getExhibitContext(state.activeUpgradeExhibit);
+                if (!ctx) return;
+                const exhibit = ctx.exhibit;
+                const upgrade = data.upgrades[upgradeId];
+                if (!upgrade) return;
+                if (state.money < upgrade.cost) return showToast("Not enough money!", "error");
+                state.money -= upgrade.cost;
+                showFloatingMoney(-upgrade.cost);
+                exhibit.upgrades.push(upgradeId);
+                addTicker(`🏗 Built ${upgrade.name}`);
+                updateUI();
+                renderExhibits();
+                
+                openUpgradeMenu(state.activeUpgradeExhibit);
+            }
+
+            // Sells back a previously purchased upgrade from the active exhibit.
+            function sellUpgradeFromModal(upgradeId) {
+                const ctx = getExhibitContext(state.activeUpgradeExhibit);
+                if (!ctx) return;
+                const exhibit = ctx.exhibit;
+                const index = exhibit.upgrades.indexOf(upgradeId);
+                if (index === -1) return;
+                const upgrade = data.upgrades[upgradeId];
+                exhibit.upgrades.splice(index, 1);
+                const refund = Math.floor(upgrade.cost * 0.5);
+                state.money += refund;
+                showFloatingMoney(refund);
+                addTicker(`💰 Sold ${upgrade.name} for $${refund}`);
+                updateUI();
+                renderExhibits();
+                
+                openUpgradeMenu(state.activeUpgradeExhibit);
+            }
+            
+            // Purchases one unit of a park amenity, if the player can afford it.
+            function buyAmenity(amenityId) {
+                const amenity = data.amenities[amenityId];
+                if (!amenity) return;
+                if (state.money < amenity.cost) return showToast("Not enough money!", "error");
+                state.money -= amenity.cost;
+                showFloatingMoney(-amenity.cost);
+                if (!state.amenities[amenityId]) state.amenities[amenityId] = 0;
+                state.amenities[amenityId]++;
+                addTicker(`🏪 Built ${amenity.name}`);
+                updateUI();
+                renderAmenities();
+                renderVisitors();
+            }
+
+            // Hires a new staff member of the given type, if the player can afford it.
+            function hireStaff(staffId) {
+                const staff = data.staff.find(s => s.id === staffId);
+                if (!staff) return;
+
+                if (state.money < staff.cost) return showToast("Not enough money!", "error");
+
+                state.money -= staff.cost;
+                showFloatingMoney(-staff.cost);
+
+                // Create a unique instance of the staff member
+                const newStaffInstance = {
+                    uid: 'staff_' + Date.now() + Math.random().toString(36).substr(2, 5),
+                    typeId: staffId,
+                    assignments: []
+                };
+
+                state.hiredStaff.push(newStaffInstance);
+                addTicker(`👷 Hired ${staff.name}`);
+                updateUI();
+                renderStaff();
+                renderExhibits();
+                
+            }
+
+            // Removes a hired staff member by their unique instance id.
+            function fireStaff(uid) {
+                // Find the specific instance by UID
+                const index = state.hiredStaff.findIndex(s => s.uid === uid);
+                if (index === -1) return showToast("Staff member not found!", "error");
+
+                const staffInstance = state.hiredStaff[index];
+                const staffData = data.staff.find(s => s.id === staffInstance.typeId);
+                if (!staffData) return;
+
+                const refundAmount = Math.floor(staffData.cost * 0.2);
+                if (!confirm(`Fire ${staffData.name}? You'll receive a severance refund of $${refundAmount}.`)) return;
+
+                state.hiredStaff.splice(index, 1);
+                state.money += refundAmount;
+                showFloatingMoney(refundAmount);
+
+                addTicker(`👋 Fired ${staffData.name} (severance: $${refundAmount})`);
+                updateUI();
+                renderStaff();
+                renderExhibits();
+                
+                saveGame();
+            }
+
+            /* ==========================================================================
+            🧑‍🌾 STAFF ALLOCATION UI (Phase 2)
+            ========================================================================== */
+            // Checks whether a staff type fills the keeper role.
+            function isKeeperRole(typeId) {
+                const s = data.staff.find(x => x.id === typeId);
+                return s && (s.role?.toLowerCase().includes('keeper') || s.keeperSlots);
+            }
+
+            // Checks whether a staff type fills the cleaner/janitor role.
+            function isCleanerRole(typeId) {
+                const s = data.staff.find(x => x.id === typeId);
+                return s && (s.role?.toLowerCase().includes('cleaner') || s.role?.toLowerCase().includes('janitor') || s.cleanerSlots);
+            }
+
+            // Returns how many staff slots a given exhibit or amenity target requires.
+            function getTargetDemand(targetId, targetType) {
+                if (targetType === 'exhibit') {
+                    const ex = state.exhibits[targetId];
+                    if (!ex) return 0;
+                    return ex.size === 'large' ? 3 : ex.size === 'medium' ? 2 : 1;
+                } else if (targetType === 'amenity') {
+                    return (targetId === 'restroom' || targetId === 'toilet') ? 2 : 1;
+                }
+                return 0;
+            }
+
+            // Returns how many unused assignment slots a staff instance has left.
+            function getFreeSlots(staffInstance) {
+    const staffData = data.staff.find(s => s.id === staffInstance.typeId);
+    if (!staffData) return 0;
+    
+    // ✅ FIXED: Use ?? 0 to match getKeeperCapacity() / getCleanerCapacity()
+    const totalSlots = isKeeperRole(staffInstance.typeId) 
+        ? (staffData.keeperSlots ?? 0) 
+        : (staffData.cleanerSlots ?? 0);
+    
+    const usedSlots = (staffInstance.assignments || []).reduce((sum, targetId) => {
+        if (state.exhibits[targetId]) return sum + getTargetDemand(targetId, 'exhibit');
+        if (state.amenities[targetId] !== undefined) return sum + getTargetDemand(targetId, 'amenity');
+        return sum;
+    }, 0);
+    
+    return Math.max(0, totalSlots - usedSlots);
+}
+            // Opens the modal for assigning a keeper or cleaner to a specific target.
+            function openAssignStaffModal(targetId, targetType) {
+                const demand = getTargetDemand(targetId, targetType);
+                const isKeeper = targetType === 'exhibit';
+                const title = isKeeper ? `Assign Keeper to Exhibit` : `Assign Cleaner to ${targetId}`;
+
+                document.getElementById('assignModalTitle').textContent = title;
+                document.getElementById('assignModalDesc').textContent = `This assignment requires ${demand} slot${demand > 1 ? 's' : ''}. Select a staff member with enough free capacity.`;
+
+                const list = document.getElementById('assignModalList');
+                list.innerHTML = '';
+
+                const availableStaff = state.hiredStaff.filter(s => {
+                    if (isKeeper && !isKeeperRole(s.typeId)) return false;
+                    if (!isKeeper && !isCleanerRole(s.typeId)) return false;
+                    return getFreeSlots(s) >= demand;
+                });
+
+                if (availableStaff.length === 0) {
+                    list.innerHTML = `<div style="text-align:center; padding:20px; color:var(--muted);">No staff available with enough free slots!<br><small>Hire more staff or unassign them from other areas.</small></div>`;
+                } else {
+                    availableStaff.forEach(s => {
+                        const staffData = data.staff.find(x => x.id === s.typeId);
+                        const free = getFreeSlots(s);
+                        const btn = document.createElement('button');
+                        btn.className = 'primary-btn';
+                        btn.style.display = 'flex';
+                        btn.style.justifyContent = 'space-between';
+                        btn.style.alignItems = 'center';
+                        btn.innerHTML = `<span>${staffData.icon} ${staffData.name}</span><span style="font-size:0.8rem; opacity:0.8;">${free} slots free</span>`;
+                        btn.onclick = () => assignStaffToTarget(s.uid, targetId, targetType);
+                        list.appendChild(btn);
+                    });
+                }
+
+                // Show currently assigned staff
+                const assignedStaff = state.hiredStaff.filter(s => s.assignments && s.assignments.includes(targetId));
+                if (assignedStaff.length > 0) {
+                    const header = document.createElement('div');
+                    header.style.cssText = 'font-size:0.8rem; color:var(--muted); text-transform:uppercase; margin-top:15px; margin-bottom:5px;';
+                    header.textContent = 'Currently Assigned:';
+                    list.appendChild(header);
+
+                    assignedStaff.forEach(s => {
+                        const staffData = data.staff.find(x => x.id === s.typeId);
+                        const btn = document.createElement('button');
+                        btn.className = 'danger-btn';
+                        btn.style.marginBottom = '5px';
+                        btn.textContent = `❌ Remove ${staffData.name}`;
+                        btn.onclick = () => {
+                            unassignStaffFromTarget(s.uid, targetId);
+                            openAssignStaffModal(targetId, targetType);
+                            renderExhibits();
+                            renderAmenities();
+                        };
+                        list.appendChild(btn);
+                    });
+                }
+
+                document.getElementById('assignStaffModal').classList.add('active');
+            }
+
+            // Assigns a staff member to a target exhibit/amenity, if they have a free slot.
+            function assignStaffToTarget(staffUid, targetId, targetType) {
+                const staff = state.hiredStaff.find(s => s.uid === staffUid);
+                if (!staff) return;
+                if (!staff.assignments) staff.assignments = [];
+                if (!staff.assignments.includes(targetId)) {
+                    staff.assignments.push(targetId);
+                    const assignedStaffData = data.staff.find(s => s.id === staff.typeId);
+showToast(`✅ Assigned ${assignedStaffData?.name || 'Staff'}!`, "info");
+                }
+                closeAssignStaffModal();
+                renderExhibits();
+                renderAmenities();
+                renderStaff();
+                saveGame();
+            }
+
+            // Removes a staff member's assignment from a target.
+            function unassignStaffFromTarget(staffUid, targetId) {
+                const staff = state.hiredStaff.find(s => s.uid === staffUid);
+                if (!staff || !staff.assignments) return;
+                staff.assignments = staff.assignments.filter(id => id !== targetId);
+                showToast(`Staff unassigned.`, "info");
+            }
+
+            // Closes the staff assignment modal.
+            function closeAssignStaffModal() {
+                document.getElementById('assignStaffModal').classList.remove('active');
+            }
+
+            // ✅ STOP HERE. Do not add any more lines after this closing brace!
+            function renderMoveSelection() {
+                const box = document.getElementById("exhibits");
+                const ctx = getExhibitContext(state.moveState.fromExhibit);
+                if (!ctx) return;
+                const fromGroup = ctx.exhibit;
+                box.innerHTML = `<div class="exhibitCard" style="grid-column: 1 / -1;"><div class="exhibit-header"><h3>🔄 Move Animal Mode</h3></div><div class="exhibit-body"><p>Step 1: Click an animal to move</p><div class="animalList">${fromGroup.animals.map((a, i) => `<span class="animalTag" data-exhibit="${state.moveState.fromExhibit}" data-index="${i}">${a.name}</span>`).join("")}</div><button class="danger-btn" onclick="cancelMove()">Cancel</button></div></div>`;
+            }
+
+            // Highlights valid destination exhibits while the player selects where to move an animal.
+            function renderDestinationSelection() {
+                const box = document.getElementById("exhibits");
+                const ctx = getExhibitContext(state.moveState.fromExhibit);
+                if (!ctx) return;
+                const animal = ctx.exhibit.animals[state.moveState.animalIndex];
+                box.innerHTML = `<div class="exhibitCard" style="grid-column: 1 / -1;"><div class="exhibit-header"><h3>📍 Move ${animal.name}</h3></div><div class="exhibit-body"><p>Step 2: Choose destination exhibit</p><button class="danger-btn" onclick="cancelMove()">Cancel</button></div></div>`;
+
+                // Regular exhibits
+                Object.keys(state.exhibits).forEach(id => {
+                    const ex = state.exhibits[id];
+                    const div = document.createElement("div");
+                    div.className = "exhibitCard";
+                    div.innerHTML = `<div class="exhibit-header"><h3>🏞 ${ex.name}</h3></div><div class="exhibit-body"><p style="text-align:center; padding:10px;">Click to move here</p></div>`;
+                    div.style.cursor = 'pointer';
+                    div.onclick = () => moveAnimalTo(id);
+                    box.appendChild(div);
+                });
+
+            }
+
+            // Completes an in-progress animal move by relocating it to the chosen destination exhibit.
+            function moveAnimalTo(toId) {
+                const fromCtx = getExhibitContext(state.moveState.fromExhibit);
+                const toCtx = getExhibitContext(toId);
+                if (!fromCtx || !toCtx) return;
+                const animal = fromCtx.exhibit.animals.splice(state.moveState.animalIndex, 1)[0];
+                if (!animal) return;
+                toCtx.exhibit.animals.push(animal);
+                cancelMove();
+            }
+
+            // Cancels an in-progress animal move and returns the UI to normal mode.
+            function cancelMove() {
+                state.uiMode = "normal";
+                state.moveState = {
+                    active: false,
+                    fromExhibit: null,
+                    animalIndex: null
+                };
+                renderExhibits();
+            }
+            let currentExhibitType = 'terrestrial';
+            const buildBtn = document.getElementById("buildExhibitBtn");
+            if (buildBtn && !buildBtn.dataset.initialized) {
+                buildBtn.dataset.initialized = "true";
+                buildBtn.onclick = () => {
+                    const modal = document.getElementById("buildModal");
+                    const options = document.getElementById("buildSizeOptions");
+                    options.innerHTML = "";
+                    if (Object.keys(data.exhibitTypes).length === 0) return showToast("Loading exhibit types...", "info");
+                    modal.querySelector('.modal-content').style.maxWidth = '600px';
+                    const availableTypes = Object.values(data.exhibitTypes).filter(et => !et.unlockResearch || isResearchComplete(et.unlockResearch));
+                    const lockedTypes = Object.values(data.exhibitTypes).filter(et => et.unlockResearch && !isResearchComplete(et.unlockResearch));
+                    let typeSelectionHTML = '<div style="margin-bottom: 20px;"><h4 style="margin: 0 0 10px 0; color: var(--accent);">🏞 Select Exhibit Type</h4><div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px;">';
+                    availableTypes.forEach(et => {
+                        typeSelectionHTML += `<button class="category-tab ${currentExhibitType === et.id ? 'active' : ''}" onclick="selectExhibitType('${et.id}')" style="padding: 12px; text-align: left; border: 2px solid ${currentExhibitType === et.id ? 'var(--accent)' : '#243042'}; background: var(--card); color: var(--text); border-radius: 8px; cursor: pointer;"><div style="font-size: 1.5rem; margin-bottom: 4px;">${et.emoji}</div><div style="font-weight: 700; font-size: 0.9rem;">${et.name}</div><div style="font-size: 0.75rem; color: var(--muted); margin-top: 4px;">${et.description}</div></button>`;
+                    });
+                    typeSelectionHTML += '</div></div>';
+                    if (lockedTypes.length > 0) {
+                        typeSelectionHTML += '<div style="margin-top: 15px;"><h4 style="margin: 0 0 10px 0; color: var(--muted);"> Locked Types</h4><div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px;">';
+                        lockedTypes.forEach(et => {
+                            const project = data.researchProjects[et.unlockResearch];
+                            typeSelectionHTML += `<div style="padding: 12px; background: #0b1220; border: 1px solid #243042; border-radius: 8px; opacity: 0.5;"><div style="font-size: 1.5rem; margin-bottom: 4px;">${et.emoji}</div><div style="font-weight: 700; font-size: 0.9rem;">${et.name}</div><div style="font-size: 0.75rem; color: var(--warn); margin-top: 4px;">Requires: ${project?.name || 'Research'}</div></div>`;
+                        });
+                        typeSelectionHTML += '</div></div>';
+                    }
+                    options.innerHTML = typeSelectionHTML + `<div style="margin-top: 20px;"><h4 style="margin: 0 0 10px 0; color: var(--accent);">📏 Select Size</h4></div><div id="sizeOptions"></div>`;
+                    const sizeDiv = document.getElementById("sizeOptions");
+                    for (const size in EXHIBIT_SIZES) {
+                        const info = EXHIBIT_SIZES[size];
+                        const canAfford = state.money >= info.cost;
+                        const btn = document.createElement("button");
+                        btn.className = "primary-btn";
+                        btn.style.width = "100%";
+                        btn.style.marginBottom = "8px";
+                        btn.style.opacity = canAfford ? "1" : "0.5";
+                        btn.style.cursor = canAfford ? "pointer" : "not-allowed";
+                        btn.innerHTML = `<div style="display: flex; justify-content: space-between; align-items: center;"><div style="text-align: left;"><div style="font-weight: 800;">${info.emoji} ${info.label} Exhibit</div><div style="font-size: 0.8rem; opacity: 0.8;">⏱ ${info.buildDays} days to build</div></div><div style="font-weight: 800;">$${info.cost.toLocaleString()}</div></div>`;
+                        if (canAfford) btn.onclick = () => {
+                            buildExhibit(size, currentExhibitType);
+                            closeBuildModal();
+                        };
+                        sizeDiv.appendChild(btn);
+                    }
+                    modal.classList.add("active");
+                };
+            }
+
+            // Sets the exhibit type for the build flow and reopens the build size modal.
+            function selectExhibitType(typeId) {
+                currentExhibitType = typeId;
+                document.getElementById("buildExhibitBtn").onclick();
+            }
+
+            // Closes the build-new-exhibit modal.
+            function closeBuildModal() {
+                document.getElementById("buildModal").classList.remove("active");
+                document.getElementById("buildModal").querySelector('.modal-content').style.maxWidth = '400px';
+            }
+// Builds a new exhibit of the chosen size and type, deducting cost and starting its build timer.
+function buildExhibit(size, type = 'terrestrial') {
+    const info = EXHIBIT_SIZES[size];
+    const exhibitType = data.exhibitTypes[type];
+
+    if (!exhibitType) return showToast("Invalid exhibit type!", "error");
+    if (exhibitType.unlockResearch && !isResearchComplete(exhibitType.unlockResearch)) {
+        return showToast(`🔒 ${exhibitType.name} requires research!`, "error");
+    }
+    if (state.money < info.cost) return showToast("Not enough money!", "error");
+
+    state.money -= info.cost;
+    showFloatingMoney(-info.cost);
+
+    const id = "exhibit_" + Date.now();
+    const exhibitCount = Object.keys(state.exhibits).length + 1;
+
+    state.exhibits[id] = {
+        id: id,
+        name: `${exhibitType.name} ${exhibitCount}`,
+        size: size,
+        type: type,
+        animals: [],
+        upgrades: [],
+        buildDaysRemaining: info.buildDays,
+        fenceCondition: 100,
+        cleanliness: 100
+    };
+
+    // ✅ FIX: Assign map coordinates immediately so they are saved to state
+    autoLayoutExhibits();
+
+    addTicker(`🏗 Started building ${exhibitType.emoji} ${info.label} ${exhibitType.name} (ready in ${info.buildDays} days)`);
+
+    updateUI();
+    renderExhibits();
+}
+            /* --------------------------------------------------------------------------
+            🎲 14. EVENTS & LEADERBOARD
+            -------------------------------------------------------------------------- */
+            // Random zoo events plus the Firebase-backed online leaderboard.
+            const RANDOM_EVENTS = [{
+                    id: 'donation',
+                    name: 'Generous Donation',
+                    desc: 'A philanthropist is impressed by your zoo and sends a check!',
+                    icon: '💰',
+                    choices: [{
+                        text: 'Accept ($1000)',
+                        effect: () => {
+                            state.money += 1000;
+                            showFloatingMoney(1000);
+                            showToast("Received donation!", "info");
+                        },
+                        cost: 0
+                    }]
+                },
+                {
+                    id: 'escape',
+                    name: 'Animal Escape!',
+                    desc: 'A mischievous animal has breached the fence! Visitors are panicking.',
+                    icon: '🐒',
+                    condition: () => getAllAnimals().length > 0,
+                    choices: [{
+                        text: 'Security Team ($500)',
+                        effect: () => {
+                            state.money -= 500;
+                            showFloatingMoney(-500);
+                            showToast("Animal safely recaptured.", "info");
+                        },
+                        cost: 500
+                    }, {
+                        text: 'Ignore It',
+                        effect: () => {
+                            state.visitorSatisfaction = Math.max(0, state.visitorSatisfaction - 20);
+                            showToast("Chaos! Visitor satisfaction dropped.", "error");
+                        },
+                        cost: 0
+                    }]
+                },
+                {
+                    id: 'inspection',
+                    name: 'Health Inspection',
+                    desc: 'A strict inspector is visiting today. Your facilities look a bit messy.',
+                    icon: '📋',
+                    condition: () => state.money > 200,
+                    choices: [{
+                        text: 'Emergency Cleanup ($200)',
+                        effect: () => {
+                            state.money -= 200;
+                            showFloatingMoney(-200);
+                            showToast("Inspector passed the zoo with flying colors.", "info");
+                            state.visitorSatisfaction += 5;
+                        },
+                        cost: 200
+                    }, {
+                        text: 'Risk It',
+                        effect: () => {
+                            if (Math.random() > 0.5) {
+                                showToast("Fine! The inspector found no issues.", "info");
+                                state.visitorSatisfaction += 5;
+                            } else {
+                                state.visitorSatisfaction -= 15;
+                                showToast("Failed inspection! Visitors are worried.", "error");
+                            }
+                        },
+                        cost: 0
+                    }]
+                },
+                {
+                    id: 'viral',
+                    name: 'Viral Video!',
+                    desc: 'A visitor\'s TikTok of your zoo went viral! People are rushing in.',
+                    icon: '📱',
+                    choices: [{
+                        text: 'Capitalize (+50 visitors today)',
+                        effect: () => {
+                            state.dailyVisitors += 50;
+                            updateUI();
+                            showToast("Traffic surged! Check the Reports tab.", "info");
+                        },
+                        cost: 0
+                    }]
+                },
+                {
+                    id: 'sickness',
+                    name: 'Flu Outbreak',
+                    desc: 'A mild flu is spreading among the animals. You need medicine.',
+                    icon: '💊',
+                    condition: () => getAllAnimals().length > 2,
+                    choices: [{
+                        text: 'Treat All ($300)',
+                        effect: () => {
+                            state.money -= 300;
+                            showFloatingMoney(-300);
+                            let cured = 0;
+                            const allAnimals = getAllAnimals();
+                            for (const animal of allAnimals)
+                                if (animal.sick) {
+                                    delete animal.sick;
+                                    delete animal.sickDays;
+                                    cured++;
+                                } showToast(`✅ Cured ${cured} animals!`, "info");
+                        },
+                        cost: 300
+                    }, {
+                        text: 'Do Nothing',
+                        effect: () => {
+                            let affected = 0;
+                            const allAnimals = getAllAnimals();
+                            for (const animal of allAnimals)
+                                if (Math.random() > 0.7) {
+                                    animal.sick = true;
+                                    animal.sickDays = 0;
+                                    affected++;
+                                } showToast(`${affected} animals caught the flu! They may die without treatment.`, "error");
+                        },
+                        cost: 0
+                    }]
+                }
+            ];
+            let currentEvent = null;
+
+            // Rolls a chance to trigger a random zoo event from the event pool (currently disabled, see early return).
+            function triggerRandomEvent() {
+                return; // ← Random events currently disabled. Remove this line to re-enable.
+                if (Math.random() > 0.30) return;
+                const available = RANDOM_EVENTS.filter(e => !e.condition || e.condition());
+                if (available.length === 0) return;
+                const event = available[Math.floor(Math.random() * available.length)];
+                state.activeEvent = event;
+                showEventModal(event);
+            }
+
+            // Opens the modal presenting a random event and its choices.
+            function showEventModal(event) {
+                currentEvent = event;
+                const modal = document.getElementById('eventModal');
+                document.getElementById('eventIcon').textContent = event.icon;
+                document.getElementById('eventName').textContent = event.name;
+                document.getElementById('eventDesc').textContent = event.desc;
+                const choicesDiv = document.getElementById('eventChoices');
+                choicesDiv.innerHTML = '';
+                event.choices.forEach(choice => {
+                    const btn = document.createElement('button');
+                    btn.className = choice.cost > state.money ? 'secondary-btn' : 'primary-btn';
+                    btn.style.opacity = choice.cost > state.money ? '0.5' : '1';
+                    btn.style.cursor = choice.cost > state.money ? 'not-allowed' : 'pointer';
+                    btn.textContent = choice.text;
+                    btn.onclick = () => {
+                        if (choice.cost > state.money) {
+                            showToast("Not enough money for this option!", "error");
+                            return;
+                        }
+                        choice.effect();
+                        updateUI();
+                        renderExhibits();
+                        modal.classList.remove('active');
+                        state.activeEvent = null;
+                        currentEvent = null;
+                        saveGame();
+                    };
+                    choicesDiv.appendChild(btn);
+                });
+                modal.classList.add('active');
+            }
+
+            // Closes the random event modal.
+            function closeEventModal() {
+                document.getElementById('eventModal').classList.remove('active');
+                state.activeEvent = null;
+                currentEvent = null;
+            }
+
+            // Opens the modal breaking down how the zoo's star rating is calculated.
+            function showRatingBreakdown() {
+                const modal = document.getElementById('ratingModal');
+                const content = document.getElementById('ratingModalContent');
+                const allAnimals = getAllAnimals();
+                const totalSpecies = data.animals.length || 1;
+                const speciesCount = new Set(allAnimals.map(a => a.id)).size;
+                const varietyScore = Math.min(100, (speciesCount / Math.max(5, totalSpecies * 0.3)) * 100);
+                let avgHealth = 0;
+                if (allAnimals.length > 0) avgHealth = allAnimals.reduce((sum, a) => sum + (a.health ?? 100), 0) / allAnimals.length;
+                const satisfactionScore = state.visitorSatisfaction;
+                const staffEffects = getStaffEffects();
+                const cleanlinessScore = Math.min(100, staffEffects.cleanPark + staffEffects.cleanExhibits);
+                const deathPenalty = Math.min(100, (state.unnaturalDeaths || 0) * 10);
+                const deathScore = allAnimals.length > 0 ? (100 - deathPenalty) : 0;
+                const amenityTypes = ['restroom', 'bin', 'bench', 'food_stand', 'gift_shop'];
+                const amenitiesOwned = amenityTypes.filter(id => (state.amenities[id] || 0) > 0).length;
+                const amenitiesScore = (amenitiesOwned / amenityTypes.length) * 100;
+                const tier = getZooRatingTier(state.zooRating || 0);
+                content.innerHTML = `<h2 style="color: ${tier.color}; margin-top: 0;">${tier.emoji} ${tier.label} Zoo</h2>
+<p style="color: var(--muted); margin: 0 0 15px 0;">Current Rating: <strong style="color: ${tier.color}; font-size: 1.5rem;">${state.zooRating || 0}%</strong></p>
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+<div style="padding: 10px; background: #0b1220; border-radius: 8px;"><div style="font-size: 0.75rem; color: var(--muted);">🦁 Animal Variety (20%)</div><div style="font-size: 1.2rem; font-weight: 800; color: var(--accent);">${Math.round(varietyScore)}%</div><div style="font-size: 0.7rem; color: var(--muted);">${speciesCount} species</div></div>
+<div style="padding: 10px; background: #0b1220; border-radius: 8px;"><div style="font-size: 0.75rem; color: var(--muted);">💚 Animal Health (25%)</div><div style="font-size: 1.2rem; font-weight: 800; color: ${avgHealth >= 80 ? 'var(--accent)' : avgHealth >= 50 ? 'var(--warn)' : 'var(--danger)'};">${Math.round(avgHealth)}%</div></div>
+<div style="padding: 10px; background: #0b1220; border-radius: 8px;"><div style="font-size: 0.75rem; color: var(--muted);">😊 Visitor Satisfaction (20%)</div><div style="font-size: 1.2rem; font-weight: 800; color: var(--blue);">${satisfactionScore}%</div></div>
+<div style="padding: 10px; background: #0b1220; border-radius: 8px;"><div style="font-size: 0.75rem; color: var(--muted);">✨ Cleanliness (15%)</div><div style="font-size: 1.2rem; font-weight: 800; color: var(--warn);">${Math.round(cleanlinessScore)}%</div></div>
+<div style="padding: 10px; background: #0b1220; border-radius: 8px;"><div style="font-size: 0.75rem; color: var(--muted);">⚰️ Death Penalty (10%)</div><div style="font-size: 1.2rem; font-weight: 800; color: ${deathScore >= 80 ? 'var(--accent)' : 'var(--danger)'};">${Math.round(deathScore)}%</div><div style="font-size: 0.7rem; color: var(--muted);">${state.unnaturalDeaths || 0} unnatural deaths</div></div>
+<div style="padding: 10px; background: #0b1220; border-radius: 8px;"><div style="font-size: 0.75rem; color: var(--muted);">🏪 Amenities (10%)</div><div style="font-size: 1.2rem; font-weight: 800; color: var(--purple);">${Math.round(amenitiesScore)}%</div><div style="font-size: 0.7rem; color: var(--muted);">${amenitiesOwned}/5 types</div></div>
+</div>${state.zooRating < 80 ? `<div style="margin-top: 12px; padding: 10px; background: rgba(251, 191, 36, 0.1); border-radius: 8px; text-align: center; color: var(--gold); font-size: 0.85rem;">🌟 Reach 80% rating to unlock Legendary animals!</div>` : ''}`;
+                modal.classList.add('active');
+            }
+
+            // Closes the rating breakdown modal.
+            function closeRatingModal() {
+                document.getElementById('ratingModal').classList.remove('active');
+            }
+            document.addEventListener("click", (e) => {
+                const tag = e.target.closest(".animalTag");
+                if (!tag) return;
+                const exhibitId = tag.dataset.exhibit;
+                const index = parseInt(tag.dataset.index);
+                if (state.uiMode === "move") {
+                    state.moveState.animalIndex = index;
+                    renderDestinationSelection();
+                    return;
+                }
+                const ctx = getExhibitContext(exhibitId);
+                if (ctx) {
+                    const animal = ctx.exhibit.animals[index];
+                    if (animal) openAnimalInfo(animal, exhibitId, index);
+                }
+            });
+            let leaderboardPlayerId = null;
+            let leaderboardCategory = 'zooRating';
+
+            // Retrieves the player's persistent leaderboard id, generating and storing one if it doesn't exist yet.
+            function getPlayerId() {
+                let id = localStorage.getItem('zooPlayerId');
+                if (!id) {
+                    id = 'player_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+                    localStorage.setItem('zooPlayerId', id);
+                }
+                return id;
+            }
+
+            // Gets the player's display name used on the leaderboard.
+            function getPlayerName() {
+                return localStorage.getItem('zooPlayerName') || 'Anonymous Zookeeper';
+            }
+
+            // Sets the player's display name used on the leaderboard.
+            function setPlayerName(name) {
+                localStorage.setItem('zooPlayerName', name);
+            }
+            // Submits the current zoo's stats to the Firebase leaderboard.
+            async function submitToLeaderboard() {
+                if (!window.firebaseDB) return;
+                try {
+                    const playerId = getPlayerId();
+                    leaderboardPlayerId = playerId;
+                    const {
+                        doc,
+                        setDoc,
+                        getDoc
+                    } = window.firebaseModules;
+                    const ref = doc(window.firebaseDB, 'leaderboard', playerId);
+                    const snap = await getDoc(ref);
+                    const stats = {
+                        name: getPlayerName(),
+                        zooName: state.zooName || "Unnamed Zoo",
+                        zooRating: state.zooRating || 0,
+                        money: state.money,
+                        animals: getAllAnimals().length,
+                        achievements: Object.keys(state.achievements).length,
+                        daysPlayed: (state.year - 1) * 360 + (state.month - 1) * 30 + state.day,
+                        visitors: state.dailyVisitors,
+                        lastUpdated: new Date().toISOString()
+                    };
+
+                    if (snap.exists()) {
+                        const existing = snap.data();
+                        stats.money = Math.max(stats.money, existing.money || 0);
+                        stats.animals = Math.max(stats.animals, existing.animals || 0);
+                        stats.achievements = Math.max(stats.achievements, existing.achievements || 0);
+                        stats.daysPlayed = Math.max(stats.daysPlayed, existing.daysPlayed || 0);
+                        await setDoc(ref, stats, {
+                            merge: true
+                        });
+                    } else {
+                        await setDoc(ref, stats);
+                    }
+                } catch (e) {
+                    console.error("Leaderboard submit error:", e);
+                }
+            }
+            // Fetches the top-ranked entries for a leaderboard category from Firebase.
+            async function fetchLeaderboard(category = 'money', limitCount = 20) {
+                if (!window.firebaseDB) return [];
+                try {
+                    const {
+                        collection,
+                        query,
+                        orderBy,
+                        limit,
+                        getDocs
+                    } = window.firebaseModules;
+                    const q = query(collection(window.firebaseDB, 'leaderboard'), orderBy(category, 'desc'), limit(limitCount));
+                    const snapshot = await getDocs(q);
+                    return snapshot.docs.map((doc, index) => ({
+                        rank: index + 1,
+                        id: doc.id,
+                        ...doc.data()
+                    }));
+                } catch (e) {
+                    console.error("Leaderboard fetch error:", e);
+                    return [];
+                }
+            }
+            // Fetches the current player's rank within a leaderboard category.
+            async function getPlayerRank(category = 'money') {
+                if (!window.firebaseDB || !leaderboardPlayerId) return null;
+                try {
+                    const {
+                        collection,
+                        query,
+                        orderBy,
+                        getDocs
+                    } = window.firebaseModules;
+                    const q = query(collection(window.firebaseDB, 'leaderboard'), orderBy(category, 'desc'));
+                    const snapshot = await getDocs(q);
+                    const docs = snapshot.docs;
+                    const myIndex = docs.findIndex(d => d.id === leaderboardPlayerId);
+                    if (myIndex === -1) return null;
+                    return {
+                        rank: myIndex + 1,
+                        total: docs.length,
+                        data: docs[myIndex].data()
+                    };
+                } catch (e) {
+                    console.error("Rank fetch error:", e);
+                    return null;
+                }
+            }
+            // Renders the Leaderboard tab, prompting for a player name if one isn't set yet.
+            async function renderLeaderboard() {
+                const box = document.getElementById('leaderboard');
+                box.innerHTML = '<div class="leaderboard-loading">🔄 Loading leaderboard...</div>';
+                const hasName = localStorage.getItem('zooPlayerName');
+                let namePromptHTML = '';
+                if (!hasName) namePromptHTML = `<div class="name-prompt"><h3>👋 Welcome to the Leaderboard!</h3><p style="color: var(--muted); margin-bottom: 10px;">Choose a name to compete with players worldwide</p><input type="text" id="playerNameInput" placeholder="Your zookeeper name..." maxlength="20"><br><button class="primary-btn" onclick="savePlayerName()" style="max-width: 200px; margin: 0 auto;">Save Name</button></div>`;
+                const categories = [{
+                        id: 'zooRating',
+                        label: '🏞️ Best Zoos',
+                        icon: '🏞️'
+                    }, // 👈 Added new tab
+                    {
+                        id: 'money',
+                        label: '💰 Richest',
+                        icon: '💰'
+                    },
+                    {
+                        id: 'animals',
+                        label: '🦁 Most Animals',
+                        icon: '🦁'
+                    },
+                    {
+                        id: 'achievements',
+                        label: '🏆 Achievements',
+                        icon: '🏆'
+                    },
+                    {
+                        id: 'daysPlayed',
+                        label: '📅 Longest',
+                        icon: '📅'
+                    }
+                ];
+                box.innerHTML = namePromptHTML + `<div class="leaderboard-tabs">${categories.map(cat => `<button class="leaderboard-tab ${leaderboardCategory === cat.id ? 'active' : ''}" onclick="changeLeaderboardCategory('${cat.id}')">${cat.label}</button>`).join('')}</div><div id="leaderboardContent"><div class="leaderboard-loading">🔄 Loading...</div></div>`;
+                await updateLeaderboardContent();
+            }
+            // Fetches and renders the leaderboard rows for the currently selected category.
+            async function updateLeaderboardContent() {
+                const content = document.getElementById('leaderboardContent');
+                if (!content) return;
+                const players = await fetchLeaderboard(leaderboardCategory, 20);
+                const myRank = await getPlayerRank(leaderboardCategory);
+                const categoryLabels = {
+                    zooRating: {
+                        label: 'Zoo Rating',
+                        format: v => v + '%'
+                    }, // 👈 Added formatting for the new tab
+                    money: {
+                        label: 'Net Worth',
+                        format: v => '$' + v.toLocaleString()
+                    },
+                    animals: {
+                        label: 'Animals',
+                        format: v => v.toLocaleString()
+                    },
+                    achievements: {
+                        label: 'Achievements',
+                        format: v => v.toLocaleString()
+                    },
+                    daysPlayed: {
+                        label: 'Days',
+                        format: v => v.toLocaleString()
+                    }
+                };
+                const cat = categoryLabels[leaderboardCategory];
+                let yourRankHTML = '';
+                if (myRank) yourRankHTML = `<div class="your-rank-card"><h3>🎯 Your Rank</h3><div class="your-rank-number">#${myRank.rank}</div><div style="color: var(--muted);">out of ${myRank.total} zookeepers worldwide</div></div>`;
+                let rowsHTML = '';
+                if (players.length === 0) rowsHTML = `<div style="text-align: center; padding: 40px; color: var(--muted);"><h3>🏁 Be the First!</h3><p>No players yet. Play the game and submit your score to claim the top spot!</p></div>`;
+                else {
+                    rowsHTML = `<div class="leaderboard-row header"><div>Rank</div><div>Player</div><div style="text-align: right;">${cat.label}</div></div>`;
+                    players.forEach(player => {
+                        const isYou = player.id === leaderboardPlayerId;
+                        const rankClass = player.rank === 1 ? 'top1' : player.rank === 2 ? 'top2' : player.rank === 3 ? 'top3' : '';
+                        const rankEmoji = player.rank === 1 ? '🥇' : player.rank === 2 ? '🥈' : player.rank === 3 ? '🥉' : `#${player.rank}`;
+
+                        // 👇 NEW LOGIC: Check if we are in the "Best Zoos" view
+                        const isZooView = leaderboardCategory === 'zooRating';
+                        const mainName = isZooView ? escapeHtml(player.zooName || 'Unnamed Zoo') : escapeHtml(player.name || 'Anonymous');
+                        const subInfo = isZooView ?
+                            `<div class="player-zoo">by ${escapeHtml(player.name || 'Anonymous')}</div>` :
+                            `<div class="player-zoo">Day ${player.daysPlayed || 0} • ${player.animals || 0} animals</div>`;
+                        const nameStyle = isZooView ? 'color: var(--gold); font-size: 1.1rem;' : '';
+
+                        rowsHTML += `<div class="leaderboard-row ${rankClass} ${isYou ? 'you' : ''}">
+        <div class="rank-badge ${player.rank <= 3 ? 'rank-' + player.rank : ''}">${rankEmoji}</div>
+        <div class="player-info">
+            <div class="player-name" style="${nameStyle}">${mainName}</div>
+            ${subInfo}
+        </div>
+        <div class="player-score">${cat.format(player[leaderboardCategory] || 0)}</div>
+    </div>`;
+                    });
+                }
+                content.innerHTML = yourRankHTML + `<div class="leaderboard-table">${rowsHTML}</div><div style="text-align: center; margin-top: 20px; color: var(--muted); font-size: 0.85rem;">🔄 Leaderboard updates automatically as you play</div>`;
+            }
+
+            // Switches the active leaderboard category and re-renders it.
+            function changeLeaderboardCategory(category) {
+                leaderboardCategory = category;
+                renderLeaderboard();
+            }
+
+            // Validates and saves the player name entered in the leaderboard name prompt.
+            function savePlayerName() {
+                const input = document.getElementById('playerNameInput');
+                const name = input.value.trim();
+                if (name.length < 2) {
+                    showToast("Name must be at least 2 characters", "error");
+                    return;
+                }
+                setPlayerName(name);
+                showToast(`Welcome, ${name}! 🎉`, "info");
+                renderLeaderboard();
+                submitToLeaderboard();
+            }
+
+            // Escapes HTML special characters in a string to safely render untrusted text.
+            function escapeHtml(text) {
+                const div = document.createElement('div');
+                div.textContent = text;
+                return div.innerHTML;
+            }
+
+            /* --------------------------------------------------------------------------
+            💾 15. SAVE/LOAD, TUTORIAL & CORE LOOP
+            -------------------------------------------------------------------------- */
+            // advanceDay() (the core game loop), localStorage save/load, multi-zoo profile management, and the tutorial overlay.
+            // Compiles and stores a monthly performance report snapshot.
+            function showMonthlyReport() {
+                const attraction = calculateAttraction();
+                const visitors = generateVisitors();
+                const actualMonthlyIncome = state.monthlyIncomeTracker || 0;
+                state.monthlyReports.unshift({
+                    month: state.month,
+                    year: state.year,
+                    attraction,
+                    visitors,
+                    guestHappiness: calculateGuestHappiness(),
+                    income: actualMonthlyIncome
+                });
+                state.monthlyIncomeTracker = 0; // Reset tracker for the new month
+                renderReports();
+            }
+            // Advances the game by one full day: income, upkeep, animal care, and event processing.
+            function advanceDay() {
+                if (state.activeEvent) {
+                    showToast("Resolve the current event before ending the day!", "warn");
+                    return;
+                }
+                const startMoney = state.money;
+                consumeDailyFood();
+                processAnimalHealth();
+                processDayIncome();
+                processAnimalIncome();
+                processUpkeep();
+                processDailyMaintenance();
+                processFenceDegradation();
+                processExhibitCleanliness();
+
+                if (state.recentDeathPenalty > 0) state.recentDeathPenalty = Math.max(0, state.recentDeathPenalty - 5);
+
+                const allExhibits = getAllExhibits();
+                for (const {
+                        exhibit
+                    }
+                    of allExhibits) {
+                    if (exhibit.buildDaysRemaining > 0) continue;
+                    const condition = exhibit.fenceCondition || 100;
+                    if (condition < 30 && condition >= 10) addTicker(`🔴 ${exhibit.name} fence is critical! Repair immediately!`);
+                    else if (condition < 50 && condition >= 30) addTicker(`🔶 ${exhibit.name} fence needs urgent repair!`);
+                    else if (condition < 70 && condition >= 50) addTicker(`⚠️ ${exhibit.name} fence is wearing down.`);
+                }
+
+                renderExhibits();
+                const delta = state.money - startMoney;
+                if (delta !== 0) showFloatingMoney(delta);
+                state.monthlyIncomeTracker = (state.monthlyIncomeTracker || 0) + delta;
+                state.daysSinceNewAnimal++;
+
+                const deaths = [];
+                for (const {
+                        exhibit
+                    }
+                    of allExhibits) {
+                    for (const animal of exhibit.animals) {
+                        animal.ageDays = (animal.ageDays || 0) + 1;
+                        if (animal.ageDays === 30) addTicker(`🎂 ${animal.name} is now a juvenile!`);
+                        else if (animal.ageDays === 90) addTicker(`🎉 ${animal.name} has reached adulthood!`);
+                        else if (animal.ageDays === 365) addTicker(`👴 ${animal.name} is now a senior.`);
+                        if (shouldDieOfOldAge(animal)) {
+                            deaths.push({
+                                animal,
+                                exhibit,
+                                cause: 'old age'
+                            });
+                        } else if (animal.sick && Math.random() < 0.05) {
+                            deaths.push({
+                                animal,
+                                exhibit,
+                                cause: 'sickness'
+                            });
+                        }
+                    }
+                }
+
+                for (const death of deaths) {
+                    death.exhibit.animals = death.exhibit.animals.filter(a => a !== death.animal);
+                    const causeEmoji = death.cause === 'old age' ? '⚰️' : '💀';
+                    addTicker(`${causeEmoji} ${death.animal.name} passed away from ${death.cause}.`);
+                    showToast(`${causeEmoji} ${death.animal.name} has died.`, 'error');
+                    state.naturalDeaths = (state.naturalDeaths || 0) + 1;
+                    state.totalDeaths = (state.totalDeaths || 0) + 1;
+    const deathPenalty = Math.floor(death.animal.dailyIncome * 15); 
+    state.money -= deathPenalty;
+    showFloatingMoney(-deathPenalty);
+}
+
+                for (const {
+                        exhibit
+                    }
+                    of allExhibits) tryBreeding(exhibit);
+
+                for (const {
+                        exhibit
+                    }
+                    of allExhibits) {
+                    for (const animal of exhibit.animals) {
+                        if (animal.isPregnant) {
+                            animal.daysUntilBirth--;
+                            if (animal.daysUntilBirth <= 0) {
+                                const species = animal.babySpecies || animal.id;
+                                const speciesData = data.animals.find(a => a.id === species);
+                                const baby = {
+                                    id: species,
+                                    name: getNextAnimalName(speciesData?.name || species),
+                                    gender: Math.random() < 0.5 ? "male" : "female",
+                                    ageDays: 0,
+                                    dailyIncome: animal.dailyIncome,
+                                    foodCost: animal.foodCost,
+                                    diet: animal.diet,
+                                    variation: null,
+                                    compatibleWith: animal.compatibleWith,
+                                    minInExhibit: animal.minInExhibit,
+                                    maxInExhibit: animal.maxInExhibit,
+                                    breedChance: animal.breedChance,
+                                    bornInZoo: true,
+                                    health: 100
+                                };
+                                exhibit.animals.push(baby);
+                                animal.isPregnant = false;
+                                delete animal.daysUntilBirth;
+                                delete animal.babySpecies;
+                                delete animal.babyFather;
+                                state.bredAnimals++;
+                                addTicker(`🍼 ${baby.name} was born to ${animal.name}!`);
+                                showToast(`🎉 ${baby.name} has been born!`, "info");
+                            }
+                        }
+                    }
+                }
+
+                if (state.activeResearch) {
+                    state.activeResearch.daysRemaining--;
+                    if (state.activeResearch.daysRemaining <= 0) {
+                        const project = data.researchProjects[state.activeResearch.projectId];
+                        state.completedResearch.push(state.activeResearch.projectId);
+                        state.activeResearch = null;
+                        if (project) {
+                            addTicker(`🎉 Research complete: ${project.name}!`);
+                            showToast(`🔬 ${project.name} complete! ${project.unlocks.length} new animals unlocked!`, "info");
+                        }
+                        renderShop();
+                    }
+                }
+
+                state.day++;
+                if (state.day > 30) {
+                    state.day = 1;
+                    state.month++;
+                    showMonthlyReport();
+                }
+                if (state.month > 12) {
+                    state.month = 1;
+                    state.year++;
+                }
+
+                checkAchievements();
+                updateUI();
+                renderExhibits();
+                renderAchievements();
+                renderVisitors();
+                renderSupplies();
+
+                const oldRating = state.zooRating || 0;
+                state.zooRating = calculateZooRating();
+                const newTier = getZooRatingTier(state.zooRating);
+                const oldTier = getZooRatingTier(oldRating);
+                if (newTier.tierNum > oldTier.tierNum) {
+                    addTicker(`🎉 Zoo upgraded to ${newTier.emoji} ${newTier.label}!`);
+                    showToast(`Zoo Rating: ${newTier.emoji} ${newTier.label}!`, "info");
+                    const tierBonus = newTier.tierNum * 500;
+                    state.money += tierBonus;
+                    showFloatingMoney(tierBonus);
+                } else if (newTier.tierNum < oldTier.tierNum) {
+                    addTicker(`📉 Zoo rating dropped to ${newTier.emoji} ${newTier.label}`);
+                    showToast(`Zoo rating dropped!`, "warn");
+                }
+
+                saveGame();
+                submitToLeaderboard();
+                triggerRandomEvent();
+            }
+
+            // Validates and applies a new ticket price set by the player.
+            function updateTicketPrice(newPrice) {
+                const price = parseInt(newPrice);
+                if (price < 5 || price > 100) return;
+                state.ticketPrice = price;
+                document.getElementById("ticketPrice").textContent = `${price}`; // ✅ Correct
+                const basePrice = 20;
+                const priceDiff = price - basePrice;
+                const zooRating = state.zooRating || 0;
+                const premiumMultiplier = zooRating >= 80 ? 1.5 : zooRating >= 60 ? 1.2 : 1.0;
+                const adjustedPrice = basePrice * premiumMultiplier;
+                const effectiveDiff = price - adjustedPrice;
+                const visitorImpact = effectiveDiff > 0 ? -3 * effectiveDiff : 2 * Math.abs(effectiveDiff);
+                const satisfactionImpact = effectiveDiff > 0 ? -2 * effectiveDiff : 1 * Math.abs(effectiveDiff);
+                const slider = document.getElementById("ticketPriceSlider");
+                if (effectiveDiff > 10) {
+                    slider.style.background = 'linear-gradient(to right, #22c55e 0%, #ef4444 100%)';
+                    showToast(`⚠️ Price too high! Visitors will drop by ${Math.abs(visitorImpact)}%`, "warn");
+                } else if (effectiveDiff < -5) {
+                    slider.style.background = 'linear-gradient(to right, #22c55e 0%, #3b82f6 100%)';
+                    showToast(`💰 Great value! Visitors will increase by ${visitorImpact}%`, "info");
+                } else {
+                    slider.style.background = 'linear-gradient(to right, #22c55e, #22c55e)';
+                }
+                state.ticketPriceImpact = visitorImpact;
+                state.ticketSatisfactionImpact = satisfactionImpact;
+                saveGame();
+            }
+
+            // Refreshes the header stats bar (money, date, rating, ticket price, etc.) to match current state.
+            function updateUI() {
+    const allAnimals = getAllAnimals();
+    
+    // 1. Update Zoo Name
+    const zooNameEl = document.getElementById("zooNameDisplay");
+    if (zooNameEl) zooNameEl.textContent = state.zooName || "My Zoo";
+    
+    // 2. Update Money
+    const moneyEl = document.getElementById("money");
+    if (moneyEl) {
+        moneyEl.textContent = state.money.toLocaleString(undefined, {
+            maximumFractionDigits: 2
+        });
+    }
+    
+    // 3. Update Date
+    const dayEl = document.getElementById("day");
+    const monthEl = document.getElementById("month");
+    const yearEl = document.getElementById("year");
+    if (dayEl) dayEl.textContent = state.day;
+    if (monthEl) monthEl.textContent = state.month;
+    if (yearEl) yearEl.textContent = state.year;
+    
+    // 4. Update Ticket Price (Visitors Tab)
+    const ticketPriceEl = document.getElementById("ticketPrice");
+    if (ticketPriceEl) ticketPriceEl.textContent = state.ticketPrice;
+    
+    const slider = document.getElementById("ticketPriceSlider");
+    if (slider) slider.value = state.ticketPrice;
+    
+    // 5. Update Zoo Novelty (Visitors Tab)
+    const noveltyEl = document.getElementById("novelty");
+    if (noveltyEl) {
+        if (allAnimals.length === 0) {
+            noveltyEl.textContent = "100%";
+        } else {
+            const decayFactor = Math.min(1, state.daysSinceNewAnimal / 10);
+            noveltyEl.textContent = Math.round((1 - decayFactor) * 100) + "%";
+        }
+    }
+    
+    // 6. Update Staffing Status (Visitors Tab)
+    // ✅ FIXED: Removed reference to non-existent "staffingStatus" element
+    const usedSlots = getKeeperDemand();
+    const totalSlots = getKeeperCapacity();
+    const staffingEl = document.getElementById("staffSlots");
+    
+    if (staffingEl) {
+        staffingEl.textContent = `${usedSlots}/${totalSlots}`;
+        if (totalSlots === 0 && usedSlots > 0) {
+            staffingEl.style.color = "var(--danger)";
+        } else if (usedSlots > totalSlots) {
+            staffingEl.style.color = "var(--danger)";
+        } else if (usedSlots > totalSlots * 0.8) {
+            staffingEl.style.color = "var(--warn)";
+        } else {
+            staffingEl.style.color = "var(--accent)";
+        }
+    }
+    
+    // 7. Update Zoo Rating (Header)
+    const ratingEl = document.getElementById("zooRating");
+    const tierEl = document.getElementById("zooRatingTier");
+    const badgeEl = document.getElementById("ratingBadge");
+    
+    if (ratingEl && tierEl && badgeEl) {
+        const tier = getZooRatingTier(state.zooRating || 0);
+        ratingEl.textContent = state.zooRating || 0;
+        tierEl.textContent = `(${tier.label})`;
+        
+        tierEl.style.color = tier.color;
+        ratingEl.style.color = tier.color;
+        badgeEl.style.color = tier.color;
+        badgeEl.style.borderColor = tier.color;
+    }
+}
+            // Switches the visible content tab and highlights the corresponding nav button.
+            function showSection(section, event) {
+                document.querySelectorAll(".section").forEach(s => s.classList.remove("active"));
+                document.querySelectorAll(".nav button").forEach(b => b.classList.remove("active"));
+                document.getElementById(section).classList.add("active");
+                if (event) event.target.classList.add("active");
+                if (section === "shop") renderShop();
+                if (section === "staff") renderStaff();
+                if (section === "reports") renderReports();
+                if (section === "visitors") renderVisitors();
+                if (section === "amenities") renderAmenities();
+                if (section === "leaderboard") renderLeaderboard();
+                if (section === "supplies") renderSupplies();
+                if (section === "research") renderResearch();
+
+            }
+            const TUTORIAL_STEPS = [{
+                    title: "👋 Welcome to ZooSmith!",
+                    message: "You're about to build the world's greatest zoo. Let's start with the basics.",
+                    action: "👉 Click 'Build Exhibit' to create your first enclosure",
+                    highlight: "buildExhibitBtn",
+                    autoAdvance: () => Object.keys(state.exhibits).length > 0
+                },
+                {
+                    title: "🧑‍🌾 Hire a Keeper",
+                    message: "Animals need caretakers! Without keepers, they'll go hungry and unhappy.",
+                    action: "👉 Go to the Staff tab and hire a Junior Keeper",
+                    highlight: null,
+                    switchTab: "staff",
+                    autoAdvance: () => state.hiredStaff.length > 0
+                },
+                {
+                    title: "🦁 Buy Your First Animal",
+                    message: "Time to bring in some wildlife! Pick an animal that fits your exhibit.",
+                    action: "👉 Go to the Shop tab and buy an animal",
+                    highlight: null,
+                    switchTab: "shop",
+                    autoAdvance: () => getAllAnimals().length > 0
+                },
+                {
+                    title: "🍽 Stock Up on Food",
+                    message: "Your animals will get hungry! Make sure you have food in storage.",
+                    action: "👉 Check the Supplies tab and buy some food",
+                    highlight: null,
+                    switchTab: "supplies",
+                    autoAdvance: () => state.tutorialStep >= 4
+                },
+                {
+                    title: "⏭ End the Day",
+                    message: "Advance time to earn income, feed animals, and see what happens!",
+                    action: "👉 Click 'End Day' to progress",
+                    highlight: "endDayBtn",
+                    autoAdvance: () => state.day > 1 || state.month > 1
+                },
+                {
+                    title: "🎉 You're Ready!",
+                    message: "You've learned the basics! Now go build your dream zoo. Good luck, Zookeeper!",
+                    action: "💡 Tip: Watch for random events, breed animals, and unlock new species through research.",
+                    highlight: null,
+                    autoAdvance: () => false
+                }
+            ];
+
+            // Renders the current tutorial step's highlight and instructions overlay.
+            function renderTutorial() {
+                const container = document.getElementById("tutorialOverlay");
+                if (!container) return;
+                if (state.tutorialSkipped || state.tutorialStep >= TUTORIAL_STEPS.length) {
+                    container.innerHTML = "";
+                    return;
+                }
+                if (state.tutorialStep === 0) state.tutorialStep = 1;
+                const step = TUTORIAL_STEPS[state.tutorialStep - 1];
+                if (!step) return;
+                if (step.autoAdvance && step.autoAdvance()) {
+                    setTimeout(() => advanceTutorial(), 500);
+                    return;
+                }
+                if (step.switchTab) {
+                    const currentActive = document.querySelector(".section.active");
+                    if (!currentActive || currentActive.id !== step.switchTab)
+                        if (!document.querySelector(".modal.active")) showSection(step.switchTab);
+                }
+                document.querySelectorAll(".tutorial-highlight").forEach(el => el.classList.remove("tutorial-highlight"));
+                if (step.highlight) {
+                    const target = document.getElementById(step.highlight);
+                    if (target) target.classList.add("tutorial-highlight");
+                }
+                const progressDots = TUTORIAL_STEPS.map((_, i) => `<div class="tutorial-dot ${i < state.tutorialStep - 1 ? "done" : i === state.tutorialStep - 1 ? "active" : ""}"></div>`).join("");
+                const isLastStep = state.tutorialStep === TUTORIAL_STEPS.length;
+                container.innerHTML = `<div class="tutorial-overlay"><div class="tutorial-header"><span class="tutorial-step-badge">Step ${state.tutorialStep} of ${TUTORIAL_STEPS.length}</span><button class="tutorial-close" onclick="skipTutorial()" title="Skip tutorial">✕</button></div><h3 class="tutorial-title">${step.title}</h3><p class="tutorial-message">${step.message}</p>${step.action ? `<div class="tutorial-action">🎯 ${step.action}</div>` : ''}<div class="tutorial-progress">${progressDots}</div><div class="tutorial-buttons"><button class="tutorial-skip" onclick="skipTutorial()">Skip Tutorial</button>${isLastStep ? `<button class="tutorial-next" onclick="completeTutorial()">Let's Go! 🚀</button>` : `<button class="tutorial-next" onclick="advanceTutorial()">Got it ✓</button>`}</div></div>`;
+            }
+
+            // Advances to the next tutorial step.
+            function advanceTutorial() {
+                if (state.tutorialStep < TUTORIAL_STEPS.length) {
+                    state.tutorialStep++;
+                    saveGame();
+                    renderTutorial();
+                }
+            }
+
+            // Skips the remaining tutorial, after player confirmation.
+            function skipTutorial() {
+                if (!confirm("Are you sure you want to skip the tutorial? You can always learn by exploring!")) return;
+                state.tutorialSkipped = true;
+                state.tutorialStep = TUTORIAL_STEPS.length;
+                document.querySelectorAll(".tutorial-highlight").forEach(el => el.classList.remove("tutorial-highlight"));
+                saveGame();
+                renderTutorial();
+                showToast("Tutorial skipped. Good luck! 🍀", "info");
+            }
+
+            // Marks the tutorial as finished and removes any highlight overlays.
+            function completeTutorial() {
+                state.tutorialStep = TUTORIAL_STEPS.length;
+                document.querySelectorAll(".tutorial-highlight").forEach(el => el.classList.remove("tutorial-highlight"));
+                saveGame();
+                renderTutorial();
+                showToast("🎉 Tutorial complete! You're ready to build your zoo!", "info");
+            }
+
+            /* --------------------------------------------------------------------------
+            💾 MULTI-SAVE SYSTEM
+            -------------------------------------------------------------------------- */
+            // Reads all saved zoo profiles from localStorage.
+            function getProfiles() {
+                try {
+                    return JSON.parse(localStorage.getItem("zooProfiles")) || {};
+                } catch (e) {
+                    return {};
+                }
+            }
+
+            // Writes the full set of zoo profiles back to localStorage.
+            function saveProfiles(profiles) {
+                localStorage.setItem("zooProfiles", JSON.stringify(profiles));
+            }
+
+            // Gets which zoo profile is currently active.
+            function getActiveProfileId() {
+                return localStorage.getItem("activeZooProfileId");
+            }
+
+            // Sets which zoo profile is currently active.
+            function setActiveProfileId(id) {
+                localStorage.setItem("activeZooProfileId", id);
+            }
+
+            // Persists the current game state into its zoo profile in localStorage.
+            function saveGame() {
+                const profiles = getProfiles();
+                let activeId = getActiveProfileId();
+                if (!activeId || !profiles[activeId]) {
+                    activeId = 'zoo_' + Date.now();
+                    setActiveProfileId(activeId);
+                }
+                const saveData = {
+                    ...state
+                };
+                delete saveData.moveState;
+                delete saveData.pendingAnimal;
+                delete saveData.activeUpgradeExhibit;
+                profiles[activeId] = {
+                    id: activeId,
+                    zooName: state.zooName || "Unnamed Zoo",
+                    timestamp: Date.now(),
+                    money: state.money,
+                    animals: getAllAnimals().length,
+                    state: saveData
+                };
+                saveProfiles(profiles);
+            }
+
+            // Loads the active zoo profile's state from localStorage into the running game.
+            function loadGame() {
+                const profiles = getProfiles();
+                let activeId = getActiveProfileId();
+                if (!activeId || !profiles[activeId]) {
+                    activeId = 'zoo_' + Date.now();
+                    setActiveProfileId(activeId);
+                    state.zooName = "My New Zoo";
+                    saveGame();
+                    return;
+                }
+                const profile = profiles[activeId];
+                const save = profile.state;
+                if (!save) return;
+                try {
+                    Object.assign(state, save);
+                    // Migration: Convert old string-based staff list to object-based list
+                    if (state.hiredStaff.length > 0 && typeof state.hiredStaff[0] === 'string') {
+                        console.log("Migrating staff data to new format...");
+                        state.hiredStaff = state.hiredStaff.map(id => ({
+                            uid: 'migrated_' + Date.now() + Math.random(),
+                            typeId: id,
+                            assignments: []
+                        }));
+                    }
+                    state.moveState = {
+                        active: false,
+                        fromExhibit: null,
+                        animalIndex: null
+                    };
+                    state.uiMode = "normal";
+                    state.pendingAnimal = null;
+                    state.activeUpgradeExhibit = null;
+                    state.daysSinceNewAnimal ??= 0;
+                    state.dailyVisitors ??= 0;
+                    state.visitorSpending ??= {
+                        food: 0,
+                        gifts: 0,
+                        total: 0
+                    };
+                    state.visitorComplaints ??= [];
+                    state.amenities ??= {};
+                    state.visitorSatisfaction ??= 100;
+                    state.completedResearch ??= [];
+                    state.activeResearch ??= null;
+                    state.maintenance ??= {
+                        dailyMaintenanceCost: 0
+                    };
+                    state.maintenanceWorkers ??= 0;
+                    state.maintenanceLevel ??= 0;
+                    state.tutorialStep ??= 0;
+                    state.tutorialSkipped ??= false;
+                    state.zooRating ??= 0;
+                    state.ticketPriceImpact ??= 0;
+                    state.ticketSatisfactionImpact ??= 0;
+                    state.unnaturalDeaths ??= 0;
+                    state.naturalDeaths ??= 0;
+                    state.totalDeaths ??= 0;
+                    state.zooName = profile.zooName || "Unnamed Zoo";
+                    state.monthlyIncomeTracker ??= 0;
+                    if (getAllAnimals().length > 0 || Object.keys(state.exhibits).length > 0) {
+                        state.tutorialSkipped = true;
+                        state.tutorialStep = TUTORIAL_STEPS.length;
+                    }
+                    for (const id in state.exhibits) {
+                        state.exhibits[id].id ??= id;
+                        state.exhibits[id].animals ??= [];
+                        state.exhibits[id].upgrades ??= [];
+                        state.exhibits[id].size ??= "small";
+                        state.exhibits[id].type ??= "terrestrial";
+                    }
+
+autoLayoutExhibits();
+                    
+} catch (e) {
+    console.error("Error loading save data:", e);
+}
+} // <--- This closes the loadGame() function
+            /* --------------------------------------------------------------------------
+            🏞️ ZOO MANAGEMENT UI
+            -------------------------------------------------------------------------- */
+            // Opens the modal for managing saved zoo profiles.
+            function openManageZoosModal() {
+                renderManageZoosModal();
+                document.getElementById('manageZoosModal').classList.add('active');
+            }
+
+            // Closes the manage-zoos modal.
+            function closeManageZoosModal() {
+                document.getElementById('manageZoosModal').classList.remove('active');
+            }
+
+            // Renders the list of saved zoo profiles with switch/rename/delete controls.
+            function renderManageZoosModal() {
+                const profiles = getProfiles();
+                const activeId = getActiveProfileId();
+                const list = document.getElementById('zoosList');
+                list.innerHTML = '';
+                const sortedProfiles = Object.values(profiles).sort((a, b) => b.timestamp - a.timestamp);
+                if (sortedProfiles.length === 0) {
+                    list.innerHTML = '<p style="text-align:center; color:var(--muted);">No zoos found. Create one to start!</p>';
+                    return;
+                }
+                sortedProfiles.forEach(profile => {
+                    const isActive = profile.id === activeId;
+                    const date = new Date(profile.timestamp).toLocaleString();
+                    const div = document.createElement('div');
+                    div.className = 'premium-card';
+                    if (isActive) div.style.borderColor = 'var(--accent)';
+                    div.innerHTML = `
+<div class="card-header" style="padding: 12px;">
+<h3 style="margin:0; font-size: 1.1rem;">${isActive ? '🟢 ' : ''}${profile.zooName}</h3>
+<div class="subtitle">Last saved: ${date}</div>
+</div>
+<div class="card-body" style="padding: 12px;">
+<div style="display: flex; gap: 15px; font-size: 0.9rem; color: var(--muted); margin-bottom: 10px;">
+<span>💰 $${(profile.money || 0).toLocaleString()}</span>
+<span>🐾 ${profile.animals || 0} animals</span>
+</div>
+<div style="display: flex; gap: 8px; flex-wrap: wrap;">
+${!isActive ? `<button class="primary-btn" style="flex:1; padding: 8px;" onclick="switchZoo('${profile.id}')">Load Zoo</button>` : `<button class="secondary-btn" style="flex:1; padding: 8px;" disabled>Currently Playing</button>`}
+<button class="secondary-btn" style="flex:1; padding: 8px;" onclick="renameZoo('${profile.id}')">Rename</button>
+<button class="danger-btn" style="flex:1; padding: 8px;" onclick="deleteZoo('${profile.id}')">Delete</button>
+</div>
+</div>
+`;
+                    list.appendChild(div);
+                });
+            }
+
+            // Saves the current zoo and switches to a different saved zoo profile.
+            function switchZoo(profileId) {
+                if (!confirm("Load this zoo? Any unsaved progress in your current zoo will be saved automatically.")) return;
+                saveGame();
+                setActiveProfileId(profileId);
+                resetStateToDefault();
+                loadGame();
+                refreshAllUI();
+                closeManageZoosModal();
+                showToast("Zoo loaded successfully!", "info");
+            }
+
+            // Saves the current zoo and creates a brand new zoo profile.
+            function createNewZoo() {
+                if (!confirm("Create a brand new zoo? Your current zoo will be saved and kept in this menu.")) return;
+                saveGame();
+                const newId = 'zoo_' + Date.now();
+                setActiveProfileId(newId);
+                resetStateToDefault();
+                state.zooName = "My New Zoo";
+                state.tutorialStep = 1;
+                state.tutorialSkipped = false;
+                saveGame();
+                refreshAllUI();
+                closeManageZoosModal();
+                showToast("New zoo created! Welcome to your fresh start.", "info");
+                setTimeout(renderTutorial, 500);
+            }
+
+            // Prompts for and applies a new name to a saved zoo profile.
+            function renameZoo(profileId) {
+                const profiles = getProfiles();
+                const profile = profiles[profileId];
+                if (!profile) return;
+                const newName = prompt("Enter a new name for your zoo:", profile.zooName);
+                if (newName && newName.trim().length > 0) {
+                    profile.zooName = newName.trim().substring(0, 30);
+                    saveProfiles(profiles);
+                    if (profileId === getActiveProfileId()) {
+                        state.zooName = profile.zooName;
+                        updateUI();
+                    }
+                    renderManageZoosModal();
+                    showToast("Zoo renamed!", "info");
+                }
+            }
+
+            // Permanently deletes a saved zoo profile, after confirmation.
+            function deleteZoo(profileId) {
+                const profiles = getProfiles();
+                const profile = profiles[profileId];
+                if (!profile) return;
+                if (!confirm(`Are you sure you want to permanently delete "${profile.zooName}"? This cannot be undone!`)) return;
+                delete profiles[profileId];
+                saveProfiles(profiles);
+                if (profileId === getActiveProfileId()) {
+                    const remaining = Object.keys(profiles);
+                    if (remaining.length > 0) {
+                        setActiveProfileId(remaining[0]);
+                        resetStateToDefault();
+                        loadGame();
+                    } else {
+                        localStorage.removeItem("activeZooProfileId");
+                        resetStateToDefault();
+                        loadGame();
+                    }
+                    refreshAllUI();
+                }
+                renderManageZoosModal();
+                showToast("Zoo deleted.", "warn");
+            }
+
+            // Resets the in-memory game state object to its default starting values.
+            function resetStateToDefault() {
+                state = {
+                    money: 10000,
+                    food: {
+                        hay: 30,
+                        meat: 20,
+                        produce: 15
+                    },
+                    day: 1,
+                    month: 1,
+                    year: 1,
+                    ticketPrice: 20,
+                    ticketPriceImpact: 0,
+                    ticketSatisfactionImpact: 0,
+                    exhibits: {},
+                    builtEnclosures: {},
+                    hiredStaff: [],
+                    achievements: {},
+                    animalCounters: {},
+                    monthlyReports: [],
+                    moveState: {
+                        active: false,
+                        fromExhibit: null,
+                        animalIndex: null
+                    },
+                    uiMode: "normal",
+                    pendingAnimal: null,
+                    activeUpgradeExhibit: null,
+                    bredAnimals: 0,
+                    animalsSold: 0,
+                    daysSinceNewAnimal: 0,
+                    dailyVisitors: 0,
+                    visitorSpending: {
+                        food: 0,
+                        gifts: 0,
+                        total: 0
+                    },
+                    visitorComplaints: [],
+                    amenities: {},
+                    visitorSatisfaction: 0,
+                    maintenance: {
+                        dailyMaintenanceCost: 0
+                    },
+                    completedResearch: [],
+                    activeResearch: null,
+                    maintenanceWorkers: 0,
+                    maintenanceLevel: 0,
+                    tutorialStep: 0,
+                    tutorialSkipped: false,
+                    recentDeathPenalty: 0,
+                    zooRating: 0,
+                    unnaturalDeaths: 0,
+                    naturalDeaths: 0,
+                    totalDeaths: 0,
+                    zooName: "Unnamed Zoo"
+                };
+            }
+
+            // Re-renders every tab's UI to reflect the current game state.
+            function refreshAllUI() {
+                updateUI();
+                renderExhibits();
+                renderShop();
+                renderStaff();
+                renderResearch();
+                renderVisitors();
+                renderSupplies();
+                renderAmenities();
+                renderAchievements();
+                renderReports();
+            }
+
+/* --------------------------------------------------------------------------
+🚀 16. INITIALIZATION & EVENT LISTENERS
+-------------------------------------------------------------------------- */
+// Boot sequence: load data, render the initial UI, then wire up global event listeners.
+const resetBtn = document.getElementById("resetGameBtn");
+if (resetBtn) {
+    resetBtn.onclick = () => {
+        if (!confirm("Are you sure you want to reset your CURRENT zoo? This cannot be undone.")) return;
+        resetStateToDefault();
+        state.zooName = "Reset Zoo";
+        saveGame();
+        refreshAllUI();
+        showToast("Current zoo has been reset! 🔄", "info");
+    };
+}
+
+// Boot up the game
+loadGame();
+state.food ??= { hay: 30, meat: 20, produce: 15 };
+
+// ✅ FIX: Wrap initialization in an async function to prevent race conditions
+async function initGame() {
+    // Wait for ALL core JSON data to load before evaluating achievements or rendering
+    await Promise.all([
+        loadShop(),
+        loadUpgrades(),
+        loadStaff(),
+        loadAmenities(),
+        loadExhibitTypes(),
+        loadAchievements(),
+        loadResearch()
+    ]);
+
+    // Now it's safe to render and check achievements with full data
+    updateUI();
+    renderExhibits();
+    
+    // ✅ data.animals is now fully populated, so speciesCollection checks are 100% accurate
+    checkAchievements();
+    renderAchievements();
+    
+    renderReports();
+    renderStaff();
+    
+    leaderboardPlayerId = getPlayerId();
+    setInterval(saveGame, 10000);
+    window.addEventListener("beforeunload", saveGame);
+    setTimeout(renderTutorial, 1000);
+}
+
+// Start the async boot sequence
+initGame();
+
+const originalAdvanceDay = advanceDay;
+window.advanceDay = function() {
+    originalAdvanceDay();
+    setTimeout(renderTutorial, 100);
+};
+document.getElementById("endDayBtn").onclick = advanceDay;
+
+// Mobile touch optimizations
+let lastTouchEnd = 0;
+document.addEventListener('touchend', (e) => {
+    const now = Date.now();
+    if (now - lastTouchEnd <= 300) e.preventDefault();
+    lastTouchEnd = now;
+}, { passive: false });
+
+window.addEventListener('load', () => {
+    setTimeout(() => window.scrollTo(0, 1), 100);
+});
+
+document.querySelectorAll('.nav, .complaints-list').forEach(el => {
+    el.style.webkitOverflowScrolling = 'touch';
+});

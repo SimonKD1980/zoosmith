@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta name="theme-color" content="#0f172a">
+        <meta name="mobile-web-app-capable" content="yes">
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+        <title>ZooSmith V0.10.0</title>
+        <link rel="stylesheet" href="style.css">
+        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+        <script type="module" src="firebase-init.js"></script>
+        
+        <header>
+            <div id="ticker">Welcome to your zoo...</div>
+            <div class="header-main">
+                <div class="zoo-name-display"
+                     onclick="openManageZoosModal()"
+                     title="Click to manage zoos">
+                    🏞️ <span id="zooNameDisplay">My Zoo</span> ✏️
+                </div>
+                <div class="stats-bar">
+                    <span class="stat-pill money">💰 $<span id="money">10,000</span></span>
+                    <span class="stat-pill date">📅 Y<span id="year">1</span> M<span id="month">1</span> D<span id="day">1</span></span>
+                    <span class="stat-pill rating" id="ratingBadge" onclick="showRatingBreakdown()" title="Click for details">
+⭐ <span id="zooRating">0</span>% <span id="zooRatingTier">(Struggling)</span>
+                    </span>
+                </div>
+            </div>
+            <!-- 👇 NEW: Settings Gear Icon -->
+            <button id="settingsBtn"
+                    onclick="openSettingsModal()"
+                    title="Settings"
+                    style="position: absolute; top: 12px; right: 12px; background: transparent; border: none; font-size: 1.5rem; cursor: pointer; padding: 8px; z-index: 51;">⚙️</button>
+        </header>
+        <div class="nav">
+            <!-- Core Gameplay -->
+            <button class="active" onclick="showSection('shop', event)">🛒 Shop</button>
+            <button onclick="showSection('exhibits', event)">🏞 Exhibits</button>
+            
+            <!-- Operations -->
+            <button onclick="showSection('staff', event)">👷 Staff</button>
+            <button onclick="showSection('supplies', event)">🍽 Supplies</button>
+            <button onclick="showSection('amenities', event)">🏪 Amenities</button>
+            
+            <!-- Progression -->
+            <button onclick="showSection('research', event)">🔬 Research</button>
+
+            <!-- Feedback -->
+            <button onclick="showSection('visitors', event)">👥 Visitors</button>
+            <button onclick="showSection('reports', event)">📊 Reports</button>
+            
+
+            <!-- Meta -->
+            <button onclick="showSection('achievements', event)">🏆 Achievements</button>
+            <button onclick="showSection('leaderboard', event)">🏆 Leaderboard</button>
+        </div>
+
+        <!-- Floating Action Buttons -->
+        <button id="buildExhibitBtn"
+                class="fab-build"
+                onclick="document.getElementById('buildExhibitBtn').click()">🏗️</button>
+        <button id="endDayBtn"
+                class="fab-end-day">⏭ End Day</button>
+
+        <!-- Settings Modal -->
+        <div id="settingsModal"
+             class="modal"
+             onclick="if(event.target === this) closeSettingsModal()">
+            <div class="modal-content"
+                 style="max-width: 500px;">
+                <h2 style="margin-top: 0;">⚙️ Settings & Save Management</h2>
+                <div style="display: flex; flex-direction: column; gap: 10px; margin: 20px 0;">
+                    <button class="primary-btn"
+                            onclick="openManageZoosModal(); closeSettingsModal();">💾 Manage Zoos / Load Save</button>
+                    <button class="secondary-btn"
+                            onclick="exportSave()">📤 Export Save</button>
+                    <button class="secondary-btn"
+                            onclick="importSave()">📥 Import Save</button>
+                    <button class="secondary-btn"
+                            onclick="openCreditsModal(); closeSettingsModal();">📸 Credits & Attribution</button>
+                    <button class="danger-btn"
+                            onclick="resetZoo()">🧨 Reset Current Zoo</button>
+                </div>
+                <button class="secondary-btn"
+                        onclick="closeSettingsModal()">Close</button>
+            </div>
+        </div>
+
+        <div id="shop"
+             class="section active"></div>
+        <div id="exhibits"
+             class="section"></div>
+        <div id="research"
+             class="section"></div>
+        <div id="visitors"
+             class="section"></div>
+        <div id="supplies"
+             class="section"></div>
+        <div id="amenities"
+             class="section"></div>
+        <div id="achievements"
+             class="section"></div>
+        <div id="reports"
+             class="section"></div>
+        <div id="staff"
+             class="section"></div>
+        <div id="leaderboard"
+             class="section"></div>
+        <!-- Modals -->
+        <div id="buyModal"
+             class="modal">
+            <div class="modal-content">
+                <h3>Select Exhibit</h3>
+                <select id="exhibitSelect"></select>
+                <select id="genderSelect">
+                    <option value="male">Male</option>
+                    <option value="female">Female</option>
+                </select>
+                <button id="confirmBuyBtn">Confirm</button>
+                <button onclick="closeBuyModal()"
+                        class="removeBtn">Cancel</button>
+            </div>
+        </div>
+        <div id="animalInfoModal"
+             class="modal">
+            <div class="modal-content">
+                <div id="animalInfoContent"></div>
+                <button onclick="closeAnimalInfo()"
+                        class="removeBtn">Close</button>
+            </div>
+        </div>
+        <div id="buildModal"
+             class="modal"
+             onclick="if(event.target === this) closeBuildModal()">
+            <div class="modal-content"
+                 style="position: relative;">
+                <button onclick="closeBuildModal()"
+                        style="position: absolute; top: 10px; right: 10px; background: transparent; color: var(--muted); font-size: 1.5rem; border: none; width: auto; padding: 5px 10px; min-height: auto; box-shadow: none; cursor: pointer;">✕</button>
+                <h3>🏗 Build New Exhibit</h3>
+                <p style="color: var(--muted); margin-bottom: 15px;">Choose the type and size of your new exhibit.</p>
+                <div id="buildSizeOptions"
+                     style="display: flex; flex-direction: column; gap: 10px;"></div>
+                <button onclick="closeBuildModal()"
+                        class="removeBtn"
+                        style="margin-top: 10px;">Cancel</button>
+            </div>
+        </div>
+        <div id="eventModal"
+             class="modal">
+            <div class="modal-content"
+                 id="eventModalContent"
+                 style="max-width: 500px; border: 2px solid var(--warn);">
+                <div style="text-align: center; margin-bottom: 15px;">
+                    <span id="eventIcon" style="font-size: 4rem; display: block; margin-bottom: 10px;">📢</span>
+                    <h2 id="eventName"
+                        style="color: var(--warn); margin: 0;">Event Name</h2>
+                </div>
+                <p id="eventDesc"
+                   style="color: var(--muted); text-align: center; margin-bottom: 20px; font-size: 1.1rem;">Description goes here.</p>
+                <div id="eventChoices"
+                     style="display: flex; flex-direction: column; gap: 10px;"></div>
+            </div>
+        </div>
+        <div id="upgradeModal"
+             class="modal">
+            <div class="modal-content">
+                <h3>🏗 Select Upgrade</h3>
+                <div id="upgradeOptions"></div>
+                <button onclick="closeUpgradeModal()"
+                        class="removeBtn">Close</button>
+            </div>
+        </div>
+        <!-- Staff Assignment Modal -->
+        <div id="assignStaffModal"
+             class="modal"
+             onclick="if(event.target === this) closeAssignStaffModal()">
+            <div class="modal-content"
+                 style="max-width: 500px;">
+                <h3 id="assignModalTitle"
+                    style="margin-top: 0;">Assign Staff</h3>
+                <p id="assignModalDesc"
+                   style="color: var(--muted); font-size: 0.9rem; margin-bottom: 15px;"></p>
+                <div id="assignModalList"
+                     style="display: flex; flex-direction: column; gap: 10px; max-height: 300px; overflow-y: auto;"></div>
+                <button class="secondary-btn"
+                        onclick="closeAssignStaffModal()"
+                        style="margin-top: 15px;">Close</button>
+            </div>
+        </div>
+        <div id="ratingModal"
+             class="modal">
+            <div class="modal-content"
+                 style="max-width: 550px;">
+                <div id="ratingModalContent"></div>
+                <button onclick="closeRatingModal()"
+                        class="removeBtn">Close</button>
+            </div>
+        </div>
+        <div id="manageZoosModal"
+             class="modal">
+            <div class="modal-content"
+                 style="max-width: 600px; max-height: 80vh; overflow-y: auto;">
+                <h2 style="margin-top:0;">🏞️ Manage Your Zoos</h2>
+                <p style="color: var(--muted); font-size: 0.9rem;">Switch between different zoos, rename them, or start a fresh new game.</p>
+                <div id="zoosList"
+                     style="display: flex; flex-direction: column; gap: 10px; margin: 20px 0;"></div>
+                <div style="display: flex; gap: 10px;">
+                    <button class="primary-btn"
+                            style="flex:1;"
+                            onclick="createNewZoo()">➕ Create New Zoo</button>
+                    <button class="secondary-btn"
+                            style="flex:1;"
+                            onclick="closeManageZoosModal()">Close</button>
+                </div>
+            </div>
+        </div>
+        <div id="tutorialOverlay"></div>
+        <div id="toast-container"></div>
+        <script src="game.js"></script>
+        </body>
+</html>
